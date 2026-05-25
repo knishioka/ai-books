@@ -1,0 +1,38 @@
+# pre-commit hooks for ai-books.
+# Install locally: `uv run pre-commit install`
+# Run on all files: `uv run pre-commit run --all-files`
+# Update revs: `uv run pre-commit autoupdate`
+#
+# Heavy checks (mypy / pytest) run in `./scripts/verify.sh` and CI — kept out of
+# pre-commit to keep the commit loop fast. Lint/format/secrets/hygiene are here.
+
+# Use the contributor's available `python3` rather than pinning to a specific
+# minor version: this repo supports 3.12+ (CI also runs 3.13) and pinning here
+# would block contributors who only have 3.13 installed from running hooks.
+default_language_version:
+  python: python3
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.14
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
