@@ -79,10 +79,14 @@ keywords = ["AI_BOOKS_"]
 
 [allowlist]
 description = "ai-books global allowlist"
+# Path exclusions are reserved for files that are intentionally full of
+# high-entropy strings (lockfiles) or that *must* be scannable but where
+# scanning has no signal (this config file itself). `.env.example` is
+# DELIBERATELY scanned — placeholders are suppressed by the regexes below,
+# so a real secret accidentally pasted into the template still trips gitleaks.
 paths = [
   '''\.gitleaks\.toml$''',
   '''(^|/)uv\.lock$''',
-  '''(^|/)\.env\.example$''',
   '''(^|/)tests/.*fixtures/.*''',
 ]
 regexes = [
@@ -90,9 +94,7 @@ regexes = [
   '''(?i)EXAMPLE''',
   '''(?i)REDACTED''',
   '''(?i)PLACEHOLDER''',
+  '''(?i)REPLACE[-_ ]?ME''',
   '''(?i)your[-_]?(?:api[-_]?key|token|secret)[-_]?here''',
   '''(?i)\bxxx+\b''',
-  # Common dummy values used in docs/tests
-  '''sk-ant-api03-EXAMPLE''',
-  '''sk-proj-EXAMPLE''',
 ]
