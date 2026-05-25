@@ -27,13 +27,21 @@ Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/knishioka/ai-books.git
 cd ai-books
 uv sync
+uv run pre-commit install          # enable pre-commit hooks (first time only)
 uv run python -m ai_books.server   # starts MCP server on stdio
 ```
 
-Run the verification suite:
+Run the verification suite (lint / format / typecheck / test):
 
 ```bash
 ./scripts/verify.sh
+```
+
+Pre-commit hooks (ruff + hygiene checks) run automatically on `git commit`.
+To run them across the whole repo:
+
+```bash
+uv run pre-commit run --all-files
 ```
 
 ## Use with Claude Desktop
