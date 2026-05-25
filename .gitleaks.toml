@@ -1,0 +1,98 @@
+# gitleaks config for ai-books.
+#
+# Extends the upstream default ruleset (AWS, GCP, GitHub, Stripe, Slack,
+# Anthropic, OpenAI, …) and layers project-specific rules for tokens this
+# product is likely to handle — both at runtime and in AI-assisted dev loops.
+#
+# Local:  uv run pre-commit run gitleaks --all-files
+# CI:     .github/workflows/ci.yml (gitleaks job)
+
+title = "ai-books gitleaks config"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules
+#
+# Upstream defaults already cover the major providers (Anthropic, OpenAI,
+# GitHub PATs, AWS, GCP, Stripe, Slack, ...). The rules below either:
+#   (a) tighten coverage with a stricter shape — distinct IDs so they coexist
+#       with the broader default rule rather than shadowing it, or
+#   (b) cover providers / env conventions defaults don't catch.
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "anthropic-api-key-strict"
+description = "Anthropic API key in the documented sk-ant-(api|admin)NN- shape"
+regex = '''sk-ant-(?:api|admin)[0-9]{2}-[A-Za-z0-9_-]{80,}'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "openai-project-key-strict"
+description = "OpenAI project-scoped API key (sk-proj-...)"
+regex = '''sk-proj-[A-Za-z0-9_-]{40,}'''
+keywords = ["sk-proj-"]
+
+[[rules]]
+id = "openai-organization-id"
+description = "OpenAI organization ID (org-...)"
+regex = '''\borg-[A-Za-z0-9]{20,}\b'''
+keywords = ["org-"]
+
+# freee / MoneyForward: Japanese accounting SaaS the product is likely to
+# integrate with for CSV/API imports. Both use OAuth 2.0 access tokens that
+# are typically passed via ACCESS_TOKEN env vars — match the assignment shape
+# rather than the (high-entropy but otherwise unremarkable) token body.
+[[rules]]
+id = "freee-access-token-assignment"
+description = "freee access token assigned to an env-style variable"
+regex = '''(?i)\bFREEE_(?:ACCESS_TOKEN|CLIENT_SECRET|REFRESH_TOKEN)\s*[:=]\s*["']?[A-Za-z0-9_\-]{30,}["']?'''
+keywords = ["FREEE_"]
+
+[[rules]]
+id = "moneyforward-access-token-assignment"
+description = "MoneyForward access token assigned to an env-style variable"
+regex = '''(?i)\b(?:MF|MONEYFORWARD)_(?:ACCESS_TOKEN|CLIENT_SECRET|REFRESH_TOKEN)\s*[:=]\s*["']?[A-Za-z0-9_\-]{30,}["']?'''
+keywords = ["MF_", "MONEYFORWARD_"]
+
+# Plaid (bank aggregation) — defaults cover client_id but not the secret shape.
+[[rules]]
+id = "plaid-secret-assignment"
+description = "Plaid client secret assigned to an env-style variable"
+regex = '''(?i)\bPLAID_(?:SECRET|CLIENT_SECRET)\s*[:=]\s*["']?[a-f0-9]{30,}["']?'''
+keywords = ["PLAID_"]
+
+# Generic catch for the project's own env namespace.
+[[rules]]
+id = "ai-books-secret-assignment"
+description = "AI_BOOKS_* env variable that looks like a secret"
+regex = '''(?i)\bAI_BOOKS_(?:[A-Z_]*?(?:TOKEN|SECRET|KEY|PASSWORD))\s*[:=]\s*["']?[A-Za-z0-9_\-]{16,}["']?'''
+keywords = ["AI_BOOKS_"]
+
+# ---------------------------------------------------------------------------
+# Global allowlist
+#
+# Suppress matches in files that are intentionally full of high-entropy strings
+# (lockfiles, vendored data) or that document placeholder values.
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "ai-books global allowlist"
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''(^|/)uv\.lock$''',
+  '''(^|/)\.env\.example$''',
+  '''(^|/)tests/.*fixtures/.*''',
+]
+regexes = [
+  # Documentation / example placeholders
+  '''(?i)EXAMPLE''',
+  '''(?i)REDACTED''',
+  '''(?i)PLACEHOLDER''',
+  '''(?i)your[-_]?(?:api[-_]?key|token|secret)[-_]?here''',
+  '''(?i)\bxxx+\b''',
+  # Common dummy values used in docs/tests
+  '''sk-ant-api03-EXAMPLE''',
+  '''sk-proj-EXAMPLE''',
+]

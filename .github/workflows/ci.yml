@@ -58,3 +58,27 @@ jobs:
 
       - name: Run pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  gitleaks:
+    name: Secret scan (full git history)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          # gitleaks needs the full history to detect secrets in past commits
+          # that may have been removed from the working tree.
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      - name: Scan repository
+        run: gitleaks detect --redact --verbose --exit-code 1 --config .gitleaks.toml

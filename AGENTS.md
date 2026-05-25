@@ -51,3 +51,20 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 - 必須チェック: lint / format / typecheck / test がすべて pass
 - セキュリティ: 秘密情報をコード/コミットに含めない。設定は環境変数経由のみ
 - README は変更時に Roadmap セクションの整合性を維持
+
+## Secret scanning
+
+トークン / API キーの混入は **gitleaks** で 2 段ガード。
+
+- ローカル: `.pre-commit-config.yaml` の `gitleaks` hook がコミット時に staged 変更を scan
+- CI: `.github/workflows/ci.yml` の `gitleaks` job が PR ごとに **git 履歴全体** を scan
+- ルール / allowlist: [.gitleaks.toml](./.gitleaks.toml) (upstream defaults + Anthropic / OpenAI / GitHub PAT / freee / MoneyForward / Plaid / `AI_BOOKS_*` の custom rules)
+- 期待される env var の一覧は [.env.example](./.env.example) を参照。実値は `.env` (gitignore 済) に置く
+
+手元で全部 scan:
+
+```bash
+uv run pre-commit run gitleaks --all-files
+```
+
+誤検知が出たら `.gitleaks.toml` の `[allowlist]` に該当パス / regex を追加し、PR でレビューする。**個別行の `# gitleaks:allow` は使わない** (差分レビューで埋もれるため)。
