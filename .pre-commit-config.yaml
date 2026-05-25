@@ -6,8 +6,11 @@
 # Heavy checks (mypy / pytest) run in `./scripts/verify.sh` and CI — kept out of
 # pre-commit to keep the commit loop fast. Lint/format/secrets/hygiene are here.
 
+# Use the contributor's available `python3` rather than pinning to a specific
+# minor version: this repo supports 3.12+ (CI also runs 3.13) and pinning here
+# would block contributors who only have 3.13 installed from running hooks.
 default_language_version:
-  python: python3.12
+  python: python3
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
