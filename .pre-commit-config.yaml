@@ -36,3 +36,10 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        # Config lives at .gitleaks.toml (extends upstream defaults).
+        # The hook auto-discovers it, so no extra args are needed.
