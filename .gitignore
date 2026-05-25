@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# uv
+.uv/
+
+# Test / coverage / cache
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local data (production DB lives at ~/.ai-books/, never in the repo)
+.ai-books/
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# verify.sh runtime logs
+/tmp/verify-*.log
