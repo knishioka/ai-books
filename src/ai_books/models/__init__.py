@@ -30,7 +30,13 @@ from .enums import (
     normal_side_for,
 )
 from .imports import ImportSummary
-from .journal import JournalEntry, JournalEntryInput, JournalLine, JournalLineInput
+from .journal import (
+    YEAR_END_ADJUSTMENT_SOURCE,
+    JournalEntry,
+    JournalEntryInput,
+    JournalLine,
+    JournalLineInput,
+)
 from .period import FiscalYear, Period
 from .query import AccountBalance, AccountLedger, JournalEntryPage, LedgerRow
 from .report import (
@@ -41,11 +47,13 @@ from .report import (
     JournalBookEntry,
     JournalBookLine,
 )
+from .worksheet import Worksheet, WorksheetRow
 
 __all__ = [
     "CREDIT_NORMAL_TYPES",
     "DEBIT_NORMAL_TYPES",
     "STATEMENT_CATEGORY_ACCOUNT_TYPE",
+    "YEAR_END_ADJUSTMENT_SOURCE",
     "Account",
     "AccountBalance",
     "AccountLedger",
@@ -75,5 +83,7 @@ __all__ = [
     "StatementCategory",
     "TrialBalance",
     "TrialBalanceRow",
+    "Worksheet",
+    "WorksheetRow",
     "normal_side_for",
 ]

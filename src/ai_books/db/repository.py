@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from ai_books import aggregation, ledger
 from ai_books.errors import RecordNotFoundError, RepositoryError
 from ai_books.models import (
+    YEAR_END_ADJUSTMENT_SOURCE,
     Account,
     AccountBalance,
     AccountLedger,
@@ -45,6 +46,7 @@ from ai_books.models import (
     NormalSide,
     StatementCategory,
     TrialBalance,
+    Worksheet,
 )
 
 #: A bound SQL statement's positional parameters.
@@ -751,6 +753,77 @@ class LedgerRepository:
             for row in rows
         ]
         return aggregation.assemble_trial_balance(totals, as_of=as_of, start_date=start)
+
+    def worksheet(
+        self,
+        *,
+        fiscal_year: str,
+        start: date,
+        end: date,
+        status: EntryStatus | None = None,
+        adjustment_source: str = YEAR_END_ADJUSTMENT_SOURCE,
+    ) -> Worksheet:
+        """Build the 精算表 over ``[start, end]`` from each account's split footings.
+
+        One GROUP BY sums every touched account's 借方 / 貸方 footings, split by whether the
+        entry's ``source`` marks it a 期末整理仕訳 (``adjustment_source``) or an operating
+        entry — so the same SQL pass feeds both the 残高試算表 and the 修正記入 columns. The
+        netting / routing into the 損益計算書欄 and 貸借対照表欄 is delegated to
+        :func:`ai_books.aggregation.assemble_worksheet` (no second arithmetic path), so the
+        worksheet's 自己検算 (当期純利益 が PL 欄と BS 欄で一致) holds exactly when the books
+        balance. ``status`` follows the same rule as every other read (default excludes 取消).
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.code, a.name, a.account_type,
+                       COALESCE(SUM(jl.amount) FILTER (
+                           WHERE jl.side = 'debit' AND je.source <> %(adjustment_source)s), 0)
+                           AS unadjusted_debit,
+                       COALESCE(SUM(jl.amount) FILTER (
+                           WHERE jl.side = 'credit' AND je.source <> %(adjustment_source)s), 0)
+                           AS unadjusted_credit,
+                       COALESCE(SUM(jl.amount) FILTER (
+                           WHERE jl.side = 'debit' AND je.source = %(adjustment_source)s), 0)
+                           AS adjustment_debit,
+                       COALESCE(SUM(jl.amount) FILTER (
+                           WHERE jl.side = 'credit' AND je.source = %(adjustment_source)s), 0)
+                           AS adjustment_credit
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE je.entry_date >= %(start)s::date
+                  AND je.entry_date <= %(end)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY a.code, a.name, a.account_type
+                ORDER BY a.code
+                """,
+                {
+                    "start": start,
+                    "end": end,
+                    "adjustment_source": adjustment_source,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            rows = cur.fetchall()
+
+        accounts = [
+            aggregation.WorksheetAccount(
+                code=row["code"],
+                name=row["name"],
+                account_type=AccountType(row["account_type"]),
+                unadjusted_debit=Decimal(row["unadjusted_debit"]),
+                unadjusted_credit=Decimal(row["unadjusted_credit"]),
+                adjustment_debit=Decimal(row["adjustment_debit"]),
+                adjustment_credit=Decimal(row["adjustment_credit"]),
+            )
+            for row in rows
+        ]
+        return aggregation.assemble_worksheet(
+            accounts, fiscal_year=fiscal_year, start_date=start, end_date=end
+        )
 
     def monthly_trend(
         self,

@@ -15,7 +15,11 @@ from typing import Any
 import pytest
 
 from ai_books.models import EntrySide
-from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
+from ai_books.reports import (
+    general_ledger_snapshot,
+    journal_book_snapshot,
+    worksheet_snapshot,
+)
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
     MONTHLY_TREND_ACCOUNTS,
@@ -30,6 +34,7 @@ from tests.fixtures.seed_fy import (
     trial_balance_from_dataset,
     trial_balance_snapshot,
     validate_dataset,
+    worksheet_from_dataset,
 )
 from tests.fixtures.seed_fy import golden as golden_mod
 
@@ -181,6 +186,50 @@ def test_general_ledger_running_balance_is_hand_traceable() -> None:
     # 諸口: the opening 期首残高 伝票 has several counter accounts on the cash row.
     assert cash.rows[0].counter_accounts == ["1141", "1180", "1530", "2510", "3110"]
     assert cash.rows[0].voucher_no == "FY2025-000"
+
+
+def test_committed_worksheet_golden_is_up_to_date() -> None:
+    # AC (#22): 精算表 output matches the frozen golden, generated from the dataset.
+    fresh = worksheet_snapshot(worksheet_from_dataset())
+    problems = diff_snapshots(load_golden("worksheet"), fresh)
+    assert problems == [], (
+        "golden/worksheet.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update worksheet`:\n  - " + "\n  - ".join(problems)
+    )
+
+
+def test_worksheet_columns_are_self_balancing() -> None:
+    # AC (#22): 精算表の各列合計が整合 — 試算表 / 修正記入 each foot, and 当期純利益 agrees
+    # between the 損益計算書欄 and 貸借対照表欄 (精算表の自己検算).
+    ws = worksheet_from_dataset()
+    assert ws.is_trial_balanced
+    assert ws.is_adjustments_balanced
+    assert ws.pl_net_income == ws.bs_net_income == ws.net_income
+    assert ws.is_consistent
+    # FY2025 closes at a 純損失 of 580,500 (収益 2,000,500 - 費用 2,581,000).
+    assert ws.net_income == Decimal("-580500")
+
+
+def test_worksheet_splits_year_end_adjustments_into_their_own_column() -> None:
+    # AC (#22): 期末整理仕訳 (減価償却 / 棚卸 / 家事按分) show as 修正記入, not in the 残高試算表.
+    rows = {row.code: row for row in worksheet_from_dataset().rows}
+
+    # 地代家賃: 試算表 600,000, then 家事按分 240,000 in 修正記入 → 損益計算書欄 360,000.
+    rent = rows["7250"]
+    assert rent.trial_debit == Decimal("600000")
+    assert rent.adjustment_credit == Decimal("240000")
+    assert rent.pl_debit == Decimal("360000")
+    # 商品: 期首 300,000 試算表, 期末整理 (期首振替 300,000 貸 + 期末計上 350,000 借) → BS 350,000.
+    goods = rows["1180"]
+    assert goods.trial_debit == Decimal("300000")
+    assert goods.adjustment_debit == Decimal("350000")
+    assert goods.adjustment_credit == Decimal("300000")
+    assert goods.bs_debit == Decimal("350000")
+    # 期末商品棚卸高: a 売上原価 contra booked only at 期末 → 損益計算書欄 *credit* (控除).
+    closing_stock = rows["5130"]
+    assert closing_stock.trial_debit == closing_stock.trial_credit == Decimal("0")
+    assert closing_stock.adjustment_credit == Decimal("350000")
+    assert closing_stock.pl_credit == Decimal("350000")
 
 
 def test_golden_updates_only_via_explicit_flag(
