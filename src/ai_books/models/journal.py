@@ -25,6 +25,13 @@ from .enums import EntrySide, EntryStatus
 _AMOUNT_SCALE = 2
 _AMOUNT_PRECISION = 18
 
+#: ``journal_entries.source`` value marking a 期末整理仕訳 (year-end adjusting entry —
+#: 減価償却 / 棚卸 / 経過勘定 / 家事按分 等). The 精算表 (#22) reads this to split each
+#: account's footings into the 残高試算表 (unadjusted) and 修正記入 (adjustment) columns;
+#: any other source counts as an operating entry. Stored verbatim in the text column,
+#: so an adjustment booked through ``create_journal_entry`` opts in by passing it.
+YEAR_END_ADJUSTMENT_SOURCE = "year_end_adjustment"
+
 
 def validate_amount(value: Decimal) -> Decimal:
     """Enforce the ``numeric(18, 2)`` / positivity contract shared by every 金額 field.

@@ -56,6 +56,8 @@ from .reports import (
     profit_and_loss_from_db,
     trial_balance_from_dataset,
     trial_balance_from_db,
+    worksheet_from_dataset,
+    worksheet_from_db,
 )
 
 __all__ = [
@@ -90,5 +92,7 @@ __all__ = [
     "trial_balance_from_db",
     "trial_balance_snapshot",
     "validate_dataset",
+    "worksheet_from_dataset",
+    "worksheet_from_db",
     "write_golden",
 ]

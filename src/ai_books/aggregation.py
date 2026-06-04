@@ -34,7 +34,13 @@ from ai_books.models import (
     StatementCategory,
     TrialBalance,
     TrialBalanceRow,
+    Worksheet,
+    WorksheetRow,
 )
+
+#: Account types that land on the 損益計算書 (P/L) side of the 精算表 (収益 / 費用);
+#: every other type (資産 / 負債 / 純資産) lands on the 貸借対照表 (B/S) side.
+_PL_ACCOUNT_TYPES = frozenset({AccountType.REVENUE, AccountType.EXPENSE})
 
 
 class AccountTotals(NamedTuple):
@@ -45,6 +51,24 @@ class AccountTotals(NamedTuple):
     normal_balance: NormalSide
     debit_total: Decimal
     credit_total: Decimal
+
+
+class WorksheetAccount(NamedTuple):
+    """An account's footings split into operating vs. 期末整理 (adjustment) buckets.
+
+    ``unadjusted_*`` are the gross 借方 / 貸方 footings of every *non*-adjustment entry
+    (the 残高試算表 source); ``adjustment_*`` are the gross footings of the account's 期末
+    整理仕訳 (the 修正記入 columns). :func:`assemble_worksheet` nets and routes these into
+    the eight worksheet columns.
+    """
+
+    code: str
+    name: str
+    account_type: AccountType
+    unadjusted_debit: Decimal
+    unadjusted_credit: Decimal
+    adjustment_debit: Decimal
+    adjustment_credit: Decimal
 
 
 class ClassifiedBalance(NamedTuple):
@@ -189,6 +213,100 @@ def build_monthly_trend_points(
     return points, running
 
 
+def _split_net(net: Decimal) -> tuple[Decimal, Decimal]:
+    """Place a debit-positive net balance on a worksheet column-pair (借方, 貸方).
+
+    A positive net is a debit balance (borne in the 借方 column); a negative net is a
+    credit balance (its absolute value in the 貸方 column); zero leaves both columns at
+    zero. This is what lets a contra account (期末商品棚卸高 等) cross to the opposite side.
+    """
+    if net > 0:
+        return net, Decimal(0)
+    if net < 0:
+        return Decimal(0), -net
+    return Decimal(0), Decimal(0)
+
+
+def assemble_worksheet(
+    accounts: list[WorksheetAccount],
+    *,
+    fiscal_year: str,
+    start_date: date,
+    end_date: date,
+) -> Worksheet:
+    """Build the 精算表 from each account's operating + 期末整理 footings.
+
+    Per account: the *unadjusted* net (借方 - 貸方 of non-adjustment entries) fills the
+    残高試算表 columns; the 期末整理仕訳 footings fill the 修正記入 columns gross; the
+    *adjusted* net (unadjusted + adjustment) is routed to the 損益計算書欄 (収益 / 費用) or
+    the 貸借対照表欄 (資産 / 負債 / 純資産) by ``account_type``, placed on the side its sign
+    falls on. ``accounts`` is expected pre-ordered (the repository orders by 勘定科目コード);
+    the order is preserved. ``net_income`` (当期純利益) is the P/L footing difference
+    (収益計 - 費用計); it equals the B/S footing difference exactly when the books balance.
+    """
+    rows: list[WorksheetRow] = []
+    trial_debit_total = Decimal(0)
+    trial_credit_total = Decimal(0)
+    adjustment_debit_total = Decimal(0)
+    adjustment_credit_total = Decimal(0)
+    pl_debit_total = Decimal(0)
+    pl_credit_total = Decimal(0)
+    bs_debit_total = Decimal(0)
+    bs_credit_total = Decimal(0)
+
+    for account in accounts:
+        unadjusted_net = account.unadjusted_debit - account.unadjusted_credit
+        trial_debit, trial_credit = _split_net(unadjusted_net)
+
+        adjusted_net = unadjusted_net + account.adjustment_debit - account.adjustment_credit
+        col_debit, col_credit = _split_net(adjusted_net)
+        is_pl = account.account_type in _PL_ACCOUNT_TYPES
+        pl_debit = col_debit if is_pl else Decimal(0)
+        pl_credit = col_credit if is_pl else Decimal(0)
+        bs_debit = Decimal(0) if is_pl else col_debit
+        bs_credit = Decimal(0) if is_pl else col_credit
+
+        rows.append(
+            WorksheetRow(
+                code=account.code,
+                name=account.name,
+                account_type=account.account_type,
+                trial_debit=trial_debit,
+                trial_credit=trial_credit,
+                adjustment_debit=account.adjustment_debit,
+                adjustment_credit=account.adjustment_credit,
+                pl_debit=pl_debit,
+                pl_credit=pl_credit,
+                bs_debit=bs_debit,
+                bs_credit=bs_credit,
+            )
+        )
+        trial_debit_total += trial_debit
+        trial_credit_total += trial_credit
+        adjustment_debit_total += account.adjustment_debit
+        adjustment_credit_total += account.adjustment_credit
+        pl_debit_total += pl_debit
+        pl_credit_total += pl_credit
+        bs_debit_total += bs_debit
+        bs_credit_total += bs_credit
+
+    return Worksheet(
+        fiscal_year=fiscal_year,
+        start_date=start_date,
+        end_date=end_date,
+        rows=rows,
+        trial_debit_total=trial_debit_total,
+        trial_credit_total=trial_credit_total,
+        adjustment_debit_total=adjustment_debit_total,
+        adjustment_credit_total=adjustment_credit_total,
+        pl_debit_total=pl_debit_total,
+        pl_credit_total=pl_credit_total,
+        bs_debit_total=bs_debit_total,
+        bs_credit_total=bs_credit_total,
+        net_income=pl_credit_total - pl_debit_total,
+    )
+
+
 #: The B/S 表示区分 in statement layout order: 資産 (流動→固定), 負債 (流動→固定), 純資産.
 _ASSET_CATEGORIES: tuple[StatementCategory, ...] = (
     StatementCategory.CURRENT_ASSETS,
@@ -307,9 +425,6 @@ _PL_SECTIONS: tuple[tuple[str, str, tuple[StatementCategory, ...]], ...] = (
 _PL_CATEGORY_SECTION: dict[StatementCategory, str] = {
     category: key for key, _label, categories in _PL_SECTIONS for category in categories
 }
-
-#: Account types that belong on the 損益計算書 (everything else is a 貸借対照表 account, #21).
-_PL_ACCOUNT_TYPES = frozenset({AccountType.REVENUE, AccountType.EXPENSE})
 
 
 def assemble_profit_and_loss(

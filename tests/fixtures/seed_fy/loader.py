@@ -81,7 +81,7 @@ def _to_journal_entry(entry: SeedEntry, code_to_id: dict[str, int]) -> JournalEn
         entry_date=entry.entry_date,
         description=entry.description,
         voucher_no=entry.voucher_no,
-        source="seed",
+        source=entry.source,
         status=EntryStatus.POSTED,
         lines=lines,
     )

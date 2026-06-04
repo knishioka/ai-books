@@ -39,12 +39,16 @@ from ai_books.reports import (
     money,
     profit_and_loss_snapshot,
     profit_and_loss_text,
+    worksheet_csv,
+    worksheet_snapshot,
+    worksheet_text,
 )
 from tests.fixtures.seed_fy import (
     balance_sheet_from_dataset,
     general_ledger_from_dataset,
     journal_book_from_dataset,
     profit_and_loss_from_dataset,
+    worksheet_from_dataset,
 )
 
 
@@ -159,6 +163,41 @@ def test_general_ledger_text_renders_carry_and_balance() -> None:
     assert "総勘定元帳" in text
     assert "繰越" in text
     assert "期末残高" in text
+
+
+# --- 精算表 (worksheet, Issue #22) ---------------------------------------------
+
+
+def test_worksheet_snapshot_carries_columns_and_net_income() -> None:
+    snapshot = worksheet_snapshot(worksheet_from_dataset())
+    assert snapshot["report"] == "worksheet"
+    assert snapshot["fiscal_year"] == "FY2025"
+    # The footings let a reader re-check 借貸平均 and the 自己検算 from the file alone.
+    assert snapshot["trial_debit_total"] == snapshot["trial_credit_total"]
+    assert snapshot["adjustment_debit_total"] == snapshot["adjustment_credit_total"]
+    assert snapshot["net_income"] == "-580500.00"
+    rent = next(row for row in snapshot["rows"] if row["code"] == "7250")
+    assert rent["adjustment_credit"] == "240000.00"  # 家事按分 in 修正記入
+    assert rent["pl_debit"] == "360000.00"  # adjusted into the 損益計算書欄
+
+
+def test_worksheet_csv_has_totals_and_net_income_rows() -> None:
+    rows = list(csv.reader(io.StringIO(worksheet_csv(worksheet_from_dataset()))))
+    header, *body = rows
+    assert header[:3] == ["code", "name", "account_type"]
+    labels = [row[1] for row in body]
+    assert "合計" in labels
+    assert "当期純利益" in labels
+    net_income_row = next(row for row in body if row[1] == "当期純利益")
+    # 当期純利益 sits in the 損益計算書欄 借方 and the 貸借対照表欄 貸方 columns.
+    assert net_income_row[7] == "-580500.00"  # pl_debit column
+    assert net_income_row[10] == "-580500.00"  # bs_credit column
+
+
+def test_worksheet_text_renders_panels_and_net_income() -> None:
+    text = worksheet_text(worksheet_from_dataset())
+    assert "精算表" in text
+    assert "当期純利益 -580500.00" in text
 
 
 # --- 貸借対照表 (Issue #21) ------------------------------------------------------

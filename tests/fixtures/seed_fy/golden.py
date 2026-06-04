@@ -32,6 +32,7 @@ from ai_books.reports import (
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
+    worksheet_snapshot,
 )
 
 from .dataset import FISCAL_YEAR
@@ -43,6 +44,7 @@ from .reports import (
     monthly_trend_from_dataset,
     profit_and_loss_from_dataset,
     trial_balance_from_dataset,
+    worksheet_from_dataset,
 )
 
 if TYPE_CHECKING:
@@ -153,6 +155,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "balance_sheet": (
         "balance_sheet.json",
         lambda: balance_sheet_snapshot(balance_sheet_from_dataset()),
+    ),
+    "worksheet": (
+        "worksheet.json",
+        lambda: worksheet_snapshot(worksheet_from_dataset()),
     ),
 }
 

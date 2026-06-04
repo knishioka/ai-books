@@ -34,7 +34,13 @@ from datetime import date
 from decimal import Decimal
 from typing import NamedTuple
 
-from ai_books.models import AccountType, EntrySide, NormalSide, StatementCategory
+from ai_books.models import (
+    YEAR_END_ADJUSTMENT_SOURCE,
+    AccountType,
+    EntrySide,
+    NormalSide,
+    StatementCategory,
+)
 from ai_books.seed.accounts import CHART_OF_ACCOUNTS
 
 #: The fiscal year this dataset models. Used to label golden snapshots.
@@ -61,12 +67,16 @@ class SeedEntry(NamedTuple):
 
     ``voucher_no`` is unique across the dataset; :mod:`.loader` uses it both to assign
     ``journal_entries.voucher_no`` and to skip already-loaded entries (idempotency).
+    ``source`` is the 起票元 stored on the entry: ``"seed"`` for an operating transaction,
+    :data:`~ai_books.models.YEAR_END_ADJUSTMENT_SOURCE` for a 期末整理仕訳 so the 精算表 (#22)
+    can split it into the 修正記入 columns.
     """
 
     voucher_no: str
     entry_date: date
     description: str
     lines: tuple[SeedLine, ...]
+    source: str = "seed"
 
 
 def _yen(amount: int) -> Decimal:
@@ -84,8 +94,14 @@ def _c(code: str, amount: int) -> SeedLine:
     return SeedLine(code, EntrySide.CREDIT, _yen(amount))
 
 
-def _entry(voucher_no: str, entry_date: date, description: str, *lines: SeedLine) -> SeedEntry:
-    return SeedEntry(voucher_no, entry_date, description, lines)
+def _entry(
+    voucher_no: str,
+    entry_date: date,
+    description: str,
+    *lines: SeedLine,
+    source: str = "seed",
+) -> SeedEntry:
+    return SeedEntry(voucher_no, entry_date, description, lines, source)
 
 
 # ── The fiscal year, in chronological order ─────────────────────────────────────
@@ -248,6 +264,7 @@ FY_ENTRIES: tuple[SeedEntry, ...] = (
         "期末整理: 地代家賃 家事按分 40%",
         _d("1290", 240_000),  # 事業主貸
         _c("7250", 240_000),
+        source=YEAR_END_ADJUSTMENT_SOURCE,
     ),
     # 減価償却 (機械装置, 製造原価, 直接法).
     _entry(
@@ -256,6 +273,7 @@ FY_ENTRIES: tuple[SeedEntry, ...] = (
         "期末整理: 減価償却 (機械装置, 製造)",
         _d("6330", 240_000),  # 減価償却費 (製造)
         _c("1530", 240_000),
+        source=YEAR_END_ADJUSTMENT_SOURCE,
     ),
     # 減価償却 (工具器具備品, 販管費, 直接法).
     _entry(
@@ -264,6 +282,7 @@ FY_ENTRIES: tuple[SeedEntry, ...] = (
         "期末整理: 減価償却 (工具器具備品, 販管)",
         _d("7210", 60_000),  # 減価償却費 (販管)
         _c("1550", 60_000),
+        source=YEAR_END_ADJUSTMENT_SOURCE,
     ),
     # 期末整理: 期首商品棚卸高への振替 (期首商品 → 売上原価)。
     _entry(
@@ -272,6 +291,7 @@ FY_ENTRIES: tuple[SeedEntry, ...] = (
         "期末整理: 期首商品棚卸高 振替",
         _d("5110", 300_000),  # 期首商品棚卸高
         _c("1180", 300_000),
+        source=YEAR_END_ADJUSTMENT_SOURCE,
     ),
     # 期末整理: 期末商品棚卸高の計上 (売上原価の控除)。
     _entry(
@@ -280,6 +300,7 @@ FY_ENTRIES: tuple[SeedEntry, ...] = (
         "期末整理: 期末商品棚卸高 計上",
         _d("1180", 350_000),
         _c("5130", 350_000),  # 期末商品棚卸高 (貸方/控除)
+        source=YEAR_END_ADJUSTMENT_SOURCE,
     ),
 )
 
@@ -295,7 +316,7 @@ def normal_side(code: str) -> NormalSide:
 
 
 def account_type(code: str) -> AccountType:
-    """The 科目区分 for ``code`` from the canonical chart."""
+    """The 科目区分 for ``code`` from the canonical chart (routes 精算表 P/L vs B/S)."""
     return _BY_CODE[code].account_type
 
 

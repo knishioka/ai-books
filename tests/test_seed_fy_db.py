@@ -24,6 +24,7 @@ from ai_books.reports import (
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
+    worksheet_snapshot,
 )
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
@@ -36,6 +37,7 @@ from tests.fixtures.seed_fy import (
     profit_and_loss_from_db,
     trial_balance_from_db,
     trial_balance_snapshot,
+    worksheet_from_db,
 )
 
 pytestmark = pytest.mark.skipif(
@@ -191,6 +193,27 @@ def test_db_general_ledger_matches_golden(migrated_conn: psycopg.Connection[Any]
     expected = load_golden("general_ledger")
     problems = diff_snapshots(expected, actual)
     assert problems == [], "DB general ledger diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+# --- 精算表 (Issue #22) --------------------------------------------------------
+
+
+def test_db_worksheet_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#22): the DB-read 精算表 (source-split into 残高試算表 / 修正記入, routed to PL/BS)
+    # equals the frozen golden — the SQL path agrees with the offline reduction.
+    load_fiscal_year(migrated_conn)
+    actual = worksheet_snapshot(worksheet_from_db(migrated_conn))
+    expected = load_golden("worksheet")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB worksheet diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_worksheet_is_self_balancing(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#22): 当期純利益 が PL 欄と BS 欄で一致, verified over the real stored rows.
+    load_fiscal_year(migrated_conn)
+    ws = worksheet_from_db(migrated_conn)
+    assert ws.is_consistent
+    assert ws.pl_net_income == ws.bs_net_income == ws.net_income
 
 
 # --- 決算書: 貸借対照表 (Issue #21) --------------------------------------------

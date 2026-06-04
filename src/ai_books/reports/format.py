@@ -29,6 +29,8 @@ from ai_books.models import (
     ProfitAndLossLine,
     ProfitAndLossSection,
     StatementCategory,
+    Worksheet,
+    WorksheetRow,
 )
 
 #: Two-decimal quantum matching ``numeric(18, 2)``.
@@ -345,6 +347,149 @@ def _period_label(start: date | None, end: date | None) -> str:
     if start is None and end is None:
         return "全期間"
     return f"{_iso(start) or '開始'} 〜 {_iso(end) or '終了'}"
+
+
+# --- 精算表 (worksheet) ---------------------------------------------------------
+
+
+def worksheet_snapshot(worksheet: Worksheet) -> dict[str, Any]:
+    """Turn a :class:`~ai_books.models.Worksheet` into its canonical JSON shape.
+
+    Rows stay in 科目コード順, each carrying its four column-pairs (残高試算表 / 修正記入 /
+    損益計算書欄 / 貸借対照表欄). The eight column footings and 当期純利益 are included so the
+    worksheet's 自己検算 (PL 欄と BS 欄の当期純利益が一致) is visible in the file itself.
+    """
+    return {
+        "report": "worksheet",
+        "fiscal_year": worksheet.fiscal_year,
+        "rows": [_worksheet_row(row) for row in worksheet.rows],
+        "trial_debit_total": money(worksheet.trial_debit_total),
+        "trial_credit_total": money(worksheet.trial_credit_total),
+        "adjustment_debit_total": money(worksheet.adjustment_debit_total),
+        "adjustment_credit_total": money(worksheet.adjustment_credit_total),
+        "pl_debit_total": money(worksheet.pl_debit_total),
+        "pl_credit_total": money(worksheet.pl_credit_total),
+        "bs_debit_total": money(worksheet.bs_debit_total),
+        "bs_credit_total": money(worksheet.bs_credit_total),
+        "net_income": money(worksheet.net_income),
+    }
+
+
+def _worksheet_row(row: WorksheetRow) -> dict[str, Any]:
+    return {
+        "code": row.code,
+        "name": row.name,
+        "account_type": row.account_type.value,
+        "trial_debit": money(row.trial_debit),
+        "trial_credit": money(row.trial_credit),
+        "adjustment_debit": money(row.adjustment_debit),
+        "adjustment_credit": money(row.adjustment_credit),
+        "pl_debit": money(row.pl_debit),
+        "pl_credit": money(row.pl_credit),
+        "bs_debit": money(row.bs_debit),
+        "bs_credit": money(row.bs_credit),
+    }
+
+
+_WORKSHEET_CSV_HEADER = [
+    "code",
+    "name",
+    "account_type",
+    "trial_debit",
+    "trial_credit",
+    "adjustment_debit",
+    "adjustment_credit",
+    "pl_debit",
+    "pl_credit",
+    "bs_debit",
+    "bs_credit",
+]
+
+
+def worksheet_csv(worksheet: Worksheet) -> str:
+    """Render the 精算表 as CSV — one row per 勘定科目, then a 合計 row and a 当期純利益 row.
+
+    The 当期純利益 row carries the balancing figure on the side each column-pair needs it
+    (損益計算書欄 借方 / 貸借対照表欄 貸方), so the footings below it foot column by column.
+    """
+    # newline="" so csv.writer controls line endings (avoids \r\r\n on Windows — see csv docs).
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow(_WORKSHEET_CSV_HEADER)
+    for row in worksheet.rows:
+        writer.writerow(
+            [
+                row.code,
+                row.name,
+                row.account_type.value,
+                money(row.trial_debit),
+                money(row.trial_credit),
+                money(row.adjustment_debit),
+                money(row.adjustment_credit),
+                money(row.pl_debit),
+                money(row.pl_credit),
+                money(row.bs_debit),
+                money(row.bs_credit),
+            ]
+        )
+    writer.writerow(
+        [
+            "",
+            "合計",
+            "",
+            money(worksheet.trial_debit_total),
+            money(worksheet.trial_credit_total),
+            money(worksheet.adjustment_debit_total),
+            money(worksheet.adjustment_credit_total),
+            money(worksheet.pl_debit_total),
+            money(worksheet.pl_credit_total),
+            money(worksheet.bs_debit_total),
+            money(worksheet.bs_credit_total),
+        ]
+    )
+    writer.writerow(
+        [
+            "",
+            "当期純利益",
+            "",
+            "",
+            "",
+            "",
+            "",
+            money(worksheet.net_income),
+            "",
+            "",
+            money(worksheet.net_income),
+        ]
+    )
+    return buffer.getvalue()
+
+
+def worksheet_text(worksheet: Worksheet) -> str:
+    """Render the 精算表 as 整形テキスト for human inspection."""
+    lines: list[str] = [
+        "精算表 (Worksheet)",
+        f"  会計年度: {worksheet.fiscal_year}  "
+        f"期間: {_period_label(worksheet.start_date, worksheet.end_date)}",
+        "  科目: [試算表 借/貸] [修正記入 借/貸] [PL 借/貸] [BS 借/貸]",
+    ]
+    for row in worksheet.rows:
+        lines.append(
+            f"  [{row.code}] {row.name}"
+            f"  試 {money(row.trial_debit)}/{money(row.trial_credit)}"
+            f"  修 {money(row.adjustment_debit)}/{money(row.adjustment_credit)}"
+            f"  損 {money(row.pl_debit)}/{money(row.pl_credit)}"
+            f"  貸 {money(row.bs_debit)}/{money(row.bs_credit)}"
+        )
+    lines.append(
+        "  合計"
+        f"  試 {money(worksheet.trial_debit_total)}/{money(worksheet.trial_credit_total)}"
+        f"  修 {money(worksheet.adjustment_debit_total)}/{money(worksheet.adjustment_credit_total)}"
+        f"  損 {money(worksheet.pl_debit_total)}/{money(worksheet.pl_credit_total)}"
+        f"  貸 {money(worksheet.bs_debit_total)}/{money(worksheet.bs_credit_total)}"
+    )
+    lines.append(f"  当期純利益 {money(worksheet.net_income)}")
+    return "\n".join(lines) + "\n"
 
 
 # --- 損益計算書 (profit & loss, Issue #20) --------------------------------------

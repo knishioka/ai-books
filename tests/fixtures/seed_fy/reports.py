@@ -33,6 +33,7 @@ from ai_books.db.repository import (
     LedgerRepository,
 )
 from ai_books.models import (
+    YEAR_END_ADJUSTMENT_SOURCE,
     BalanceSheet,
     EntrySide,
     EntryStatus,
@@ -47,6 +48,7 @@ from ai_books.models import (
     ProfitAndLoss,
     TrialBalance,
     TrialBalanceRow,
+    Worksheet,
 )
 
 from .dataset import (
@@ -407,6 +409,72 @@ def general_ledger_from_db(
 ) -> GeneralLedger:
     """Read the 総勘定元帳 from Postgres through the production :class:`LedgerRepository`."""
     return LedgerRepository(conn).general_ledger(start=FY_START, end=FY_END, status=status)
+
+
+# ── 精算表 (worksheet, Issue #22) ─────────────────────────────────────────────
+
+
+def worksheet_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> Worksheet:
+    """Reduce the in-memory dataset into the 精算表 — no database required.
+
+    Splits each account's footings by ``entry.source`` (operating vs. 期末整理仕訳, mirroring
+    the DB path's source filter) and runs them through the shared
+    :func:`ai_books.aggregation.assemble_worksheet`, so the offline golden source and the DB
+    path net/route the columns the same way while summing independently.
+    """
+    unadjusted_debit: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    unadjusted_credit: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    adjustment_debit: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    adjustment_credit: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    for entry in entries:
+        if entry.entry_date < FY_START or entry.entry_date > FY_END:
+            continue
+        is_adjustment = entry.source == YEAR_END_ADJUSTMENT_SOURCE
+        for line in entry.lines:
+            if line.side is EntrySide.DEBIT:
+                bucket = adjustment_debit if is_adjustment else unadjusted_debit
+            else:
+                bucket = adjustment_credit if is_adjustment else unadjusted_credit
+            bucket[line.account_code] += line.amount
+
+    codes = (
+        unadjusted_debit.keys()
+        | unadjusted_credit.keys()
+        | adjustment_debit.keys()
+        | adjustment_credit.keys()
+    )
+    accounts = [
+        aggregation.WorksheetAccount(
+            code=code,
+            name=account_name(code),
+            account_type=account_type(code),
+            unadjusted_debit=unadjusted_debit.get(code, Decimal(0)),
+            unadjusted_credit=unadjusted_credit.get(code, Decimal(0)),
+            adjustment_debit=adjustment_debit.get(code, Decimal(0)),
+            adjustment_credit=adjustment_credit.get(code, Decimal(0)),
+        )
+        for code in sorted(codes)
+    ]
+    return aggregation.assemble_worksheet(
+        accounts, fiscal_year=FISCAL_YEAR, start_date=FY_START, end_date=FY_END
+    )
+
+
+def worksheet_from_db(
+    conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
+) -> Worksheet:
+    """Read the 精算表 from Postgres through the production :class:`LedgerRepository`.
+
+    Resolves the :data:`~tests.fixtures.seed_fy.dataset.FISCAL_YEAR` row (seeded by
+    :func:`~tests.fixtures.seed_fy.loader.load_fiscal_year`) and delegates to
+    :meth:`ai_books.db.repository.LedgerRepository.worksheet` — the code Issue #22 ships —
+    so there is no second arithmetic path to drift from :func:`worksheet_from_dataset`.
+    """
+    year = FiscalYearRepository(conn).get_by_name(FISCAL_YEAR)
+    assert year is not None, f"fiscal year {FISCAL_YEAR} not seeded"
+    return LedgerRepository(conn).worksheet(
+        fiscal_year=year.name, start=year.start_date, end=year.end_date, status=status
+    )
 
 
 # ── 貸借対照表 (balance sheet, Issue #21) ─────────────────────────────────────────

@@ -20,6 +20,7 @@ from ai_books.models import (
     NormalSide,
     ProfitAndLoss,
     StatementCategory,
+    Worksheet,
 )
 
 # --- month_windows ------------------------------------------------------------
@@ -182,6 +183,116 @@ def test_monthly_trend_inconsistent_when_closing_tampered() -> None:
     trend = _trend("100", ["50"] + ["0"] * 11, NormalSide.DEBIT)
     tampered = trend.model_copy(update={"closing_balance": Decimal("999")})
     assert not tampered.is_consistent
+
+
+# --- assemble_worksheet -------------------------------------------------------
+
+
+def _wsa(
+    code: str,
+    name: str,
+    account_type: AccountType,
+    unadjusted_debit: str,
+    unadjusted_credit: str,
+    adjustment_debit: str = "0",
+    adjustment_credit: str = "0",
+) -> aggregation.WorksheetAccount:
+    return aggregation.WorksheetAccount(
+        code=code,
+        name=name,
+        account_type=account_type,
+        unadjusted_debit=Decimal(unadjusted_debit),
+        unadjusted_credit=Decimal(unadjusted_credit),
+        adjustment_debit=Decimal(adjustment_debit),
+        adjustment_credit=Decimal(adjustment_credit),
+    )
+
+
+def _worksheet(accounts: list[aggregation.WorksheetAccount]) -> Worksheet:
+    return aggregation.assemble_worksheet(
+        accounts,
+        fiscal_year="FY2025",
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 31),
+    )
+
+
+def test_assemble_worksheet_routes_columns_and_reconciles_profit() -> None:
+    # 機械装置 carries an adjustment (減価償却), so the 試算表 → 修正記入 → BS flow is exercised.
+    accounts = [
+        _wsa("1110", "現金", AccountType.ASSET, "1000", "0"),
+        _wsa("1530", "機械装置", AccountType.ASSET, "500", "0", adjustment_credit="100"),
+        _wsa("3110", "元入金", AccountType.EQUITY, "0", "500"),
+        _wsa("4110", "売上高", AccountType.REVENUE, "0", "1000"),
+        _wsa("6330", "減価償却費", AccountType.EXPENSE, "0", "0", adjustment_debit="100"),
+    ]
+    ws = _worksheet(accounts)
+    by_code = {row.code: row for row in ws.rows}
+
+    # 残高試算表欄: unadjusted net placed on its side; 修正記入欄: the adjustment gross.
+    assert by_code["1530"].trial_debit == Decimal("500")
+    assert by_code["1530"].adjustment_credit == Decimal("100")
+    # 機械装置 adjusted 500 - 100 = 400 lands in the B/S (asset) debit column.
+    assert by_code["1530"].bs_debit == Decimal("400")
+    assert by_code["1530"].pl_debit == by_code["1530"].pl_credit == Decimal("0")
+    # 売上高 routes to the P/L credit column; 減価償却費 (adjustment only) to the P/L debit.
+    assert by_code["4110"].pl_credit == Decimal("1000")
+    assert by_code["6330"].pl_debit == Decimal("100")
+    assert by_code["6330"].trial_debit == by_code["6330"].trial_credit == Decimal("0")
+
+    # 当期純利益 reconciles across both panels (収益 1000 - 費用 100 = 900) — the 自己検算.
+    assert ws.net_income == Decimal("900")
+    assert ws.pl_net_income == ws.bs_net_income == Decimal("900")
+    assert ws.is_consistent
+
+
+def test_assemble_worksheet_handles_contra_and_loss() -> None:
+    # 期末商品棚卸高 is an expense account carrying a credit balance (売上原価の控除): it must
+    # cross to the P/L *credit* column, and the year is a 純損失.
+    accounts = [
+        _wsa("1110", "現金", AccountType.ASSET, "100", "0"),
+        _wsa("1180", "商品", AccountType.ASSET, "0", "0", adjustment_debit="300"),
+        _wsa("2120", "買掛金", AccountType.LIABILITY, "0", "800"),
+        _wsa("4110", "売上高", AccountType.REVENUE, "0", "100"),
+        _wsa("5120", "仕入高", AccountType.EXPENSE, "800", "0"),
+        _wsa("5130", "期末商品棚卸高", AccountType.EXPENSE, "0", "0", adjustment_credit="300"),
+    ]
+    ws = _worksheet(accounts)
+    by_code = {row.code: row for row in ws.rows}
+
+    # contra: expense account, but the credit balance lands on the P/L credit side.
+    assert by_code["5130"].pl_credit == Decimal("300")
+    assert by_code["5130"].pl_debit == Decimal("0")
+    assert by_code["1180"].bs_debit == Decimal("300")  # adjusted-in asset
+
+    # Loss: 費用 800 > 収益 (100 + 300 contra) = 400, so 当期純利益 is negative and still reconciles.
+    assert ws.net_income == Decimal("-400")
+    assert ws.pl_net_income == ws.bs_net_income == Decimal("-400")
+    assert ws.is_trial_balanced
+    assert ws.is_adjustments_balanced
+    assert ws.is_consistent
+
+
+def test_assemble_worksheet_preserves_order_and_is_empty_safe() -> None:
+    ws = _worksheet([])
+    assert ws.rows == []
+    assert ws.net_income == Decimal("0")
+    assert ws.is_consistent  # 0 == 0 == 0
+
+    ordered = _worksheet(
+        [
+            _wsa("4110", "売上高", AccountType.REVENUE, "0", "1"),
+            _wsa("1110", "現金", AccountType.ASSET, "1", "0"),
+        ]
+    )
+    assert [row.code for row in ordered.rows] == ["4110", "1110"]
+
+
+def test_assemble_worksheet_inconsistent_when_books_do_not_balance() -> None:
+    # An unbalanced input (no offsetting credit) breaks the 当期純利益 self-check.
+    ws = _worksheet([_wsa("1110", "現金", AccountType.ASSET, "100", "0")])
+    assert ws.pl_net_income != ws.bs_net_income
+    assert not ws.is_consistent
 
 
 # --- assemble_profit_and_loss -------------------------------------------------

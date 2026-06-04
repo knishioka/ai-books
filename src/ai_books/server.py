@@ -63,6 +63,7 @@ from ai_books.models import (
     ProfitAndLoss,
     StatementCategory,
     TrialBalance,
+    Worksheet,
 )
 from ai_books.services import CsvImportService, JournalService
 
@@ -74,10 +75,10 @@ mcp: FastMCP = FastMCP(
         "Read tools cover the chart of accounts (list_accounts / get_account / "
         "search_accounts) and the journals, balances, and general ledger (総勘定元帳) — "
         "list_journal_entries / get_journal_entry / get_account_balance / "
-        "get_account_ledger. Aggregation tools (trial_balance / monthly_trend) return the "
-        "合計残高試算表 and 月次推移; profit_and_loss returns the 損益計算書 (P/L) staged into the "
-        "青色申告決算書 layout and balance_sheet returns the 貸借対照表 (B/S). Amounts are exact "
-        "decimals returned as strings."
+        "get_account_ledger. Aggregation tools (trial_balance / monthly_trend / worksheet) "
+        "return the 合計残高試算表, 月次推移, and 精算表; profit_and_loss returns the 損益計算書 "
+        "(P/L) staged into the 青色申告決算書 layout and balance_sheet returns the 貸借対照表 "
+        "(B/S). Amounts are exact decimals returned as strings."
     ),
 )
 
@@ -323,6 +324,29 @@ def monthly_trend(
             raise RecordNotFoundError("fiscal_year", fiscal_year)
         return LedgerRepository(conn).monthly_trend(
             account_id,
+            fiscal_year=year.name,
+            start=year.start_date,
+            end=year.end_date,
+            status=_parse_status(status),
+        )
+
+
+@mcp.tool
+def worksheet(fiscal_year: str, status: str | None = None) -> Worksheet:
+    """Return the 精算表 (8桁ワークシート) for ``fiscal_year`` (会計年度名, 例: ``FY2025``).
+
+    Lays the 決算過程 out as one table so the flow from the 試算表 to the 損益計算書 / 貸借
+    対照表 is auditable: each account carries 残高試算表 (期末整理前の残高), 修正記入 (期末
+    整理仕訳 — ``source='year_end_adjustment'`` の仕訳), 損益計算書欄, and 貸借対照表欄. The
+    self-check is 当期純利益 が PL 欄と BS 欄で一致 — exact when the books balance. Errors if the
+    fiscal year is unknown. Pass ``status='posted'`` for the 記帳確定 books; the default
+    excludes 取消.
+    """
+    with db.connect() as conn:
+        year = FiscalYearRepository(conn).get_by_name(fiscal_year)
+        if year is None:
+            raise RecordNotFoundError("fiscal_year", fiscal_year)
+        return LedgerRepository(conn).worksheet(
             fiscal_year=year.name,
             start=year.start_date,
             end=year.end_date,
