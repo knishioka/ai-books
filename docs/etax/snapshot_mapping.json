@@ -1,0 +1,208 @@
+{
+  "purpose": "Draft mapping: ai_books.reports.financial_statements_snapshot paths -> 実 e-Tax 項目コード (KOA210 青色申告決算書(一般用) v11.0). Input for #78. 値の検証はしていない下書き。",
+  "form": {
+    "form_id": "KOA210",
+    "label": "青色申告決算書(一般用)",
+    "version": "11.0"
+  },
+  "confidence": "draft — ラベル一致ベース。#78 でゴールデン .xtx と突き合わせて確定すること。",
+  "scalar_mappings": [
+    {
+      "snapshot": "profit_and_loss.sales.subtotal",
+      "synthetic_code": "PL010",
+      "etax_code": "AMF00100",
+      "etax_label": "売上（収入）金額",
+      "ok": true
+    },
+    {
+      "snapshot": "profit_and_loss.cost_of_goods_sold.subtotal",
+      "synthetic_code": "PL020",
+      "etax_code": "AMF00160",
+      "etax_label": "差引原価",
+      "note": "実様式は 期首(AMF00120)+仕入(AMF00130)=小計(AMF00140) −期末(AMF00150) →差引原価(AMF00160) の固定計算。仕入金額(AMF00130)は製品製造原価(AMH00220)と連動。"
+    },
+    {
+      "snapshot": "profit_and_loss.gross_profit",
+      "synthetic_code": "PL030",
+      "etax_code": "AMF00170",
+      "etax_label": "差引金額１",
+      "ok": true
+    },
+    {
+      "snapshot": "profit_and_loss.selling_admin_expenses.subtotal",
+      "synthetic_code": "PL040",
+      "etax_code": "AMF00380",
+      "etax_label": "経費 計",
+      "note": "実様式の経費は固定勘定科目行(AMF00190租税公課〜AMF00370雑費)+追加科目枠(AMF00360)。任意内訳ではない。"
+    },
+    {
+      "snapshot": "profit_and_loss.operating_income",
+      "synthetic_code": "PL050",
+      "etax_code": "AMF00390",
+      "etax_label": "差引金額２",
+      "note": "実様式に『営業利益』概念は無い。差引金額２ = 差引金額１ − 経費計 が最近接。"
+    },
+    {
+      "snapshot": "profit_and_loss.non_operating_income.subtotal",
+      "synthetic_code": "PL060",
+      "etax_code": null,
+      "note": "実様式(一般用)に営業外収益の段は無い。各種引当金・準備金等(繰戻額) AMF00440 が構造的に近いが意味が異なる。#78 で要再設計。"
+    },
+    {
+      "snapshot": "profit_and_loss.non_operating_expenses.subtotal",
+      "synthetic_code": "PL070",
+      "etax_code": null,
+      "note": "実様式に営業外費用の段は無い。各種引当金・準備金等(繰入額) AMF00490 が構造的に近いが意味が異なる。"
+    },
+    {
+      "snapshot": "profit_and_loss.ordinary_income",
+      "synthetic_code": "PL080",
+      "etax_code": null,
+      "note": "実様式に経常利益の段は無い。"
+    },
+    {
+      "snapshot": "profit_and_loss.net_income",
+      "synthetic_code": "PL090",
+      "etax_code": "AMF00500",
+      "etax_label": "青色申告特別控除前の所得金額",
+      "note": "控除後の所得金額は AMF00530、控除額は AMF00510。"
+    },
+    {
+      "snapshot": "monthly.sales_total",
+      "synthetic_code": "MN900",
+      "etax_code": "AMF00980",
+      "etax_label": "月別売上（収入）金額 合計",
+      "ok": true
+    },
+    {
+      "snapshot": "monthly.purchases_total",
+      "synthetic_code": "MN910",
+      "etax_code": "AMF00990",
+      "etax_label": "月別仕入金額 合計",
+      "ok": true
+    },
+    {
+      "snapshot": "depreciation.total_depreciation",
+      "synthetic_code": "DP900",
+      "etax_code": "AMF00290",
+      "etax_label": "経費 減価償却費",
+      "note": "明細は『減価償却費の計算』(KOA210 2/3ページ目の繰返しブロック)。経費計上額が AMF00290。"
+    },
+    {
+      "snapshot": "manufacturing_cost.materials.subtotal",
+      "synthetic_code": "MC010",
+      "etax_code": "AMH00070",
+      "etax_label": "差引原材料費",
+      "note": "期首(AMH00030)+仕入(AMH00040)=小計(AMH00050) −期末(AMH00060)。"
+    },
+    {
+      "snapshot": "manufacturing_cost.labor.subtotal",
+      "synthetic_code": "MC020",
+      "etax_code": "AMH00080",
+      "etax_label": "労務費",
+      "ok": true
+    },
+    {
+      "snapshot": "manufacturing_cost.overhead.subtotal",
+      "synthetic_code": "MC030",
+      "etax_code": "AMH00170",
+      "etax_label": "その他の製造経費 計",
+      "note": "外注工賃/電力費/水道光熱費/修繕費/減価償却費/追加科目(8枠)/雑費 の合計。"
+    },
+    {
+      "snapshot": "manufacturing_cost.total_manufacturing_cost",
+      "synthetic_code": "MC040",
+      "etax_code": "AMH00180",
+      "etax_label": "総製造費",
+      "ok": true
+    },
+    {
+      "snapshot": "manufacturing_cost.cost_of_goods_manufactured",
+      "synthetic_code": "MC050",
+      "etax_code": "AMH00220",
+      "etax_label": "製品製造原価",
+      "ok": true
+    },
+    {
+      "snapshot": "balance_sheet.total_assets",
+      "synthetic_code": "BS900",
+      "etax_code": "AMG00440",
+      "etax_label": "資産の部(期末) 合計",
+      "note": "実様式は期首(AMG00230)/期末(AMG00440)の2列。snapshot は期末のみ。"
+    },
+    {
+      "snapshot": "balance_sheet.total_liabilities",
+      "synthetic_code": "BS910",
+      "etax_code": "AMG00760",
+      "etax_label": "負債・資本の部(期末) 合計",
+      "note": "実様式は負債と純資産を『負債・資本の部』に統合。total_liabilities 単独には対応しない。"
+    },
+    {
+      "snapshot": "balance_sheet.total_equity",
+      "synthetic_code": "BS920",
+      "etax_code": null,
+      "note": "実様式に純資産小計は無い。元入金(期末) + 青色申告特別控除前所得(AMG00750) が資本相当。#78 で要再設計。"
+    },
+    {
+      "snapshot": "balance_sheet.net_income",
+      "synthetic_code": "BS930",
+      "etax_code": "AMG00750",
+      "etax_label": "青色申告特別控除前の所得金額",
+      "note": "PL の AMF00500 と一致すべき (貸借/損益の整合)。"
+    }
+  ],
+  "section_mappings": [
+    {
+      "snapshot": "profit_and_loss.cost_of_goods_sold.lines",
+      "synthetic_section": "PL_COGS_LINES",
+      "etax": "固定計算(AMF00120期首/AMF00130仕入/AMF00150期末)",
+      "note": "任意内訳ではない。"
+    },
+    {
+      "snapshot": "profit_and_loss.selling_admin_expenses.lines",
+      "synthetic_section": "PL_SGA_LINES",
+      "etax": "固定勘定科目行 AMF00190〜AMF00370 + 追加科目 AMF00360",
+      "note": "勘定科目→固定行のマッピング表が #78 で必要。"
+    },
+    {
+      "snapshot": "monthly.rows",
+      "synthetic_section": "MONTHLY_ROWS",
+      "etax": "12ヶ月固定: 1月 AMF00600(売上)/AMF00610(仕入) 〜 12月 AMF00930/AMF00940",
+      "ok": true,
+      "note": "繰返しではなく月ごとに固定タグ。"
+    },
+    {
+      "snapshot": "depreciation.lines",
+      "synthetic_section": "DEPRECIATION_LINES",
+      "etax": "減価償却費の計算 (KOA210-2/-3, 繰返しブロック)",
+      "note": "取得価額・本年分償却費・期末未償却残高等の列構成は #78 で確認。"
+    },
+    {
+      "snapshot": "balance_sheet.assets[].lines",
+      "synthetic_section": "BS_ASSET_LINES",
+      "etax": "固定資産科目行 (期末) AMG00260現金〜AMG00410土地 + 追加科目 AMG00420 + 事業主貸 AMG00430",
+      "note": "任意区分の繰返しではなく固定行。"
+    },
+    {
+      "snapshot": "balance_sheet.liabilities[].lines",
+      "synthetic_section": "BS_LIABILITY_LINES",
+      "etax": "負債・資本の部(期末) 固定行 AMG00640支払手形〜AMG00690預り金 + 追加科目 + 貸倒引当金",
+      "note": "負債と資本が同一区分。"
+    },
+    {
+      "snapshot": "balance_sheet.equity[].lines",
+      "synthetic_section": "BS_EQUITY_LINES",
+      "etax": "負債・資本の部(期末) 元入金 + 青色申告特別控除前所得(AMG00750)",
+      "note": "純資産区分は独立して存在しない。"
+    }
+  ],
+  "structural_deltas_for_78": [
+    "経費・資産・負債は『任意の繰返し内訳』ではなく様式固定の勘定科目行 + 少数の追加科目枠。snapshot の自由な lines を固定行へ割り付けるマッピング表が必須。",
+    "貸借対照表は期首・期末の2列構成。snapshot は期末残高のみ保持 → 期首をどう供給するか #78 で要件化。",
+    "負債と純資産は『負債・資本の部』に統合され、純資産小計/負債小計の独立項目が無い。",
+    "損益は段階表示(営業利益/営業外/経常利益)を持たず、差引金額1→経費→差引金額2→各種引当金繰戻/繰入→青色申告特別控除前所得→控除額→所得金額 の構成。",
+    "売上原価は内訳行ではなく 期首+仕入−期末 の固定計算。仕入(AMF00130)は製造原価(AMH00220)と連動。",
+    "ヘッダ必須メタ: 元号/年分(AMA00000), 納税者住所/氏名(AMB00010/40), 提出年月日(AME00000), 業種名(AMB00090), 依頼税理士等 等。snapshot には存在しないため #78 で入力経路が必要。",
+    "VR属性(様式バージョン '11.0')が各 page 要素に required。"
+  ]
+}

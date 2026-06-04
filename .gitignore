@@ -15,6 +15,9 @@ dist/
 # uv
 .uv/
 
+# e-Tax spec cache (#76) — 国税庁 著作物。fetch_etax_spec.py の取得物は commit しない
+.cache/
+
 # Test / coverage / cache
 .pytest_cache/
 .coverage
