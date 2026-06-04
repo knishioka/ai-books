@@ -151,6 +151,31 @@ class CsvImportError(AiBooksError):
         return payload
 
 
+class EtaxValidationError(AiBooksError):
+    """The e-Tax 取込データ failed its schema check before being emitted (#24).
+
+    Raised by :func:`ai_books.etax.export.build_etax_export` when the 決算書 → e-Tax mapping
+    would produce output the 様式 (:class:`~ai_books.etax.spec.EtaxFormatSpec`) does not allow:
+    a 必須項目 missing, a 金額 that is not whole-yen or exceeds the field's 桁数, a 不正な
+    勘定科目コード, or a malformed 月. Like the seed integrity check, validation does not stop at
+    the first fault — ``problems`` lists every issue (each ``{"item_code", "row", "message"}``,
+    ``row`` present only for 内訳/月別 cells) so the whole export can be fixed in one pass, and the
+    payload is returned verbatim by the MCP tool so a calling agent can reason about each fault.
+    """
+
+    error_code = "etax_validation_error"
+
+    def __init__(self, problems: list[dict[str, str]]) -> None:
+        self.problems = problems
+        super().__init__(
+            f"e-Tax export failed schema validation ({len(problems)} problem(s)):\n  - "
+            + "\n  - ".join(p["message"] for p in problems)
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"error": self.error_code, "message": str(self), "details": self.problems}
+
+
 class EntryStateError(AiBooksError):
     """A journal-entry lifecycle transition that the 状態 does not allow.
 

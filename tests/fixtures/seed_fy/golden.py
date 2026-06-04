@@ -27,6 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ai_books.etax import etax_export_snapshot
 from ai_books.reports import (
     balance_sheet_snapshot,
     financial_statements_snapshot,
@@ -40,6 +41,7 @@ from .dataset import FISCAL_YEAR
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
     balance_sheet_from_dataset,
+    etax_export_from_dataset,
     financial_statements_from_dataset,
     general_ledger_from_dataset,
     journal_book_from_dataset,
@@ -165,6 +167,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "financial_statements": (
         "financial_statements.json",
         lambda: financial_statements_snapshot(financial_statements_from_dataset()),
+    ),
+    "etax_export": (
+        "etax_export.json",
+        lambda: etax_export_snapshot(etax_export_from_dataset()),
     ),
 }
 

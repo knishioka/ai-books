@@ -156,6 +156,20 @@ uv run python -m tests.fixtures.seed_fy --update   # 更新は明示フラグで
 ゴールデンは DB 不要で生成でき、pytest ハーネスは DB ロード結果を SQL 集計してゴールデンと
 比較する。設計意図と手計算で追える期末残高は上記 README に記載。
 
+## e-Tax 取込データ出力 (電子申告)
+
+最終出力。青色申告決算書 (#23) の数値を **e-Tax 取込データ (CSV / XML)** に変換する
+(`export_etax` MCP tool)。様式は年度で変わるため、決算書 → e-Tax のマッピングは
+[`src/ai_books/etax/spec.py`](./src/ai_books/etax/spec.py) に **データ駆動の様式仕様**
+(`EtaxFormatSpec`、バージョン管理) として外出しし、年度追従は仕様の差し替えだけで済む。
+出力前に必須項目・桁数・勘定科目コード・月をスキーマ検証し、欠落や不正コードは
+`EtaxValidationError` で全件まとめてエラーにする (金額は整数円、端数は不可)。
+
+> ⚠️ **生成物はコミットしない。** e-Tax 取込データは事業者の確定数値 (秘密情報) を含む。
+> 出力をファイルに保存する場合もリポジトリには絶対に置かないこと
+> (`.ai-books/` 配下や gitignore 済みのパスを使う)。テストの架空データに対する期待値
+> (ゴールデン) のみコミット対象。
+
 ## Use with Claude Desktop
 
 A reference `claude-desktop-config.json` lands in Issue #5. The shape will be:
