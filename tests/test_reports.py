@@ -186,7 +186,12 @@ def test_profit_and_loss_text_renders_each_stage() -> None:
 
 def _unclassified_pl() -> ProfitAndLoss:
     """A P/L carrying one 未分類 expense (表示区分なし) to pin the surfacing behaviour."""
-    empty = ProfitAndLossSection(key="x", label="x", lines=[], subtotal=Decimal("0"))
+
+    def empty(key: str) -> ProfitAndLossSection:
+        # A fresh instance per field — DomainModel allows assignment, so sharing one
+        # mutable section across fields could alias edits between them.
+        return ProfitAndLossSection(key=key, label=key, lines=[], subtotal=Decimal("0"))
+
     return ProfitAndLoss(
         fiscal_year="FY2025",
         start_date=date(2025, 1, 1),
@@ -204,12 +209,12 @@ def _unclassified_pl() -> ProfitAndLoss:
             ],
             subtotal=Decimal("1000"),
         ),
-        cost_of_goods_sold=empty,
+        cost_of_goods_sold=empty("cost_of_goods_sold"),
         gross_profit=Decimal("1000"),
-        selling_admin_expenses=empty,
+        selling_admin_expenses=empty("selling_admin_expenses"),
         operating_income=Decimal("1000"),
-        non_operating_income=empty,
-        non_operating_expenses=empty,
+        non_operating_income=empty("non_operating_income"),
+        non_operating_expenses=empty("non_operating_expenses"),
         ordinary_income=Decimal("1000"),
         net_income=Decimal("1000"),
         unclassified=[
