@@ -72,6 +72,7 @@ class JournalEntry(DomainModel):
     description: str | None = None  # 摘要
     voucher_no: str | None = None  # 伝票番号
     source: str = "manual"  # 起票元
+    import_hash: str | None = None  # CSV 取込元行の指紋 (#14, NULL = 非取込)
     status: EntryStatus = EntryStatus.DRAFT
     void_reason: str | None = None  # 取消理由 (status=voided のときのみ)
     voided_at: datetime | None = None  # 取消時刻 (status=voided のときのみ)

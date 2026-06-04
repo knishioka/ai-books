@@ -70,15 +70,18 @@ class JournalService:
         *,
         actor: str = DEFAULT_ACTOR,
         tool_name: str = "create_journal_entry",
+        import_hash: str | None = None,
     ) -> JournalEntry:
         """Validate, persist, and audit a new entry; return it as stored.
 
         The entry must balance and reference only active accounts; its 取引日 must sit
         within a defined fiscal year (when any exist). A 伝票番号 is auto-assigned from
-        the sequence when the caller does not supply one.
+        the sequence when the caller does not supply one. ``import_hash`` is set by the
+        CSV import path (#14) to fingerprint the source row for 二重取込検知; the
+        ``journal_entries.import_hash`` partial-unique index backs it.
         """
         with self._conn.transaction():
-            entry = self._build_entry(data)
+            entry = self._build_entry(data, import_hash=import_hash)
             if entry.voucher_no is None:
                 entry = entry.model_copy(update={"voucher_no": self._journals.next_voucher_no()})
             stored = self._journals.insert_entry(entry)
@@ -227,7 +230,11 @@ class JournalService:
         return entry
 
     def _build_entry(
-        self, data: JournalEntryInput, *, voucher_no_override: str | None = None
+        self,
+        data: JournalEntryInput,
+        *,
+        voucher_no_override: str | None = None,
+        import_hash: str | None = None,
     ) -> JournalEntry:
         """Turn validated input into a domain :class:`JournalEntry` ready to store.
 
@@ -257,6 +264,7 @@ class JournalService:
                 if voucher_no_override is not None
                 else data.voucher_no,
                 source=data.source,
+                import_hash=import_hash,
                 status=data.status,
                 lines=lines,
             )

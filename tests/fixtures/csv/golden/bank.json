@@ -1,0 +1,102 @@
+{
+  "fixture": "bank",
+  "account_code": "1141",
+  "format": "auto",
+  "entries": [
+    {
+      "import_hash": "91917ef88be1d860cab82a5bce943765776531c19e3b7ac9c10ebe4025d4c98d",
+      "to_suspense": false,
+      "entry_date": "2026-04-05",
+      "description": "東京電力 電気料金",
+      "source": "csv:generic_bank",
+      "lines": [
+        {
+          "account_code": "7130",
+          "side": "debit",
+          "amount": "8500"
+        },
+        {
+          "account_code": "1141",
+          "side": "credit",
+          "amount": "8500"
+        }
+      ]
+    },
+    {
+      "import_hash": "b2259dc278bbfe3c29b42516598211543daf49a0470952e89130a9a9d893e3b5",
+      "to_suspense": false,
+      "entry_date": "2026-04-10",
+      "description": "JR東日本 SUICAチャージ",
+      "source": "csv:generic_bank",
+      "lines": [
+        {
+          "account_code": "7140",
+          "side": "debit",
+          "amount": "3000"
+        },
+        {
+          "account_code": "1141",
+          "side": "credit",
+          "amount": "3000"
+        }
+      ]
+    },
+    {
+      "import_hash": "8b447734a47558d57a44f59a0e19b9559fd421e72eb9c4cfd94dbb3e0f3db8f9",
+      "to_suspense": false,
+      "entry_date": "2026-04-15",
+      "description": "振込 ABC商事 売上代金",
+      "source": "csv:generic_bank",
+      "lines": [
+        {
+          "account_code": "1141",
+          "side": "debit",
+          "amount": "150000"
+        },
+        {
+          "account_code": "4110",
+          "side": "credit",
+          "amount": "150000"
+        }
+      ]
+    },
+    {
+      "import_hash": "c1510f383a97eab8be07f462ce8f5948258b97d3b139b3b1a931e21e412d96de",
+      "to_suspense": true,
+      "entry_date": "2026-04-20",
+      "description": "UNKNOWN WITHDRAWAL",
+      "source": "csv:generic_bank",
+      "lines": [
+        {
+          "account_code": "1210",
+          "side": "debit",
+          "amount": "5000"
+        },
+        {
+          "account_code": "1141",
+          "side": "credit",
+          "amount": "5000"
+        }
+      ]
+    },
+    {
+      "import_hash": "606a4698a8bfd125bc80f4bbbc35526bcb0d900b911aaf8c84d5510574546777",
+      "to_suspense": false,
+      "entry_date": "2026-04-25",
+      "description": "預金利息",
+      "source": "csv:generic_bank",
+      "lines": [
+        {
+          "account_code": "1141",
+          "side": "debit",
+          "amount": "120"
+        },
+        {
+          "account_code": "8110",
+          "side": "credit",
+          "amount": "120"
+        }
+      ]
+    }
+  ]
+}

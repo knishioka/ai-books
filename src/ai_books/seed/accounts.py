@@ -97,6 +97,9 @@ CHART_OF_ACCOUNTS: tuple[SeedAccount, ...] = (
     _acct("1180", "商品", _C.CURRENT_ASSETS),
     _acct("1190", "前払金", _C.CURRENT_ASSETS),
     _acct("1200", "貸付金", _C.CURRENT_ASSETS),
+    # 仮払金 — 相手科目未確定の出金を一時退避する suspense 科目 (#14 CSV 取込)。
+    # 後で正しい費用/資産科目へ振替える前提の clearing account。
+    _acct("1210", "仮払金", _C.CURRENT_ASSETS),
     _acct("1290", "事業主貸", _C.CURRENT_ASSETS),
     # ── 資産: 固定資産 ──────────────────────────────────────────────
     _acct("1510", "建物", _C.FIXED_ASSETS),
@@ -112,6 +115,9 @@ CHART_OF_ACCOUNTS: tuple[SeedAccount, ...] = (
     _acct("2140", "前受金", _C.CURRENT_LIABILITIES),
     _acct("2150", "預り金", _C.CURRENT_LIABILITIES),
     _acct("2160", "短期借入金", _C.CURRENT_LIABILITIES),
+    # 仮受金 — 相手科目未確定の入金を一時退避する suspense 科目 (#14 CSV 取込)。
+    # 後で正しい収益/負債科目へ振替える前提の clearing account。
+    _acct("2170", "仮受金", _C.CURRENT_LIABILITIES),
     # ── 負債: 固定負債 ──────────────────────────────────────────────
     _acct("2510", "長期借入金", _C.FIXED_LIABILITIES),
     # ── 純資産 ──────────────────────────────────────────────────────
