@@ -8,7 +8,7 @@
   "records": [
     {
       "form": "PL",
-      "item_code": "PL010",
+      "item_code": "AMF00100",
       "label": "売上(収入)金額",
       "kind": "amount",
       "row": null,
@@ -17,8 +17,35 @@
     },
     {
       "form": "PL",
-      "item_code": "PL020",
-      "label": "売上原価",
+      "item_code": "AMF00120",
+      "label": "期首商品(製品)棚卸高",
+      "kind": "amount",
+      "row": null,
+      "account_code": "5110",
+      "value": "300000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00150",
+      "label": "期末商品(製品)棚卸高",
+      "kind": "amount",
+      "row": null,
+      "account_code": "5130",
+      "value": "350000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00130",
+      "label": "仕入金額(製品製造原価)",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "1540000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00160",
+      "label": "差引原価",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -26,8 +53,8 @@
     },
     {
       "form": "PL",
-      "item_code": "PL030",
-      "label": "売上総利益",
+      "item_code": "AMF00170",
+      "label": "差引金額１",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -35,8 +62,62 @@
     },
     {
       "form": "PL",
-      "item_code": "PL040",
-      "label": "経費",
+      "item_code": "AMF00210",
+      "label": "水道光熱費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7130",
+      "value": "120000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00220",
+      "label": "旅費交通費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7140",
+      "value": "80000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00230",
+      "label": "通信費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7150",
+      "value": "60000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00280",
+      "label": "消耗品費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7200",
+      "value": "40000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00290",
+      "label": "減価償却費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7210",
+      "value": "60000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00340",
+      "label": "地代家賃",
+      "kind": "amount",
+      "row": null,
+      "account_code": "7250",
+      "value": "360000"
+    },
+    {
+      "form": "PL",
+      "item_code": "AMF00380",
+      "label": "経費 計",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -44,8 +125,8 @@
     },
     {
       "form": "PL",
-      "item_code": "PL050",
-      "label": "営業利益",
+      "item_code": "AMF00390",
+      "label": "差引金額２",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -53,34 +134,7 @@
     },
     {
       "form": "PL",
-      "item_code": "PL060",
-      "label": "営業外収益",
-      "kind": "amount",
-      "row": null,
-      "account_code": null,
-      "value": "500"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL070",
-      "label": "営業外費用",
-      "kind": "amount",
-      "row": null,
-      "account_code": null,
-      "value": "21000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL080",
-      "label": "経常利益",
-      "kind": "amount",
-      "row": null,
-      "account_code": null,
-      "value": "-580500"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL090",
+      "item_code": "AMF00500",
       "label": "青色申告特別控除前の所得金額",
       "kind": "amount",
       "row": null,
@@ -89,8 +143,224 @@
     },
     {
       "form": "MONTHLY",
-      "item_code": "MN900",
-      "label": "売上(収入)金額 合計",
+      "item_code": "AMF00600",
+      "label": "1月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00610",
+      "label": "1月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00630",
+      "label": "2月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "220000"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00640",
+      "label": "2月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "900000"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00660",
+      "label": "3月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "550000"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00670",
+      "label": "3月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00690",
+      "label": "4月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00700",
+      "label": "4月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00720",
+      "label": "5月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00730",
+      "label": "5月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00750",
+      "label": "6月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00760",
+      "label": "6月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00780",
+      "label": "7月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00790",
+      "label": "7月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00810",
+      "label": "8月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00820",
+      "label": "8月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00840",
+      "label": "9月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "880000"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00850",
+      "label": "9月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00870",
+      "label": "10月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00880",
+      "label": "10月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00900",
+      "label": "11月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00910",
+      "label": "11月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00930",
+      "label": "12月 売上(収入)金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00940",
+      "label": "12月 仕入金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "MONTHLY",
+      "item_code": "AMF00980",
+      "label": "月別売上(収入)金額(計)",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -98,8 +368,8 @@
     },
     {
       "form": "MONTHLY",
-      "item_code": "MN910",
-      "label": "仕入金額 合計",
+      "item_code": "AMF00990",
+      "label": "月別仕入金額(計)",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -107,17 +377,89 @@
     },
     {
       "form": "DEPRECIATION",
-      "item_code": "DP900",
+      "item_code": "AMF01610",
+      "label": "減価償却資産の名称等",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "機械装置"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01640",
+      "label": "取得価額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "1200000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01750",
       "label": "本年分の償却費合計",
       "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "240000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01780",
+      "label": "未償却残高",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "960000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01610",
+      "label": "減価償却資産の名称等",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "工具器具備品"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01640",
+      "label": "取得価額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "480000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01750",
+      "label": "本年分の償却費合計",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "60000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01780",
+      "label": "未償却残高",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "420000"
+    },
+    {
+      "form": "DEPRECIATION",
+      "item_code": "AMF01830",
+      "label": "本年分の償却費合計(計)",
+      "kind": "amount",
       "row": null,
       "account_code": null,
       "value": "300000"
     },
     {
-      "form": "MANUFACTURING",
-      "item_code": "MC010",
-      "label": "材料費",
+      "form": "DEPRECIATION",
+      "item_code": "AMF01840",
+      "label": "本年分の必要経費算入額(計)",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -125,7 +467,25 @@
     },
     {
       "form": "MANUFACTURING",
-      "item_code": "MC020",
+      "item_code": "AMH00040",
+      "label": "原材料仕入高",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "300000"
+    },
+    {
+      "form": "MANUFACTURING",
+      "item_code": "AMH00070",
+      "label": "差引原材料費",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "300000"
+    },
+    {
+      "form": "MANUFACTURING",
+      "item_code": "AMH00080",
       "label": "労務費",
       "kind": "amount",
       "row": null,
@@ -134,8 +494,17 @@
     },
     {
       "form": "MANUFACTURING",
-      "item_code": "MC030",
-      "label": "製造経費",
+      "item_code": "AMH00140",
+      "label": "減価償却費",
+      "kind": "amount",
+      "row": null,
+      "account_code": "6330",
+      "value": "240000"
+    },
+    {
+      "form": "MANUFACTURING",
+      "item_code": "AMH00170",
+      "label": "その他の製造経費 計",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -143,8 +512,8 @@
     },
     {
       "form": "MANUFACTURING",
-      "item_code": "MC040",
-      "label": "当期製造費用",
+      "item_code": "AMH00180",
+      "label": "総製造費",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -152,8 +521,8 @@
     },
     {
       "form": "MANUFACTURING",
-      "item_code": "MC050",
-      "label": "当期製品製造原価",
+      "item_code": "AMH00220",
+      "label": "製品製造原価",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -161,8 +530,71 @@
     },
     {
       "form": "BS",
-      "item_code": "BS900",
-      "label": "資産合計",
+      "item_code": "AMG00260",
+      "label": "現金",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1110",
+      "value": "300000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00290",
+      "label": "その他の預金",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1141",
+      "value": "169500"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00310",
+      "label": "売掛金",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1160",
+      "value": "880000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00330",
+      "label": "棚卸資産",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1180",
+      "value": "350000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00380",
+      "label": "機械装置",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1530",
+      "value": "960000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00400",
+      "label": "工具・器具・備品",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1550",
+      "value": "420000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00430",
+      "label": "事業主貸",
+      "kind": "amount",
+      "row": null,
+      "account_code": "1290",
+      "value": "240000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00440",
+      "label": "資産の部(期末)合計",
       "kind": "amount",
       "row": null,
       "account_code": null,
@@ -170,1038 +602,48 @@
     },
     {
       "form": "BS",
-      "item_code": "BS910",
-      "label": "負債合計",
+      "item_code": "AMG00660",
+      "label": "借入金",
       "kind": "amount",
       "row": null,
-      "account_code": null,
+      "account_code": "2510",
       "value": "600000"
     },
     {
       "form": "BS",
-      "item_code": "BS920",
-      "label": "純資産合計",
+      "item_code": "AMG00730",
+      "label": "事業主借",
       "kind": "amount",
       "row": null,
-      "account_code": null,
-      "value": "2719500"
+      "account_code": "3120",
+      "value": "100000"
     },
     {
       "form": "BS",
-      "item_code": "BS930",
-      "label": "青色申告特別控除前所得金額",
+      "item_code": "AMG00740",
+      "label": "元入金",
+      "kind": "amount",
+      "row": null,
+      "account_code": "3110",
+      "value": "3200000"
+    },
+    {
+      "form": "BS",
+      "item_code": "AMG00750",
+      "label": "青色申告特別控除前の所得金額",
       "kind": "amount",
       "row": null,
       "account_code": null,
       "value": "-580500"
     },
     {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "5110",
-      "value": "5110"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "5110",
-      "value": "期首商品棚卸高"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "5110",
-      "value": "300000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 2,
-      "account_code": "5120",
-      "value": "5120"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 2,
-      "account_code": "5120",
-      "value": "仕入高"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "5120",
-      "value": "600000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 3,
-      "account_code": "5130",
-      "value": "5130"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 3,
-      "account_code": "5130",
-      "value": "期末商品棚卸高"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 3,
-      "account_code": "5130",
-      "value": "-350000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 4,
-      "account_code": "6120",
-      "value": "6120"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 4,
-      "account_code": "6120",
-      "value": "原材料仕入高"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 4,
-      "account_code": "6120",
-      "value": "300000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 5,
-      "account_code": "6210",
-      "value": "6210"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 5,
-      "account_code": "6210",
-      "value": "賃金"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 5,
-      "account_code": "6210",
-      "value": "400000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL110",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 6,
-      "account_code": "6330",
-      "value": "6330"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL111",
-      "label": "科目名",
-      "kind": "text",
-      "row": 6,
-      "account_code": "6330",
-      "value": "減価償却費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL112",
-      "label": "金額",
-      "kind": "amount",
-      "row": 6,
-      "account_code": "6330",
-      "value": "240000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "7130",
-      "value": "7130"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "7130",
-      "value": "水道光熱費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "7130",
-      "value": "120000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 2,
-      "account_code": "7140",
-      "value": "7140"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 2,
-      "account_code": "7140",
-      "value": "旅費交通費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "7140",
-      "value": "80000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 3,
-      "account_code": "7150",
-      "value": "7150"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 3,
-      "account_code": "7150",
-      "value": "通信費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 3,
-      "account_code": "7150",
-      "value": "60000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 4,
-      "account_code": "7200",
-      "value": "7200"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 4,
-      "account_code": "7200",
-      "value": "消耗品費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 4,
-      "account_code": "7200",
-      "value": "40000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 5,
-      "account_code": "7210",
-      "value": "7210"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 5,
-      "account_code": "7210",
-      "value": "減価償却費"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 5,
-      "account_code": "7210",
-      "value": "60000"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL120",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 6,
-      "account_code": "7250",
-      "value": "7250"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL121",
-      "label": "科目名",
-      "kind": "text",
-      "row": 6,
-      "account_code": "7250",
-      "value": "地代家賃"
-    },
-    {
-      "form": "PL",
-      "item_code": "PL122",
-      "label": "金額",
-      "kind": "amount",
-      "row": 6,
-      "account_code": "7250",
-      "value": "360000"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 1,
-      "account_code": null,
-      "value": "2025-01"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 2,
-      "account_code": null,
-      "value": "2025-02"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": null,
-      "value": "220000"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": null,
-      "value": "900000"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 3,
-      "account_code": null,
-      "value": "2025-03"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 3,
-      "account_code": null,
-      "value": "550000"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 3,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 4,
-      "account_code": null,
-      "value": "2025-04"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 4,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 4,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 5,
-      "account_code": null,
-      "value": "2025-05"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 5,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 5,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 6,
-      "account_code": null,
-      "value": "2025-06"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 6,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 6,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 7,
-      "account_code": null,
-      "value": "2025-07"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 7,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 7,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 8,
-      "account_code": null,
-      "value": "2025-08"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 8,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 8,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 9,
-      "account_code": null,
-      "value": "2025-09"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 9,
-      "account_code": null,
-      "value": "880000"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 9,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 10,
-      "account_code": null,
-      "value": "2025-10"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 10,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 10,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 11,
-      "account_code": null,
-      "value": "2025-11"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 11,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 11,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN010",
-      "label": "月",
-      "kind": "month",
-      "row": 12,
-      "account_code": null,
-      "value": "2025-12"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN011",
-      "label": "売上(収入)金額",
-      "kind": "amount",
-      "row": 12,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "MONTHLY",
-      "item_code": "MN012",
-      "label": "仕入金額",
-      "kind": "amount",
-      "row": 12,
-      "account_code": null,
-      "value": "0"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "1530",
-      "value": "1530"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "1530",
-      "value": "機械装置"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP012",
-      "label": "取得価額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "1530",
-      "value": "1200000"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP013",
-      "label": "本年分の償却費",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "1530",
-      "value": "240000"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP014",
-      "label": "期末未償却残高",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "1530",
-      "value": "960000"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 2,
-      "account_code": "1550",
-      "value": "1550"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 2,
-      "account_code": "1550",
-      "value": "工具器具備品"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP012",
-      "label": "取得価額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "1550",
-      "value": "480000"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP013",
-      "label": "本年分の償却費",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "1550",
-      "value": "60000"
-    },
-    {
-      "form": "DEPRECIATION",
-      "item_code": "DP014",
-      "label": "期末未償却残高",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "1550",
-      "value": "420000"
-    },
-    {
       "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "1110",
-      "value": "1110"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "1110",
-      "value": "現金"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
+      "item_code": "AMG00760",
+      "label": "負債・資本の部(期末)合計",
       "kind": "amount",
-      "row": 1,
-      "account_code": "1110",
-      "value": "300000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 2,
-      "account_code": "1141",
-      "value": "1141"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 2,
-      "account_code": "1141",
-      "value": "普通預金"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "1141",
-      "value": "169500"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 3,
-      "account_code": "1160",
-      "value": "1160"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 3,
-      "account_code": "1160",
-      "value": "売掛金"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 3,
-      "account_code": "1160",
-      "value": "880000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 4,
-      "account_code": "1180",
-      "value": "1180"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 4,
-      "account_code": "1180",
-      "value": "商品"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 4,
-      "account_code": "1180",
-      "value": "350000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 5,
-      "account_code": "1290",
-      "value": "1290"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 5,
-      "account_code": "1290",
-      "value": "事業主貸"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 5,
-      "account_code": "1290",
-      "value": "240000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 6,
-      "account_code": "1530",
-      "value": "1530"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 6,
-      "account_code": "1530",
-      "value": "機械装置"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 6,
-      "account_code": "1530",
-      "value": "960000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS010",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 7,
-      "account_code": "1550",
-      "value": "1550"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS011",
-      "label": "科目名",
-      "kind": "text",
-      "row": 7,
-      "account_code": "1550",
-      "value": "工具器具備品"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS012",
-      "label": "金額",
-      "kind": "amount",
-      "row": 7,
-      "account_code": "1550",
-      "value": "420000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS020",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "2510",
-      "value": "2510"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS021",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "2510",
-      "value": "長期借入金"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS022",
-      "label": "金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "2510",
-      "value": "600000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS030",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 1,
-      "account_code": "3110",
-      "value": "3110"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS031",
-      "label": "科目名",
-      "kind": "text",
-      "row": 1,
-      "account_code": "3110",
-      "value": "元入金"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS032",
-      "label": "金額",
-      "kind": "amount",
-      "row": 1,
-      "account_code": "3110",
-      "value": "3200000"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS030",
-      "label": "科目コード",
-      "kind": "code",
-      "row": 2,
-      "account_code": "3120",
-      "value": "3120"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS031",
-      "label": "科目名",
-      "kind": "text",
-      "row": 2,
-      "account_code": "3120",
-      "value": "事業主借"
-    },
-    {
-      "form": "BS",
-      "item_code": "BS032",
-      "label": "金額",
-      "kind": "amount",
-      "row": 2,
-      "account_code": "3120",
-      "value": "100000"
+      "row": null,
+      "account_code": null,
+      "value": "3319500"
     }
   ]
 }
