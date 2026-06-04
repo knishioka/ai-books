@@ -490,7 +490,7 @@ class JournalRepository(BaseRepository[JournalEntry]):
                   AND (CASE WHEN %(status)s::entry_status IS NULL
                             THEN je.status <> 'voided'::entry_status
                             ELSE je.status = %(status)s::entry_status END)
-                ORDER BY je.entry_date, je.id
+                ORDER BY je.entry_date, je.voucher_no NULLS LAST, je.id
                 """,
                 params,
             )

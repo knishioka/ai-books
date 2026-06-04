@@ -311,6 +311,32 @@ def test_tool_bad_date_raises(patched_connect: None, seed: _Seed) -> None:
 # --- journal_book / general_ledger (Issue #19) --------------------------------
 
 
+def test_journal_book_orders_same_date_by_voucher_no(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # Documented contract is 取引日 → 伝票番号 order. When two entries share a date but their
+    # explicit voucher numbers run counter to insertion (db id) order — e.g. a historical
+    # import or manual numbering — the book must still sort by 伝票番号, not by id.
+    accounts = AccountRepository(migrated_conn)
+    cash = accounts.insert(_cash())
+    sales = accounts.insert(_sales())
+    assert cash.id is not None
+    assert sales.id is not None
+
+    journals = JournalRepository(migrated_conn)
+    same_day = date(2026, 7, 1)
+    # Insert "V002" first, then "V001": id order is the reverse of voucher_no order.
+    second = _entry(cash.id, sales.id, "100", same_day)
+    second.voucher_no = "V002"
+    first = _entry(cash.id, sales.id, "200", same_day)
+    first.voucher_no = "V001"
+    journals.insert_entry(second)
+    journals.insert_entry(first)
+
+    book = journals.journal_book()
+    assert [e.voucher_no for e in book.entries] == ["V001", "V002"]
+
+
 def test_tool_journal_book(patched_connect: None, seed: _Seed) -> None:
     book = server.journal_book()
     # Three seeded entries, oldest first, booking balanced.
