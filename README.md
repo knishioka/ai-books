@@ -80,6 +80,27 @@ uv run python -c "from ai_books import db; print(db.ping())"   # -> 1
 only when `AI_BOOKS_DB_URL` is set, so `./scripts/verify.sh` stays green even
 without a running database; CI runs it against a Postgres service container.
 
+### Running the full test suite locally
+
+`./scripts/verify.sh` runs lint/format/typecheck/pytest but **skips the DB-backed
+tests** (about half the suite) unless `AI_BOOKS_DB_URL` is set. To run _everything_
+locally you only need Postgres — not the full `supabase start` stack. Tests use
+plain Postgres and isolate each test in a throwaway schema, so a single lightweight
+container ([`compose.yaml`](./compose.yaml), `postgres:17-alpine`) is reused across
+runs:
+
+```bash
+./scripts/test.sh          # boot postgres:17-alpine + run the full suite (DB tests included)
+./scripts/test.sh -k etax  # extra args are forwarded to pytest
+./scripts/test.sh --web    # also cross-check the viewer's numbers against golden
+./scripts/test.sh --down   # stop the test container
+```
+
+The container is left running between invocations for fast reuse. If `AI_BOOKS_DB_URL`
+is already set (e.g. in CI), it is used as-is and no container is started. This mirrors
+the `verify` / `web-golden` CI jobs, which run the same tests against a `postgres:17`
+service.
+
 ## Web viewer (Vercel, read-only)
 
 A **read-only** aggregation viewer lives in [`web/`](./web) (Next.js, deployed on

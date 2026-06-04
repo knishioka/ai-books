@@ -25,6 +25,23 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 - 失敗時の exit code: `0` 全 pass / `1` 1 つ以上 fail / `2` 環境エラー。
 - 個別実行: `uv run ruff check .` / `uv run ruff format --check .` / `uv run mypy src tests` / `uv run pytest -q`
 
+### DB 連携テスト (Postgres 必須)
+
+`AI_BOOKS_DB_URL` 未設定だと DB 連携テスト (約半数) は **skip** される (`verify.sh` は
+それでも green)。**全テストをローカルで実行**するには Postgres が要る。フルの
+`supabase start` は不要 — テストは Postgres だけで足り、`conftest.py` がテストごとに
+使い捨てスキーマを作るため、軽量な単一コンテナ 1 個を使い回せる。
+
+```bash
+./scripts/test.sh          # postgres:17-alpine を起動し全テスト実行 (DB 連携含む)
+./scripts/test.sh --web    # + Vercel viewer の golden 数値一致クロスチェック
+./scripts/test.sh --down   # テスト用コンテナを停止
+```
+
+コンテナ定義は [compose.yaml](./compose.yaml)。CI も同等の postgres:17 サービスで
+DB 連携テストと web golden を実行する。`AI_BOOKS_DB_URL` を自前で指定した場合は
+それを尊重しコンテナは起動しない。
+
 ## PR conventions
 
 PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは英語。
