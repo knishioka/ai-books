@@ -44,6 +44,7 @@ from ai_books.models import (
     JournalLine,
     MonthlyTrend,
     NormalSide,
+    ProfitAndLoss,
     StatementCategory,
     TrialBalance,
     Worksheet,
@@ -898,6 +899,69 @@ class LedgerRepository:
             opening_balance=opening_balance,
             closing_balance=closing_balance,
             points=points,
+        )
+
+    def profit_and_loss(
+        self,
+        *,
+        fiscal_year: str,
+        start: date,
+        end: date,
+        status: EntryStatus | None = None,
+    ) -> ProfitAndLoss:
+        """Aggregate 収益/費用 footings over ``[start, end]`` into the staged 損益計算書 (#20).
+
+        One SQL pass sums 借方 / 貸方 per 収益/費用 account within the fiscal year (the same
+        GROUP BY shape as :meth:`trial_balance`, narrowed to P/L account types and carrying
+        each account's 表示区分), then :func:`ai_books.aggregation.assemble_profit_and_loss`
+        groups them into the 段階表示 and derives 売上総利益 → 営業利益 → 経常利益 → 当期純利益.
+        Because both go through the one signing rule, the 段階利益 reconcile with the trial
+        balance. ``status`` follows the same rule as every other read (default excludes 取消).
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.code, a.name, a.account_type, a.statement_category, a.normal_balance,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE a.account_type IN ('revenue', 'expense')
+                  AND je.entry_date >= %(start)s::date
+                  AND je.entry_date <= %(end)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY a.code, a.name, a.account_type, a.statement_category, a.normal_balance
+                ORDER BY a.code
+                """,
+                {
+                    "start": start,
+                    "end": end,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            rows = cur.fetchall()
+
+        accounts = [
+            aggregation.PlAccountTotals(
+                code=row["code"],
+                name=row["name"],
+                account_type=AccountType(row["account_type"]),
+                statement_category=(
+                    StatementCategory(row["statement_category"])
+                    if row["statement_category"] is not None
+                    else None
+                ),
+                normal_balance=NormalSide(row["normal_balance"]),
+                debit_total=Decimal(row["debit_total"]),
+                credit_total=Decimal(row["credit_total"]),
+            )
+            for row in rows
+        ]
+        return aggregation.assemble_profit_and_loss(
+            accounts, fiscal_year=fiscal_year, start_date=start, end_date=end
         )
 
     def general_ledger(

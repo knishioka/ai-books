@@ -14,7 +14,14 @@ from decimal import Decimal
 import pytest
 
 from ai_books import aggregation
-from ai_books.models import AccountType, MonthlyTrend, NormalSide, Worksheet
+from ai_books.models import (
+    AccountType,
+    MonthlyTrend,
+    NormalSide,
+    ProfitAndLoss,
+    StatementCategory,
+    Worksheet,
+)
 
 # --- month_windows ------------------------------------------------------------
 
@@ -286,3 +293,114 @@ def test_assemble_worksheet_inconsistent_when_books_do_not_balance() -> None:
     ws = _worksheet([_wsa("1110", "現金", AccountType.ASSET, "100", "0")])
     assert ws.pl_net_income != ws.bs_net_income
     assert not ws.is_consistent
+
+
+# --- assemble_profit_and_loss -------------------------------------------------
+
+
+def _pl_account(
+    code: str,
+    account_type: AccountType,
+    category: StatementCategory | None,
+    debit: str,
+    credit: str,
+) -> aggregation.PlAccountTotals:
+    return aggregation.PlAccountTotals(
+        code=code,
+        name=code,
+        account_type=account_type,
+        statement_category=category,
+        normal_balance=NormalSide.DEBIT
+        if account_type in (AccountType.ASSET, AccountType.EXPENSE)
+        else NormalSide.CREDIT,
+        debit_total=Decimal(debit),
+        credit_total=Decimal(credit),
+    )
+
+
+def _assemble(accounts: list[aggregation.PlAccountTotals]) -> ProfitAndLoss:
+    return aggregation.assemble_profit_and_loss(
+        accounts, fiscal_year="FY2025", start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
+    )
+
+
+def test_profit_and_loss_stages_reconcile() -> None:
+    pl = _assemble(
+        [
+            _pl_account("4110", AccountType.REVENUE, StatementCategory.SALES, "0", "1000"),
+            _pl_account(
+                "5120", AccountType.EXPENSE, StatementCategory.COST_OF_GOODS_SOLD, "300", "0"
+            ),
+            _pl_account(
+                "5130", AccountType.EXPENSE, StatementCategory.COST_OF_GOODS_SOLD, "0", "50"
+            ),  # 期末棚卸 (貸方) → 売上原価を控除
+            _pl_account(
+                "7250", AccountType.EXPENSE, StatementCategory.SELLING_ADMIN_EXPENSES, "200", "0"
+            ),
+            _pl_account(
+                "8110", AccountType.REVENUE, StatementCategory.NON_OPERATING_INCOME, "0", "30"
+            ),
+            _pl_account(
+                "8210", AccountType.EXPENSE, StatementCategory.NON_OPERATING_EXPENSES, "10", "0"
+            ),
+        ]
+    )
+    assert pl.sales.subtotal == Decimal("1000")
+    assert pl.cost_of_goods_sold.subtotal == Decimal("250")  # 300 - 50
+    assert pl.gross_profit == Decimal("750")  # 1000 - 250
+    assert pl.operating_income == Decimal("550")  # 750 - 200
+    assert pl.ordinary_income == Decimal("570")  # 550 + 30 - 10
+    assert pl.net_income == Decimal("570")
+    assert pl.is_consistent
+    assert pl.unclassified == []
+
+
+def test_profit_and_loss_folds_manufacturing_into_cost_of_goods_sold() -> None:
+    pl = _assemble(
+        [
+            _pl_account(
+                "5120", AccountType.EXPENSE, StatementCategory.COST_OF_GOODS_SOLD, "100", "0"
+            ),
+            _pl_account(
+                "6120", AccountType.EXPENSE, StatementCategory.MANUFACTURING_MATERIALS, "300", "0"
+            ),
+            _pl_account(
+                "6210", AccountType.EXPENSE, StatementCategory.MANUFACTURING_LABOR, "400", "0"
+            ),
+            _pl_account(
+                "6330", AccountType.EXPENSE, StatementCategory.MANUFACTURING_OVERHEAD, "240", "0"
+            ),
+        ]
+    )
+    # 製造原価 (材料/労務/製造経費) rolls into 売上原価 for the PL本体 (#23 breaks it out).
+    assert pl.cost_of_goods_sold.subtotal == Decimal("1040")
+    assert {line.code for line in pl.cost_of_goods_sold.lines} == {"5120", "6120", "6210", "6330"}
+
+
+def test_profit_and_loss_detects_unclassified_revenue_expense() -> None:
+    # AC: 表示区分への科目集約が網羅的 — a 収益/費用 account with no 表示区分 is surfaced,
+    # not silently dropped into a subtotal.
+    pl = _assemble(
+        [
+            _pl_account("4110", AccountType.REVENUE, StatementCategory.SALES, "0", "1000"),
+            _pl_account("9999", AccountType.EXPENSE, None, "500", "0"),
+        ]
+    )
+    assert [line.code for line in pl.unclassified] == ["9999"]
+    assert pl.cost_of_goods_sold.subtotal == Decimal("0")
+    # The unclassified 500 is excluded from every subtotal/段階利益 so the gap stays visible.
+    assert pl.net_income == Decimal("1000")
+
+
+def test_profit_and_loss_skips_balance_sheet_accounts() -> None:
+    # 資産/負債/純資産 accounts never appear on the P/L (they belong to the B/S, #21).
+    pl = _assemble(
+        [
+            _pl_account("4110", AccountType.REVENUE, StatementCategory.SALES, "0", "1000"),
+            _pl_account("1110", AccountType.ASSET, StatementCategory.CURRENT_ASSETS, "5000", "0"),
+            _pl_account("3110", AccountType.EQUITY, StatementCategory.EQUITY, "0", "5000"),
+        ]
+    )
+    assert pl.unclassified == []
+    assert pl.sales.subtotal == Decimal("1000")
+    assert pl.net_income == Decimal("1000")

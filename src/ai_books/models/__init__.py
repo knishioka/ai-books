@@ -47,6 +47,7 @@ from .report import (
     JournalBookEntry,
     JournalBookLine,
 )
+from .statement import ProfitAndLoss, ProfitAndLossLine, ProfitAndLossSection
 from .worksheet import Worksheet, WorksheetRow
 
 __all__ = [
@@ -80,6 +81,9 @@ __all__ = [
     "MonthlyTrendPoint",
     "NormalSide",
     "Period",
+    "ProfitAndLoss",
+    "ProfitAndLossLine",
+    "ProfitAndLossSection",
     "StatementCategory",
     "TrialBalance",
     "TrialBalanceRow",
