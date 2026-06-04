@@ -1,0 +1,83 @@
+{
+  "fixture": "card",
+  "account_code": "2130",
+  "format": "auto",
+  "entries": [
+    {
+      "import_hash": "3901a6ccf23e9e803bbb6d574b628566f2558f27977674d91a3971c1f0527267",
+      "to_suspense": false,
+      "entry_date": "2026-05-02",
+      "description": "AMAZON.CO.JP",
+      "source": "csv:generic_card",
+      "lines": [
+        {
+          "account_code": "7200",
+          "side": "debit",
+          "amount": "4980"
+        },
+        {
+          "account_code": "2130",
+          "side": "credit",
+          "amount": "4980"
+        }
+      ]
+    },
+    {
+      "import_hash": "59e7ad23f526dcb224c590c88489ff9541cccaabac05c850ac1a8f338a0e3570",
+      "to_suspense": true,
+      "entry_date": "2026-05-08",
+      "description": "スターバックス",
+      "source": "csv:generic_card",
+      "lines": [
+        {
+          "account_code": "1210",
+          "side": "debit",
+          "amount": "680"
+        },
+        {
+          "account_code": "2130",
+          "side": "credit",
+          "amount": "680"
+        }
+      ]
+    },
+    {
+      "import_hash": "621e62e5b9d3d7c3382338e1e9bf0c52cee87160012da3af3160b057c39ca103",
+      "to_suspense": false,
+      "entry_date": "2026-05-12",
+      "description": "JR東日本",
+      "source": "csv:generic_card",
+      "lines": [
+        {
+          "account_code": "7140",
+          "side": "debit",
+          "amount": "2200"
+        },
+        {
+          "account_code": "2130",
+          "side": "credit",
+          "amount": "2200"
+        }
+      ]
+    },
+    {
+      "import_hash": "83732040160e2da9019e2fc6fafe87ce03d7ba9509edf72b96f88adb281904b3",
+      "to_suspense": true,
+      "entry_date": "2026-05-20",
+      "description": "返金 AMAZON",
+      "source": "csv:generic_card",
+      "lines": [
+        {
+          "account_code": "2130",
+          "side": "debit",
+          "amount": "1500"
+        },
+        {
+          "account_code": "2170",
+          "side": "credit",
+          "amount": "1500"
+        }
+      ]
+    }
+  ]
+}

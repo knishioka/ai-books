@@ -46,12 +46,13 @@ from ai_books.models import (
     AccountLedger,
     AccountType,
     EntryStatus,
+    ImportSummary,
     JournalEntry,
     JournalEntryInput,
     JournalEntryPage,
     StatementCategory,
 )
-from ai_books.services import JournalService
+from ai_books.services import CsvImportService, JournalService
 
 mcp: FastMCP = FastMCP(
     name="ai-books",
@@ -331,6 +332,41 @@ def void_journal_entry(entry_id: int, reason: str, actor: str = "ai-agent") -> J
     with db.connect() as conn:
         try:
             return JournalService(conn).void_entry(entry_id, reason=reason, actor=actor)
+        except AiBooksError as exc:
+            raise _tool_error(exc) from exc
+
+
+# --- CSV import (Issue #14) ---------------------------------------------------
+
+
+@mcp.tool
+def import_transactions_csv(
+    csv_text: str,
+    account_code: str,
+    csv_format: str = "auto",
+    actor: str = "ai-agent",
+) -> ImportSummary:
+    """Import a bank/CC statement CSV into *draft* 仕訳 and return a run summary.
+
+    ``csv_text`` is the statement's CSV content; ``account_code`` is the 勘定科目コード of
+    the account the statement belongs to (e.g. 普通預金 for a bank export, 未払金 for a
+    credit-card export). ``csv_format`` is ``auto`` (header-detected) or a named preset
+    (``generic_bank`` / ``generic_card``). Each row becomes a balanced two-line draft:
+    the account on one side and the 相手科目 inferred from the 摘要 (or a suspense 科目 —
+    仮払金/仮受金 — when nothing matches) on the other. Re-importing the same file never
+    duplicates (each row is fingerprinted into ``import_hash``). Entries are always
+    ``draft`` — confirm them with ``post_journal_entry``. Returns counts of
+    取込/重複/未割当 with the created entry ids; raises a ``ToolError`` (JSON payload) on a
+    parse, format, account, or period failure.
+    """
+    with db.connect() as conn:
+        try:
+            return CsvImportService(conn).import_csv(
+                csv_text,
+                account_code=account_code,
+                csv_format=csv_format,
+                actor=actor,
+            )
         except AiBooksError as exc:
             raise _tool_error(exc) from exc
 

@@ -128,6 +128,29 @@ class InactiveAccountError(AiBooksError):
         return {"error": self.error_code, "message": str(self), "code": self.code}
 
 
+class CsvImportError(AiBooksError):
+    """A bank/CC CSV could not be parsed or mapped into draft entries (#14).
+
+    Raised before anything is written when the CSV is empty, its header matches no
+    known format (and none was specified), a required column is missing, or a row's
+    日付 / 金額 cannot be parsed. ``row`` is the 1-based source line (excluding the
+    header) when the problem is row-specific, ``None`` for a whole-file problem, so a
+    caller can point the user at the offending line machine-readably.
+    """
+
+    error_code = "csv_import_error"
+
+    def __init__(self, message: str, *, row: int | None = None) -> None:
+        super().__init__(message)
+        self.row = row
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = {"error": self.error_code, "message": str(self)}
+        if self.row is not None:
+            payload["row"] = str(self.row)
+        return payload
+
+
 class EntryStateError(AiBooksError):
     """A journal-entry lifecycle transition that the 状態 does not allow.
 

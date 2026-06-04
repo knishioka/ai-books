@@ -8,10 +8,12 @@ transaction so the change and its audit record commit or roll back together.
 
 Submodules:
     ``ai_books.services.journal`` — journal entry create / update / void / post.
+    ``ai_books.services.csv_import`` — bank/CC CSV → draft 仕訳 import (#14).
 """
 
 from __future__ import annotations
 
+from ai_books.services.csv_import import CsvImportService, plan_import
 from ai_books.services.journal import JournalService
 
-__all__ = ["JournalService"]
+__all__ = ["CsvImportService", "JournalService", "plan_import"]

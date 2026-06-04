@@ -186,8 +186,9 @@ class JournalRepository(BaseRepository[JournalEntry]):
             cur.execute(
                 """
                 INSERT INTO journal_entries
-                    (entry_date, recorded_date, description, voucher_no, source, status)
-                VALUES (%s, COALESCE(%s, CURRENT_DATE), %s, %s, %s, %s)
+                    (entry_date, recorded_date, description, voucher_no, source,
+                     import_hash, status)
+                VALUES (%s, COALESCE(%s, CURRENT_DATE), %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -196,6 +197,7 @@ class JournalRepository(BaseRepository[JournalEntry]):
                     entry.description,
                     entry.voucher_no,
                     entry.source,
+                    entry.import_hash,
                     entry.status.value,
                 ),
             )
@@ -246,6 +248,22 @@ class JournalRepository(BaseRepository[JournalEntry]):
         if row is None:  # pragma: no cover - nextval always yields a row
             raise RepositoryError("journal_voucher_no_seq nextval produced no row")
         return f"V{int(row['seq']):0{self._VOUCHER_NO_WIDTH}d}"
+
+    def existing_import_hashes(self, hashes: list[str]) -> set[str]:
+        """Return which of ``hashes`` are already stored (CSV 取込の二重取込検知, #14).
+
+        The CSV import service calls this before inserting so an already-imported row
+        is skipped rather than duplicated; the partial UNIQUE index on ``import_hash``
+        is the storage-layer backstop behind this check.
+        """
+        if not hashes:
+            return set()
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT import_hash FROM journal_entries WHERE import_hash = ANY(%s)",
+                (hashes,),
+            )
+            return {row["import_hash"] for row in cur.fetchall()}
 
     def replace_entry(self, entry_id: int, entry: JournalEntry) -> JournalEntry:
         """Overwrite a draft entry's header and lines atomically; return it as stored.
