@@ -32,11 +32,13 @@ from ai_books.db.repository import (
     JournalRepository,
     LedgerRepository,
 )
+from ai_books.etax import build_etax_export
 from ai_books.models import (
     YEAR_END_ADJUSTMENT_SOURCE,
     BalanceSheet,
     EntrySide,
     EntryStatus,
+    EtaxExport,
     FinancialStatements,
     GeneralLedger,
     GeneralLedgerAccount,
@@ -656,3 +658,33 @@ def financial_statements_from_db(
     return LedgerRepository(conn).financial_statements(
         fiscal_year=year.name, start=year.start_date, end=year.end_date, status=status
     )
+
+
+# ── e-Tax 取込データ (Issue #24) ────────────────────────────────────────────────
+# Same dual-path cross-check: the 決算書 reduced offline (the golden source, no DB) and read from
+# the DB through the production engine are each mapped to e-Tax records by the one
+# :func:`ai_books.etax.build_etax_export`. The e-Tax layer has no independent arithmetic — it
+# re-expresses the 決算書 — so the cross-check is that the *same export* falls out of both 決算書
+# paths, pinning that the storage round-trip does not perturb the e-Tax 取込データ.
+
+
+def etax_export_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> EtaxExport:
+    """Map the offline-reduced 青色申告決算書 to e-Tax 取込データ — no database required.
+
+    Builds the 決算書 offline (sharing the production engines) and runs it through the production
+    :func:`ai_books.etax.build_etax_export`, so this generates the committed golden while staying a
+    pure function of the dataset.
+    """
+    return build_etax_export(financial_statements_from_dataset(entries))
+
+
+def etax_export_from_db(
+    conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
+) -> EtaxExport:
+    """Map the DB-read 青色申告決算書 to e-Tax 取込データ via the production engine.
+
+    Reads the 決算書 from Postgres (:func:`financial_statements_from_db`) and runs the same
+    :func:`ai_books.etax.build_etax_export`, so there is no second mapping path to drift from
+    :func:`etax_export_from_dataset` — a divergence pins a storage/aggregation bug upstream.
+    """
+    return build_etax_export(financial_statements_from_db(conn, status=status))

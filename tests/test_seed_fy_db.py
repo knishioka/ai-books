@@ -18,6 +18,7 @@ import pytest
 
 from ai_books import db
 from ai_books.db.repository import AccountRepository, JournalRepository, LedgerRepository
+from ai_books.etax import etax_export_snapshot
 from ai_books.models import EntryStatus
 from ai_books.reports import (
     balance_sheet_snapshot,
@@ -31,6 +32,7 @@ from tests.fixtures.seed_fy import (
     FY_ENTRIES,
     balance_sheet_from_db,
     diff_snapshots,
+    etax_export_from_db,
     financial_statements_from_db,
     general_ledger_from_db,
     journal_book_from_db,
@@ -319,3 +321,27 @@ def test_db_financial_statements_reconciles(migrated_conn: psycopg.Connection[An
     )
     assert fs.depreciation.total_depreciation == fs.depreciation.expense_total == Decimal("300000")
     assert fs.balance_sheet.is_balanced
+
+
+# --- e-Tax 取込データ (Issue #24) ----------------------------------------------
+
+
+def test_db_etax_export_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#24): the e-Tax 取込データ mapped from the DB-read 決算書 equals the frozen golden, so the
+    # storage round-trip does not perturb the export (出力が #17 の golden と一致).
+    load_fiscal_year(migrated_conn)
+    actual = etax_export_snapshot(etax_export_from_db(migrated_conn))
+    expected = load_golden("etax_export")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB e-Tax export diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_etax_export_passes_schema_validation(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#24): 出力がフォーマット仕様のスキーマ検証を通る — build over the real stored rows raises
+    # no EtaxValidationError, and the export is non-empty and 整数円.
+    load_fiscal_year(migrated_conn)
+    export = etax_export_from_db(migrated_conn)  # raises EtaxValidationError on a schema fault
+    assert export.records
+    amounts = [r.value for r in export.records if r.kind.value == "amount"]
+    assert amounts
+    assert all("." not in value for value in amounts)

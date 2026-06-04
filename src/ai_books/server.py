@@ -46,6 +46,12 @@ from ai_books.db.repository import (
     LedgerRepository,
 )
 from ai_books.errors import AiBooksError, RecordNotFoundError
+from ai_books.etax import (
+    LATEST_ETAX_VERSION,
+    build_etax_export,
+    parse_etax_format,
+    render_etax,
+)
 from ai_books.models import (
     Account,
     AccountBalance,
@@ -78,7 +84,8 @@ mcp: FastMCP = FastMCP(
         "get_account_ledger. Aggregation tools (trial_balance / monthly_trend / worksheet) "
         "return the 合計残高試算表, 月次推移, and 精算表; profit_and_loss returns the 損益計算書 "
         "(P/L) staged into the 青色申告決算書 layout and balance_sheet returns the 貸借対照表 "
-        "(B/S). Amounts are exact decimals returned as strings."
+        "(B/S). export_etax renders the 決算書 as e-Tax 取込データ (CSV/XML) for electronic filing. "
+        "Amounts are exact decimals returned as strings."
     ),
 )
 
@@ -451,6 +458,44 @@ def general_ledger(
             end=_parse_date(end_date, "end_date"),
             status=_parse_status(status),
         )
+
+
+# --- e-Tax 取込データ出力 (Issue #24) -----------------------------------------
+
+
+@mcp.tool
+def export_etax(
+    fiscal_year: str,
+    format: str = "csv",
+    format_version: str = LATEST_ETAX_VERSION,
+) -> str:
+    """Export the 青色申告決算書 of ``fiscal_year`` as e-Tax 取込データ (electronic-filing data).
+
+    Builds the 決算書 (損益計算書 / 月別売上・仕入 / 減価償却 / 製造原価 / 貸借対照表) for the fiscal
+    year, maps it onto the e-Tax 様式 ``format_version`` (年度ごとの様式はデータ駆動で外出し), and
+    renders it. ``format`` is ``'csv'`` or ``'xml'``. Amounts are emitted in 整数円; the mapping is
+    schema-validated (必須項目・桁数・勘定科目コード・月) and a fault returns a ``ToolError`` whose
+    JSON payload lists every problem. Errors if the fiscal year or version is unknown.
+
+    注意: 生成物は事業者の確定数値を含むため、ファイルに保存する場合もリポジトリにはコミットしない
+    こと (運用は README 参照)。
+    """
+    output_format = parse_etax_format(format)
+    with db.connect() as conn:
+        year = FiscalYearRepository(conn).get_by_name(fiscal_year)
+        if year is None:
+            raise RecordNotFoundError("fiscal_year", fiscal_year)
+        statements = LedgerRepository(conn).financial_statements(
+            fiscal_year=year.name,
+            start=year.start_date,
+            end=year.end_date,
+            status=EntryStatus.POSTED,
+        )
+    try:
+        export = build_etax_export(statements, version=format_version)
+    except AiBooksError as exc:
+        raise _tool_error(exc) from exc
+    return render_etax(export, output_format)
 
 
 # --- journal writes (Issue #13) -----------------------------------------------

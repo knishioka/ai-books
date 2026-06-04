@@ -29,6 +29,7 @@ from .enums import (
     StatementCategory,
     normal_side_for,
 )
+from .etax import EtaxExport, EtaxRecord, EtaxValueKind
 from .financial_statements import (
     MANUFACTURING_CATEGORIES,
     DepreciationLine,
@@ -83,6 +84,9 @@ __all__ = [
     "DomainModel",
     "EntrySide",
     "EntryStatus",
+    "EtaxExport",
+    "EtaxRecord",
+    "EtaxValueKind",
     "FinancialStatements",
     "FiscalYear",
     "GeneralLedger",
