@@ -84,9 +84,12 @@ def _seeded_pooler() -> str:
     pre-seeded the database. Proves the migration + write path survive transaction pooling.
     """
     assert _POOLER_URL is not None  # narrowed by the module-level skipif
+    # migrate.run() owns its own (tuple-row, pooler-safe) connection, matching
+    # scripts/seed_verify_db.py — and unlike db.connect()'s dict_row, which the
+    # migration runner's `SELECT version FROM schema_migrations` does not expect.
+    migrate.run(db_url=_POOLER_URL, migrations_dir=_MIGRATIONS_DIR)
     with db.connect(_POOLER_URL) as conn:
         conn.autocommit = True
-        migrate.apply_pending(conn, _MIGRATIONS_DIR)
         load_fiscal_year(conn)
     return _POOLER_URL
 
