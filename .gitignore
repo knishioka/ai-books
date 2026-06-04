@@ -20,6 +20,8 @@ dist/
 .coverage
 .coverage.*
 htmlcov/
+coverage.xml
+coverage.json
 .mypy_cache/
 .ruff_cache/
 

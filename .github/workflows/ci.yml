@@ -51,8 +51,23 @@ jobs:
       - name: Sync dependencies
         run: uv sync --all-extras --dev
 
+      # AI_BOOKS_DB_URL is set (Postgres service above), so verify.sh runs the DB-backed
+      # tests AND enforces the coverage gate (line 80 / branch 70 — AGENTS.md / #58) via
+      # scripts/check_coverage.py. It also writes coverage.xml + coverage.json.
       - name: Run verify.sh
         run: bash scripts/verify.sh
+
+      # Coverage reports as artifacts (#58). `if: always()` so they survive a gate failure
+      # for inspection. Per-Python-version names avoid matrix upload collisions.
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-python-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            coverage.json
+          if-no-files-found: warn
 
   web:
     name: Web viewer (lint / typecheck / unit / build)
@@ -83,8 +98,19 @@ jobs:
       # Fast DB-free unit layer (#55): pins lib/reports, lib/etax and money/format
       # 符号則・境界・端数・検証 edge cases in milliseconds, complementing the heavier
       # golden cross-check (web-golden) which stays the source of truth for end-to-end numbers.
-      - name: Unit tests (vitest)
-        run: npm run test
+      # test:coverage runs the same unit layer under v8 coverage and FAILS if the data
+      # layer drops below the AGENTS.md targets (line 80 / branch 70), configured in
+      # vitest.config.ts (#58). Writes coverage/ (html + coverage-summary.json).
+      - name: Unit tests + coverage gate (vitest)
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-web
+          path: web/coverage
+          if-no-files-found: warn
 
       - name: Build
         run: npm run build

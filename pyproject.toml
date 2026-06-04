@@ -43,6 +43,10 @@ packages = ["src/ai_books"]
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
+  # Coverage measurement + CI gate (#58). Enforces the AGENTS.md targets
+  # (line 80% / branch 70%) on the DB-backed full run; see scripts/verify.sh
+  # for the DB-aware gating (verify.sh without a DB measures but does not fail).
+  "pytest-cov>=5.0",
   # Property-based testing: generate随机な balanced 仕訳群 and assert the bookkeeping
   # invariants hold for *every* example (tests/test_property_invariants*.py), beyond the
   # fixed golden datasets. Runs deterministically — see the registered Hypothesis profile
@@ -77,3 +81,21 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+# Coverage (#58). Branch coverage is measured against the production package only.
+# Thresholds (line 80 / branch 70, per AGENTS.md) are enforced by scripts/check_coverage.py
+# on the DB-backed full run — NOT via a single blended pytest `--cov-fail-under`, which cannot
+# gate line and branch separately. scripts/verify.sh wires --cov in and runs the checker only
+# when AI_BOOKS_DB_URL is set, so a DB-less `verify.sh` measures coverage without failing.
+[tool.coverage.run]
+source = ["src/ai_books"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# `# pragma: no cover` is honoured (used sparingly for provably-unreachable defensive
+# guards, e.g. RETURNING always yields a row); see AGENTS.md — do not abuse it.
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
