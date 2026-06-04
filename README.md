@@ -2,7 +2,9 @@
 
 > **AI-first accounting MCP server** — an interface for AI agents, not for humans.
 
-`ai-books` exposes double-entry bookkeeping primitives (chart of accounts, journal entries, trial balance, financial statements) as [Model Context Protocol](https://modelcontextprotocol.io/) tools. The premise: if your accounting system has a great machine interface, the human UI is just a thin aggregation dashboard.
+`ai-books` exposes double-entry bookkeeping primitives (chart of accounts, journal entries, trial balance, financial statements) as [Model Context Protocol](https://modelcontextprotocol.io/) tools. The premise: if your accounting system has a great machine interface, the human UI is just a thin **read-only** aggregation dashboard.
+
+Architecture in one line: **MCP = the write/validation interface · Supabase (Postgres) = storage · Vercel = read-only viewer.** See [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md) for the rationale.
 
 ## Why
 
@@ -13,11 +15,11 @@ Most accounting software puts a heavy web UI front and center, with the API as a
 - import bank / CC CSV via tool calls
 - run ad-hoc aggregations
 
-Humans just look at the generated reports.
+Humans just look at the read-only Vercel viewer (no data entry there — all writes flow through MCP). The end goal is producing the **青色申告決算書 + e-Tax import data** (the tax-amount computation itself stays in downstream tools).
 
 ## Status
 
-🚧 **M0** — bootstrap. Only a `hello` smoke-test tool is implemented. Schema, accounting tools, and reports land in the [initial roadmap issues](#roadmap).
+🚧 **M0** — bootstrap. Only a `hello` smoke-test tool is implemented. The project has just pivoted (see [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md)): storage moves from local SQLite to **Supabase (Postgres)**, a **read-only Vercel viewer** is added, and **青色申告決算書 + e-Tax 取込データ output** is now an in-scope goal. Schema, accounting tools, viewer, and reports land in the [roadmap issues](#roadmap).
 
 ## Quick start (M0)
 
@@ -68,15 +70,19 @@ A reference `claude-desktop-config.json` lands in Issue #5. The shape will be:
 
 ## Roadmap
 
-| #   | Title                                                           |
-| --- | --------------------------------------------------------------- |
-| 1   | feat: bootstrap SQLite schema and minimal migration runner      |
-| 2   | feat: read-side MCP tools (accounts, journal entries, balances) |
-| 3   | feat: write-side MCP tools with debit/credit validation         |
-| 4   | feat: aggregation tools (trial balance, P/L, B/S)               |
-| 5   | docs: README, Claude Desktop integration, synthetic seed data   |
+Direction is set by [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md). The
+original SQLite-oriented plan is re-scoped onto Supabase (Postgres) + a Vercel read-only viewer:
 
-Track progress: [open issues](https://github.com/knishioka/ai-books/issues).
+| #   | Title                                                           | Status after ADR 0001                                |
+| --- | --------------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | feat: bootstrap schema and forward-only migration runner        | Re-scoped → Supabase (Postgres)                      |
+| 2   | feat: read-side MCP tools (accounts, journal entries, balances) | Retained                                             |
+| 3   | feat: write-side MCP tools with debit/credit validation         | Retained                                             |
+| 4   | feat: aggregation tools (trial balance, P/L, B/S)               | Retained / extended toward 青色申告決算書            |
+| 5   | docs: README, Claude Desktop integration, synthetic seed data   | Retained / extended (Vercel viewer + Supabase setup) |
+
+Supabase provisioning, the Vercel viewer, and 青色申告決算書 + e-Tax export are tracked by
+issues #9, #10, #11 and later. Track progress: [open issues](https://github.com/knishioka/ai-books/issues).
 
 ## Design influences
 
@@ -85,9 +91,9 @@ Track progress: [open issues](https://github.com/knishioka/ai-books/issues).
 
 ## Non-goals (forever)
 
-- Web UI for data entry / editing — the MCP and a static report dashboard are the entire UX
-- Multi-tenant SaaS / RLS — single-user, single-file SQLite forever
-- Tax filing engine — `ai-books` produces the ledger; tax computation belongs in downstream tools
+- Web UI for data entry / editing — writes flow exclusively through MCP; the Vercel viewer is **read-only**
+- Multi-tenant SaaS / RLS — single-user; Supabase (Postgres) is for durable storage, not multi-tenancy
+- Tax-amount computation / filing engine — `ai-books` produces the ledger and the **青色申告決算書 + e-Tax import data**; computing the tax owed and submitting it belong in downstream tools
 
 ## License
 
