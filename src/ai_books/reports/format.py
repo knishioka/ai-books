@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Any
 
 from ai_books.models import (
+    EntrySide,
     EntryStatus,
     GeneralLedger,
     GeneralLedgerAccount,
@@ -98,7 +99,8 @@ _JOURNAL_BOOK_CSV_HEADER = [
 
 def journal_book_csv(book: JournalBook) -> str:
     """Render the 仕訳帳 as CSV — one row per 明細, entries kept in book order."""
-    buffer = io.StringIO()
+    # newline="" so csv.writer controls line endings (avoids \r\r\n on Windows — see csv docs).
+    buffer = io.StringIO(newline="")
     writer = csv.writer(buffer)
     writer.writerow(_JOURNAL_BOOK_CSV_HEADER)
     for entry in book.entries:
@@ -133,7 +135,7 @@ def journal_book_text(book: JournalBook) -> str:
             header += f"  [取消: {entry.void_reason or ''}]"
         lines.append(header)
         for line in entry.lines:
-            side = "借" if line.side.value == "debit" else "貸"
+            side = "借" if line.side is EntrySide.DEBIT else "貸"
             lines.append(
                 f"    {side}  {line.account_code} {line.account_name}  {money(line.amount)}"
             )
@@ -197,7 +199,8 @@ _GENERAL_LEDGER_CSV_HEADER = [
 
 def general_ledger_csv(ledger: GeneralLedger) -> str:
     """Render the 総勘定元帳 as CSV — a 繰越 row, the detail rows, then a 期末残高 row per account."""
-    buffer = io.StringIO()
+    # newline="" so csv.writer controls line endings (avoids \r\r\n on Windows — see csv docs).
+    buffer = io.StringIO(newline="")
     writer = csv.writer(buffer)
     writer.writerow(_GENERAL_LEDGER_CSV_HEADER)
     for account in ledger.accounts:
@@ -243,7 +246,7 @@ def general_ledger_text(ledger: GeneralLedger) -> str:
     for account in ledger.accounts:
         lines.append(f"[{account.code}] {account.name}  繰越 {money(account.opening_balance)}")
         for row in account.rows:
-            side = "借" if row.side.value == "debit" else "貸"
+            side = "借" if row.side is EntrySide.DEBIT else "貸"
             counter = "/".join(row.counter_accounts) or "-"
             lines.append(
                 f"    {row.entry_date.isoformat()}  {row.voucher_no or '-'}  {side} "
