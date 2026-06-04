@@ -70,6 +70,22 @@ description = "AI_BOOKS_* env variable that looks like a secret"
 regex = '''(?i)\bAI_BOOKS_(?:[A-Z_]*?(?:TOKEN|SECRET|KEY|PASSWORD))\s*[:=]\s*["']?[A-Za-z0-9_\-]{16,}["']?'''
 keywords = ["AI_BOOKS_"]
 
+# Supabase (Postgres storage + read-only Vercel viewer). The service-role key
+# bypasses RLS and must never be committed. Catch both the current API-key
+# formats (sb_secret_… / sb_publishable_…) and the legacy JWT-shaped keys
+# (eyJ….….…) — and the SUPABASE_*_KEY env-assignment shape.
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret (service-role) API key — sb_secret_…"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-key-assignment"
+description = "Supabase service-role / anon key assigned to a SUPABASE_* env var"
+regex = '''(?i)\bSUPABASE_(?:SERVICE_ROLE_KEY|ANON_KEY|KEY)\s*[:=]\s*["']?(?:sb_(?:secret|publishable)_[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})["']?'''
+keywords = ["SUPABASE_"]
+
 # ---------------------------------------------------------------------------
 # Global allowlist
 #
