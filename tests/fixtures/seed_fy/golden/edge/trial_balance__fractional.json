@@ -1,0 +1,22 @@
+{
+  "report": "trial_balance",
+  "fiscal_year": "FY2025",
+  "rows": [
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "debit_total": "0.00",
+      "credit_total": "101.16",
+      "balance": "-101.16"
+    },
+    {
+      "code": "7200",
+      "name": "消耗品費",
+      "debit_total": "101.16",
+      "credit_total": "0.00",
+      "balance": "101.16"
+    }
+  ],
+  "total_debit": "101.16",
+  "total_credit": "101.16"
+}

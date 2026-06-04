@@ -10,20 +10,23 @@
 
 ## 構成
 
-| ファイル                           | 役割                                                            |
-| ---------------------------------- | --------------------------------------------------------------- |
-| `dataset.py`                       | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`  |
-| `loader.py`                        | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件) |
-| `reports.py`                       | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装     |
-| `golden.py`                        | スナップショットの直列化・比較 (diff)・更新。レポート非依存     |
-| `golden/trial_balance.json`        | 試算表のゴールデン (committed)                                  |
-| `golden/journal_book.json`         | 仕訳帳のゴールデン (#19, committed)                             |
-| `golden/general_ledger.json`       | 総勘定元帳のゴールデン (#19, committed)                         |
-| `golden/profit_and_loss.json`      | 損益計算書のゴールデン (#20, committed)                         |
-| `golden/balance_sheet.json`        | 貸借対照表のゴールデン (#21, committed)                         |
-| `golden/worksheet.json`            | 精算表のゴールデン (#22, committed)                             |
-| `golden/financial_statements.json` | 青色申告決算書のゴールデン (#23, committed)                     |
-| `golden/etax_export.json`          | e-Tax 取込データのゴールデン (#24, committed)                   |
+| ファイル                           | 役割                                                                |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| `dataset.py`                       | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`      |
+| `loader.py`                        | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件)     |
+| `reports.py`                       | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装         |
+| `edge_cases.py`                    | エッジケース合成年 (空 FY / 片側のみ / 端数多発 / 月跨ぎ整理) (#57) |
+| `generators.py`                    | Hypothesis 戦略: ランダムな balanced 仕訳群を生成 (#57)             |
+| `golden.py`                        | スナップショットの直列化・比較 (diff)・更新。レポート非依存         |
+| `golden/edge/*.json`               | エッジケースのゴールデン (#57, committed)                           |
+| `golden/trial_balance.json`        | 試算表のゴールデン (committed)                                      |
+| `golden/journal_book.json`         | 仕訳帳のゴールデン (#19, committed)                                 |
+| `golden/general_ledger.json`       | 総勘定元帳のゴールデン (#19, committed)                             |
+| `golden/profit_and_loss.json`      | 損益計算書のゴールデン (#20, committed)                             |
+| `golden/balance_sheet.json`        | 貸借対照表のゴールデン (#21, committed)                             |
+| `golden/worksheet.json`            | 精算表のゴールデン (#22, committed)                                 |
+| `golden/financial_statements.json` | 青色申告決算書のゴールデン (#23, committed)                         |
+| `golden/etax_export.json`          | e-Tax 取込データのゴールデン (#24, committed)                       |
 
 純粋計算 (`trial_balance_from_dataset`) とゴールデン生成は **DB 不要**。pytest ハーネスは
 DB にロードした結果を SQL で集計 (`trial_balance_from_db`) し、ゴールデンと比較する。2 つの
@@ -45,6 +48,20 @@ uv run pytest -q tests/test_seed_fy.py tests/test_seed_fy_db.py
 
 後続レポート Issue は `golden.py` の `GOLDEN_REPORTS` に 1 行 (レポート名 → 生成関数) を
 足し、ゴールデン JSON を 1 枚 commit するだけでよい。比較/更新/CLI は流用される。
+
+## Property-based 不変条件テスト (#57)
+
+固定ゴールデンに加え、**任意の balanced 仕訳群**で複式簿記の不変条件が成り立つことを
+Hypothesis で機械検証する (`generators.py` がランダムな年度を生成)。
+
+- `tests/test_property_invariants.py` — DB 不要。借貸平均 / 貸借一致 (資産 = 負債 + 純資産) /
+  PL・BS の当期純利益 articulation / 精算表の自己検算 / 月次推移の連続性 / Decimal 往復誤差ゼロ。
+  加えてエッジケースゴールデンの最新性も検証する。
+- `tests/test_property_invariants_db.py` — DB 必須。取消 (voided) が残高/試算表/PL/BS から
+  完全に除外される性質、`numeric(18, 2)` 往復、エッジケース年の dual-path 一致を検証する。
+
+Hypothesis は `tests/conftest.py` で `derandomize=True` 固定 (例が決定的に再現可能)。
+検証は `./scripts/test.sh -k "property or invariant or edge"`。
 
 ## シナリオ (FY2025, 2025-01-01 〜 12-31)
 

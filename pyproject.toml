@@ -43,6 +43,11 @@ packages = ["src/ai_books"]
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.23",
+  # Property-based testing: generate随机な balanced 仕訳群 and assert the bookkeeping
+  # invariants hold for *every* example (tests/test_property_invariants*.py), beyond the
+  # fixed golden datasets. Runs deterministically — see the registered Hypothesis profile
+  # in tests/conftest.py.
+  "hypothesis>=6.0",
   "ruff>=0.5",
   "mypy>=1.10",
   "pre-commit>=4.0",

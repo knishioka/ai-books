@@ -1,0 +1,46 @@
+{
+  "report": "balance_sheet",
+  "as_of": null,
+  "status": "posted",
+  "assets": [
+    {
+      "category": "current_assets",
+      "lines": [
+        {
+          "code": "1141",
+          "name": "普通預金",
+          "balance": "-101.16"
+        }
+      ],
+      "subtotal": "-101.16"
+    },
+    {
+      "category": "fixed_assets",
+      "lines": [],
+      "subtotal": "0.00"
+    }
+  ],
+  "liabilities": [
+    {
+      "category": "current_liabilities",
+      "lines": [],
+      "subtotal": "0.00"
+    },
+    {
+      "category": "fixed_liabilities",
+      "lines": [],
+      "subtotal": "0.00"
+    }
+  ],
+  "equity": [
+    {
+      "category": "equity",
+      "lines": [],
+      "subtotal": "0.00"
+    }
+  ],
+  "net_income": "-101.16",
+  "total_assets": "-101.16",
+  "total_liabilities": "0.00",
+  "total_equity": "-101.16"
+}

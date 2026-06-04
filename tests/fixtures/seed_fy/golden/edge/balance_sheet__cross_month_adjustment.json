@@ -1,0 +1,57 @@
+{
+  "report": "balance_sheet",
+  "as_of": null,
+  "status": "posted",
+  "assets": [
+    {
+      "category": "current_assets",
+      "lines": [
+        {
+          "code": "1141",
+          "name": "普通預金",
+          "balance": "-120000.00"
+        },
+        {
+          "code": "1290",
+          "name": "事業主貸",
+          "balance": "48000.00"
+        }
+      ],
+      "subtotal": "-72000.00"
+    },
+    {
+      "category": "fixed_assets",
+      "lines": [
+        {
+          "code": "1530",
+          "name": "機械装置",
+          "balance": "-60000.00"
+        }
+      ],
+      "subtotal": "-60000.00"
+    }
+  ],
+  "liabilities": [
+    {
+      "category": "current_liabilities",
+      "lines": [],
+      "subtotal": "0.00"
+    },
+    {
+      "category": "fixed_liabilities",
+      "lines": [],
+      "subtotal": "0.00"
+    }
+  ],
+  "equity": [
+    {
+      "category": "equity",
+      "lines": [],
+      "subtotal": "0.00"
+    }
+  ],
+  "net_income": "-132000.00",
+  "total_assets": "-132000.00",
+  "total_liabilities": "0.00",
+  "total_equity": "-132000.00"
+}

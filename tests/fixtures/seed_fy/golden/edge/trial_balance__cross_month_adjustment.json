@@ -1,0 +1,43 @@
+{
+  "report": "trial_balance",
+  "fiscal_year": "FY2025",
+  "rows": [
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "debit_total": "0.00",
+      "credit_total": "120000.00",
+      "balance": "-120000.00"
+    },
+    {
+      "code": "1290",
+      "name": "事業主貸",
+      "debit_total": "48000.00",
+      "credit_total": "0.00",
+      "balance": "48000.00"
+    },
+    {
+      "code": "1530",
+      "name": "機械装置",
+      "debit_total": "0.00",
+      "credit_total": "60000.00",
+      "balance": "-60000.00"
+    },
+    {
+      "code": "6330",
+      "name": "減価償却費",
+      "debit_total": "60000.00",
+      "credit_total": "0.00",
+      "balance": "60000.00"
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "debit_total": "120000.00",
+      "credit_total": "48000.00",
+      "balance": "72000.00"
+    }
+  ],
+  "total_debit": "228000.00",
+  "total_credit": "228000.00"
+}

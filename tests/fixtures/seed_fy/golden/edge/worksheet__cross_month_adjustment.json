@@ -1,0 +1,80 @@
+{
+  "report": "worksheet",
+  "fiscal_year": "FY2025",
+  "rows": [
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "account_type": "asset",
+      "trial_debit": "0.00",
+      "trial_credit": "120000.00",
+      "adjustment_debit": "0.00",
+      "adjustment_credit": "0.00",
+      "pl_debit": "0.00",
+      "pl_credit": "0.00",
+      "bs_debit": "0.00",
+      "bs_credit": "120000.00"
+    },
+    {
+      "code": "1290",
+      "name": "事業主貸",
+      "account_type": "asset",
+      "trial_debit": "0.00",
+      "trial_credit": "0.00",
+      "adjustment_debit": "48000.00",
+      "adjustment_credit": "0.00",
+      "pl_debit": "0.00",
+      "pl_credit": "0.00",
+      "bs_debit": "48000.00",
+      "bs_credit": "0.00"
+    },
+    {
+      "code": "1530",
+      "name": "機械装置",
+      "account_type": "asset",
+      "trial_debit": "0.00",
+      "trial_credit": "0.00",
+      "adjustment_debit": "0.00",
+      "adjustment_credit": "60000.00",
+      "pl_debit": "0.00",
+      "pl_credit": "0.00",
+      "bs_debit": "0.00",
+      "bs_credit": "60000.00"
+    },
+    {
+      "code": "6330",
+      "name": "減価償却費",
+      "account_type": "expense",
+      "trial_debit": "0.00",
+      "trial_credit": "0.00",
+      "adjustment_debit": "60000.00",
+      "adjustment_credit": "0.00",
+      "pl_debit": "60000.00",
+      "pl_credit": "0.00",
+      "bs_debit": "0.00",
+      "bs_credit": "0.00"
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "account_type": "expense",
+      "trial_debit": "120000.00",
+      "trial_credit": "0.00",
+      "adjustment_debit": "0.00",
+      "adjustment_credit": "48000.00",
+      "pl_debit": "72000.00",
+      "pl_credit": "0.00",
+      "bs_debit": "0.00",
+      "bs_credit": "0.00"
+    }
+  ],
+  "trial_debit_total": "120000.00",
+  "trial_credit_total": "120000.00",
+  "adjustment_debit_total": "108000.00",
+  "adjustment_credit_total": "108000.00",
+  "pl_debit_total": "132000.00",
+  "pl_credit_total": "0.00",
+  "bs_debit_total": "48000.00",
+  "bs_credit_total": "180000.00",
+  "net_income": "-132000.00"
+}
