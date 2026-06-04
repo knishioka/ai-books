@@ -22,6 +22,7 @@ from typing import Any
 import psycopg
 import pytest
 from fastmcp import Client
+from hypothesis import HealthCheck, settings
 from psycopg import sql
 from psycopg.rows import DictRow, dict_row
 
@@ -30,6 +31,20 @@ from ai_books.db import migrate
 
 MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
 _TEST_SCHEMA = "ai_books_layer_test"
+
+# Property-based tests (Issue #57) must be deterministically reproducible (AC: "hypothesis の例が
+# 決定的に再現可能"). ``derandomize=True`` seeds Hypothesis from the test source instead of the clock, so
+# the same examples are explored every run (in CI and locally) — a failure is reproducible from the
+# printed example, and a green run today stays green tomorrow without a flaky reseed. The DB-backed
+# property tests create a throwaway schema *inside* the example (not via a function-scoped fixture), so
+# the function_scoped_fixture health check would never fire for them; it is suppressed for clarity.
+settings.register_profile(
+    "ai_books",
+    derandomize=True,
+    max_examples=150,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+settings.load_profile("ai_books")
 
 
 @pytest.fixture

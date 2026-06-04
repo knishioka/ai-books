@@ -1,0 +1,41 @@
+{
+  "report": "profit_and_loss",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "sales": {
+    "key": "sales",
+    "label": "売上高",
+    "lines": [],
+    "subtotal": "0.00"
+  },
+  "cost_of_goods_sold": {
+    "key": "cost_of_goods_sold",
+    "label": "売上原価",
+    "lines": [],
+    "subtotal": "0.00"
+  },
+  "gross_profit": "0.00",
+  "selling_admin_expenses": {
+    "key": "selling_admin_expenses",
+    "label": "販売費及び一般管理費",
+    "lines": [],
+    "subtotal": "0.00"
+  },
+  "operating_income": "0.00",
+  "non_operating_income": {
+    "key": "non_operating_income",
+    "label": "営業外収益",
+    "lines": [],
+    "subtotal": "0.00"
+  },
+  "non_operating_expenses": {
+    "key": "non_operating_expenses",
+    "label": "営業外費用",
+    "lines": [],
+    "subtotal": "0.00"
+  },
+  "ordinary_income": "0.00",
+  "net_income": "0.00",
+  "unclassified": []
+}

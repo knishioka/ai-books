@@ -1,0 +1,79 @@
+{
+  "report": "journal_book",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "status": "posted",
+  "entries": [
+    {
+      "voucher_no": "CMA-000",
+      "entry_date": "2025-01-15",
+      "description": "地代家賃 (年額, 預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7250",
+          "account_name": "地代家賃",
+          "side": "debit",
+          "amount": "120000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "120000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "CMA-001",
+      "entry_date": "2025-06-30",
+      "description": "期末整理: 減価償却 (機械装置, 製造)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "6330",
+          "account_name": "減価償却費",
+          "side": "debit",
+          "amount": "60000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1530",
+          "account_name": "機械装置",
+          "side": "credit",
+          "amount": "60000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "CMA-002",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 地代家賃 家事按分 40%",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1290",
+          "account_name": "事業主貸",
+          "side": "debit",
+          "amount": "48000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "7250",
+          "account_name": "地代家賃",
+          "side": "credit",
+          "amount": "48000.00",
+          "line_description": null
+        }
+      ]
+    }
+  ],
+  "total_debit": "228000.00",
+  "total_credit": "228000.00"
+}

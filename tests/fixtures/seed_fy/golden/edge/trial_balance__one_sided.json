@@ -1,0 +1,36 @@
+{
+  "report": "trial_balance",
+  "fiscal_year": "FY2025",
+  "rows": [
+    {
+      "code": "1110",
+      "name": "現金",
+      "debit_total": "100000.00",
+      "credit_total": "0.00",
+      "balance": "100000.00"
+    },
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "debit_total": "0.00",
+      "credit_total": "30000.00",
+      "balance": "-30000.00"
+    },
+    {
+      "code": "4110",
+      "name": "売上高",
+      "debit_total": "0.00",
+      "credit_total": "100000.00",
+      "balance": "100000.00"
+    },
+    {
+      "code": "7140",
+      "name": "旅費交通費",
+      "debit_total": "30000.00",
+      "credit_total": "0.00",
+      "balance": "30000.00"
+    }
+  ],
+  "total_debit": "130000.00",
+  "total_credit": "130000.00"
+}

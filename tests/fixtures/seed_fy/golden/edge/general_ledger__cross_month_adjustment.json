@@ -1,0 +1,125 @@
+{
+  "report": "general_ledger",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "status": "posted",
+  "accounts": [
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "-120000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-15",
+          "voucher_no": "CMA-000",
+          "description": "地代家賃 (年額, 預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7250"
+          ],
+          "side": "credit",
+          "amount": "120000.00",
+          "running_balance": "-120000.00"
+        }
+      ]
+    },
+    {
+      "code": "1290",
+      "name": "事業主貸",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "48000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "CMA-002",
+          "description": "期末整理: 地代家賃 家事按分 40%",
+          "line_description": null,
+          "counter_accounts": [
+            "7250"
+          ],
+          "side": "debit",
+          "amount": "48000.00",
+          "running_balance": "48000.00"
+        }
+      ]
+    },
+    {
+      "code": "1530",
+      "name": "機械装置",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "-60000.00",
+      "rows": [
+        {
+          "entry_date": "2025-06-30",
+          "voucher_no": "CMA-001",
+          "description": "期末整理: 減価償却 (機械装置, 製造)",
+          "line_description": null,
+          "counter_accounts": [
+            "6330"
+          ],
+          "side": "credit",
+          "amount": "60000.00",
+          "running_balance": "-60000.00"
+        }
+      ]
+    },
+    {
+      "code": "6330",
+      "name": "減価償却費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "60000.00",
+      "rows": [
+        {
+          "entry_date": "2025-06-30",
+          "voucher_no": "CMA-001",
+          "description": "期末整理: 減価償却 (機械装置, 製造)",
+          "line_description": null,
+          "counter_accounts": [
+            "1530"
+          ],
+          "side": "debit",
+          "amount": "60000.00",
+          "running_balance": "60000.00"
+        }
+      ]
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "72000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-15",
+          "voucher_no": "CMA-000",
+          "description": "地代家賃 (年額, 預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "120000.00",
+          "running_balance": "120000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "CMA-002",
+          "description": "期末整理: 地代家賃 家事按分 40%",
+          "line_description": null,
+          "counter_accounts": [
+            "1290"
+          ],
+          "side": "credit",
+          "amount": "48000.00",
+          "running_balance": "72000.00"
+        }
+      ]
+    }
+  ]
+}

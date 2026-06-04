@@ -37,7 +37,8 @@ from ai_books.reports import (
     worksheet_snapshot,
 )
 
-from .dataset import FISCAL_YEAR
+from .dataset import FISCAL_YEAR, SeedEntry
+from .edge_cases import EDGE_DATASETS
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
     balance_sheet_from_dataset,
@@ -173,6 +174,77 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
         lambda: etax_export_snapshot(etax_export_from_dataset()),
     ),
 }
+
+
+# ── エッジケース golden (Issue #57) ───────────────────────────────────────────────
+# The edge years in :mod:`.edge_cases` reuse the *same* offline reducers + snapshotters as the main
+# year — only the input dataset differs — so each is registered into GOLDEN_REPORTS programmatically
+# rather than by hand. Keys are ``<report>__<name>`` and files live under ``golden/edge/`` to keep them
+# apart from the main year's golden. This means the whole update/diff/CLI machinery (and 誤上書き防止)
+# covers the edge golden for free, exactly as it does the main reports.
+
+#: report → ``dataset → golden dict``. Each builder reduces a dataset offline and snapshots it with the
+#: same serializer the main golden uses, so an edge golden cannot drift in shape from its main twin.
+_EDGE_REPORT_BUILDERS: dict[str, Callable[[tuple[SeedEntry, ...]], dict[str, Any]]] = {
+    "trial_balance": lambda ds: trial_balance_snapshot(trial_balance_from_dataset(ds)),
+    "profit_and_loss": lambda ds: profit_and_loss_snapshot(profit_and_loss_from_dataset(ds)),
+    "balance_sheet": lambda ds: balance_sheet_snapshot(balance_sheet_from_dataset(ds)),
+    "worksheet": lambda ds: worksheet_snapshot(worksheet_from_dataset(ds)),
+    "journal_book": lambda ds: journal_book_snapshot(journal_book_from_dataset(ds)),
+    "general_ledger": lambda ds: general_ledger_snapshot(general_ledger_from_dataset(ds)),
+}
+
+#: edge dataset name → the reports golden-pinned for it. 集計 (試算表) / PL / BS cover every year; the
+#: 月跨ぎ整理 year additionally pins 精算表 (the report its 修正記入 split is about) and the 帳簿 (仕訳帳 /
+#: 総勘定元帳). The 空 year only needs the always-empty 集計/PL/BS.
+EDGE_GOLDEN_REPORTS: dict[str, tuple[str, ...]] = {
+    "empty": ("trial_balance", "profit_and_loss", "balance_sheet"),
+    "one_sided": ("trial_balance", "profit_and_loss", "balance_sheet"),
+    "fractional": ("trial_balance", "profit_and_loss", "balance_sheet"),
+    "cross_month_adjustment": (
+        "trial_balance",
+        "profit_and_loss",
+        "balance_sheet",
+        "worksheet",
+        "journal_book",
+        "general_ledger",
+    ),
+}
+
+
+def _edge_generator(
+    dataset: tuple[SeedEntry, ...],
+    build: Callable[[tuple[SeedEntry, ...]], dict[str, Any]],
+) -> Callable[[], dict[str, Any]]:
+    """Bind ``dataset`` and ``build`` into a zero-arg golden generator (GOLDEN_REPORTS' contract).
+
+    A named factory (rather than an inline lambda) gives each closure its own captured pair — avoiding
+    the late-binding loop trap — and a signature mypy can match to ``Callable[[], dict[str, Any]]``.
+    """
+
+    def generate() -> dict[str, Any]:
+        return build(dataset)
+
+    return generate
+
+
+def _register_edge_golden() -> None:
+    """Add one ``<report>__<name>`` entry to :data:`GOLDEN_REPORTS` per edge report.
+
+    Files land under ``golden/edge/<report>__<name>.json`` so they stay apart from the main year's.
+    """
+    for name, reports in EDGE_GOLDEN_REPORTS.items():
+        dataset = EDGE_DATASETS[name]
+        for report in reports:
+            key = f"{report}__{name}"
+            filename = f"edge/{report}__{name}.json"
+            GOLDEN_REPORTS[key] = (
+                filename,
+                _edge_generator(dataset, _EDGE_REPORT_BUILDERS[report]),
+            )
+
+
+_register_edge_golden()
 
 
 def golden_path(report: str) -> Path:
