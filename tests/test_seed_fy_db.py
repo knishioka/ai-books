@@ -17,7 +17,7 @@ import psycopg
 import pytest
 
 from ai_books import db
-from ai_books.db.repository import AccountRepository, LedgerRepository
+from ai_books.db.repository import AccountRepository, JournalRepository, LedgerRepository
 from ai_books.models import EntryStatus
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
@@ -58,6 +58,27 @@ def test_load_is_idempotent(migrated_conn: psycopg.Connection[Any]) -> None:
     assert second.inserted == 0
     assert second.skipped == len(FY_ENTRIES)
     assert _entry_count(migrated_conn) == after_first == len(FY_ENTRIES)
+
+
+def test_load_is_atomic_on_midbatch_failure(
+    migrated_conn: psycopg.Connection[Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The batch loads under one transaction: a failure partway through must roll back
+    # every already-inserted entry, never leaving the books partially seeded.
+    real_insert = JournalRepository.insert_entry
+    calls = {"n": 0}
+
+    def flaky_insert(self: JournalRepository, entry: Any) -> Any:
+        calls["n"] += 1
+        if calls["n"] == 3:
+            raise RuntimeError("simulated mid-batch failure")
+        return real_insert(self, entry)
+
+    monkeypatch.setattr(JournalRepository, "insert_entry", flaky_insert)
+    with pytest.raises(RuntimeError, match="mid-batch failure"):
+        load_fiscal_year(migrated_conn)
+
+    assert _entry_count(migrated_conn) == 0  # the two earlier inserts were rolled back
 
 
 def test_db_books_balance_overall(migrated_conn: psycopg.Connection[Any]) -> None:

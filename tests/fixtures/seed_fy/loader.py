@@ -77,7 +77,9 @@ def load_fiscal_year(
 
     Validates the dataset first (so a bad dataset never touches the DB), seeds the chart
     idempotently, then inserts only the entries whose ``voucher_no`` is not already stored.
-    Safe to call repeatedly: a second call inserts nothing.
+    The whole batch goes in under one transaction, so a failure midway rolls every new
+    entry back rather than leaving the books partially seeded (all-or-nothing). Safe to
+    call repeatedly: a second call inserts nothing.
     """
     validate_dataset(entries)
     seed_accounts(conn)
@@ -88,10 +90,14 @@ def load_fiscal_year(
     already = _existing_vouchers(conn, [e.voucher_no for e in entries])
     repo = JournalRepository(conn)
     inserted = 0
-    for entry in entries:
-        if entry.voucher_no in already:
-            continue
-        repo.insert_entry(_to_journal_entry(entry, code_to_id))
-        inserted += 1
+    # One transaction around the batch: each insert_entry's own transaction() nests as a
+    # savepoint, so the load commits as a unit (or not at all). On an autocommit connection
+    # this opens an explicit block; inside db.transaction() it nests cleanly.
+    with conn.transaction():
+        for entry in entries:
+            if entry.voucher_no in already:
+                continue
+            repo.insert_entry(_to_journal_entry(entry, code_to_id))
+            inserted += 1
 
     return LoadResult(inserted=inserted, skipped=len(already), total=len(entries))
