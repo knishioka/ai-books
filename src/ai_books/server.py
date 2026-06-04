@@ -6,7 +6,10 @@ Registers the read-only query surface:
   over the seeded master data (Issue #12);
 - journal / balance / ledger tools (``list_journal_entries`` / ``get_journal_entry``
   / ``get_account_balance`` / ``get_account_ledger``) — the shared read API that
-  aggregation (#18) and the Vercel viewer (#16) reuse (Issue #15).
+  aggregation (#18) and the Vercel viewer (#16) reuse (Issue #15);
+- aggregation tools (``trial_balance`` / ``monthly_trend``) — the 合計残高試算表 and
+  月次推移 the later reports (PL/BS/精算表/決算書) derive from, built on the #15 read
+  layer (Issue #18).
 
 Plus the write surface (#13): ``create_journal_entry`` / ``update_journal_entry`` /
 ``post_journal_entry`` / ``void_journal_entry``, which delegate to
@@ -36,6 +39,7 @@ from fastmcp.exceptions import ToolError
 from ai_books import db
 from ai_books.db.repository import (
     AccountRepository,
+    FiscalYearRepository,
     JournalRepository,
     LedgerRepository,
 )
@@ -49,7 +53,9 @@ from ai_books.models import (
     JournalEntry,
     JournalEntryInput,
     JournalEntryPage,
+    MonthlyTrend,
     StatementCategory,
+    TrialBalance,
 )
 from ai_books.services import JournalService
 
@@ -61,7 +67,8 @@ mcp: FastMCP = FastMCP(
         "Read tools cover the chart of accounts (list_accounts / get_account / "
         "search_accounts) and the journals, balances, and general ledger (総勘定元帳) — "
         "list_journal_entries / get_journal_entry / get_account_balance / "
-        "get_account_ledger. Amounts are exact decimals returned as strings."
+        "get_account_ledger. Aggregation tools (trial_balance / monthly_trend) return the "
+        "合計残高試算表 and 月次推移. Amounts are exact decimals returned as strings."
     ),
 )
 
@@ -257,6 +264,59 @@ def get_account_ledger(
             account_id,
             start=_parse_date(start_date, "start_date"),
             end=_parse_date(end_date, "end_date"),
+            status=_parse_status(status),
+        )
+
+
+# --- aggregation: trial balance / monthly trend (Issue #18) -------------------
+
+
+@mcp.tool
+def trial_balance(
+    as_of: str | None = None,
+    start_date: str | None = None,
+    status: str | None = None,
+) -> TrialBalance:
+    """Return the 合計残高試算表: every touched account's 借方計 / 貸方計 / 残高 plus footings.
+
+    ``start_date`` and ``as_of`` are ISO dates bounding 取引日 inclusively; omit both for
+    the cumulative all-time trial balance, or pass them for a 期間試算表. Each ``balance``
+    is signed into the account's 正常残高 direction, and ``total_debit`` / ``total_credit``
+    are equal exactly when the books balance (借貸平均). Pass ``status='posted'`` for the
+    confirmed books (記帳確定); the default includes drafts but never 取消 entries.
+    """
+    with db.connect() as conn:
+        return LedgerRepository(conn).trial_balance(
+            as_of=_parse_date(as_of, "as_of"),
+            start=_parse_date(start_date, "start_date"),
+            status=_parse_status(status),
+        )
+
+
+@mcp.tool
+def monthly_trend(
+    account_code: str,
+    fiscal_year: str,
+    status: str | None = None,
+) -> MonthlyTrend:
+    """Return one account's 月次推移 across ``fiscal_year`` (会計年度名, 例: ``FY2025``).
+
+    Resolves the fiscal year's 期首 / 期末 and tiles it into accounting months: each point
+    carries that month's 借方計 / 貸方計, the 当月増減 (normal-signed), and the carried-forward
+    月末残高. ``opening_balance`` is the 期首残高 and ``closing_balance`` the 期末残高, with
+    期首残高 + Σ期中増減 = 期末残高 by construction. Errors if the account or fiscal year is
+    unknown. Pass ``status='posted'`` for the confirmed books; the default excludes 取消.
+    """
+    with db.connect() as conn:
+        account_id = _resolve_account_id(conn, account_code)
+        year = FiscalYearRepository(conn).get_by_name(fiscal_year)
+        if year is None:
+            raise RecordNotFoundError("fiscal_year", fiscal_year)
+        return LedgerRepository(conn).monthly_trend(
+            account_id,
+            fiscal_year=year.name,
+            start=year.start_date,
+            end=year.end_date,
             status=_parse_status(status),
         )
 

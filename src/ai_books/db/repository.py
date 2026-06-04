@@ -22,7 +22,7 @@ import psycopg
 from psycopg.rows import dict_row
 from pydantic import BaseModel
 
-from ai_books import ledger
+from ai_books import aggregation, ledger
 from ai_books.errors import RecordNotFoundError, RepositoryError
 from ai_books.models import (
     Account,
@@ -31,10 +31,14 @@ from ai_books.models import (
     AccountType,
     EntrySide,
     EntryStatus,
+    FiscalYear,
     JournalEntry,
     JournalEntryPage,
     JournalLine,
+    MonthlyTrend,
+    NormalSide,
     StatementCategory,
+    TrialBalance,
 )
 
 #: A bound SQL statement's positional parameters.
@@ -573,6 +577,136 @@ class LedgerRepository:
             rows=rows,
         )
 
+    def trial_balance(
+        self,
+        *,
+        as_of: date | None = None,
+        start: date | None = None,
+        status: EntryStatus | None = None,
+    ) -> TrialBalance:
+        """Aggregate every account's footings into a 合計残高試算表 with one GROUP BY.
+
+        One SQL pass sums 借方 / 貸方 per account over the window — ``start`` (inclusive)
+        and ``as_of`` (inclusive) each bound 取引日 and are skipped when ``None``, so the
+        default (both ``None``) is the cumulative all-time trial balance. Only accounts
+        that were actually touched appear. Signing and the column footings are delegated
+        to :func:`ai_books.aggregation.assemble_trial_balance` (the one signing rule the
+        per-account :meth:`account_balance` also uses), so 借方合計 = 貸方合計 holds exactly
+        when the underlying books balance. ``status`` follows the same rule as every other
+        read: an explicit value matches exactly, the default excludes 取消 (voided).
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.code, a.name, a.normal_balance,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE (%(start)s::date IS NULL OR je.entry_date >= %(start)s::date)
+                  AND (%(as_of)s::date IS NULL OR je.entry_date <= %(as_of)s::date)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY a.code, a.name, a.normal_balance
+                ORDER BY a.code
+                """,
+                {
+                    "start": start,
+                    "as_of": as_of,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            rows = cur.fetchall()
+
+        totals = [
+            aggregation.AccountTotals(
+                code=row["code"],
+                name=row["name"],
+                normal_balance=NormalSide(row["normal_balance"]),
+                debit_total=Decimal(row["debit_total"]),
+                credit_total=Decimal(row["credit_total"]),
+            )
+            for row in rows
+        ]
+        return aggregation.assemble_trial_balance(totals, as_of=as_of, start_date=start)
+
+    def monthly_trend(
+        self,
+        account_id: int,
+        *,
+        fiscal_year: str,
+        start: date,
+        end: date,
+        status: EntryStatus | None = None,
+    ) -> MonthlyTrend:
+        """Return ``account_id``'s month-by-month movement across ``[start, end]`` (期首/期末).
+
+        The opening balance is everything posted *before* ``start`` (期首残高); the fiscal
+        year is tiled into accounting months (:func:`ai_books.aggregation.month_windows`)
+        and each month's 借方 / 貸方 sums roll the running balance forward, so a quiet month
+        still appears with the balance unchanged (月次推移が会計期間で正しく区切られる). By
+        construction 期首残高 + Σ期中増減 = 期末残高 (:attr:`MonthlyTrend.is_consistent`).
+        ``status`` follows the same rule as every other read (default excludes 取消).
+        """
+        account = self._account_or_raise(account_id)
+        open_debit, open_credit = self._sum_sides(
+            account_id, as_of=None, before=start, status=status
+        )
+        opening_balance = ledger.balance_from_totals(
+            open_debit, open_credit, account.normal_balance
+        )
+
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT date_trunc('month', je.entry_date)::date AS month_start,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                WHERE jl.account_id = %(account_id)s
+                  AND je.entry_date >= %(start)s::date
+                  AND je.entry_date <= %(end)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY month_start
+                """,
+                {
+                    "account_id": account_id,
+                    "start": start,
+                    "end": end,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            month_rows = cur.fetchall()
+
+        amounts_by_month = {
+            row["month_start"]: aggregation.MonthAmounts(
+                debit_total=Decimal(row["debit_total"]),
+                credit_total=Decimal(row["credit_total"]),
+            )
+            for row in month_rows
+        }
+        windows = aggregation.month_windows(start, end)
+        points, closing_balance = aggregation.build_monthly_trend_points(
+            windows, amounts_by_month, account.normal_balance, opening_balance
+        )
+        return MonthlyTrend(
+            account_id=account_id,
+            code=account.code,
+            name=account.name,
+            normal_balance=account.normal_balance,
+            fiscal_year=fiscal_year,
+            start_date=start,
+            end_date=end,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            points=points,
+        )
+
     def _account_or_raise(self, account_id: int) -> Account:
         account = AccountRepository(self._conn).get(account_id)
         if account is None:
@@ -641,3 +775,18 @@ class LedgerRepository:
             if row["code"] not in codes:  # collapse duplicate counter accounts, keep order
                 codes.append(row["code"])
         return result
+
+
+class FiscalYearRepository(BaseRepository[FiscalYear]):
+    """Read access to the ``fiscal_years`` table (会計年度).
+
+    Aggregation resolves a fiscal year by its name (例: ``FY2025``) to obtain the 期首 /
+    期末 boundaries that bound a 月次推移; the period rows themselves are derived from that
+    range at query time (the schema does not hard-link entries to a period).
+    """
+
+    model = FiscalYear
+
+    def get_by_name(self, name: str) -> FiscalYear | None:
+        """Fetch one fiscal year by its name (``None`` if absent)."""
+        return self.fetch_one("SELECT * FROM fiscal_years WHERE name = %s", (name,))

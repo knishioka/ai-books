@@ -25,10 +25,17 @@ import sys
 from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .dataset import FISCAL_YEAR
-from .reports import TrialBalance, trial_balance_from_dataset
+from .reports import (
+    MONTHLY_TREND_ACCOUNTS,
+    monthly_trend_from_dataset,
+    trial_balance_from_dataset,
+)
+
+if TYPE_CHECKING:
+    from ai_books.models import MonthlyTrend, TrialBalance
 
 #: Directory holding the committed golden JSON files (one per report).
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
@@ -68,6 +75,46 @@ def trial_balance_snapshot(trial_balance: TrialBalance) -> dict[str, Any]:
     }
 
 
+def monthly_trend_snapshot(trends: list[MonthlyTrend]) -> dict[str, Any]:
+    """Turn a list of :class:`~ai_books.models.MonthlyTrend` into golden JSON shape.
+
+    Amounts are fixed-point strings (浮動小数禁止), accounts stay in the given order and
+    each carries its 12 monthly points in order. ``account_id`` is deliberately omitted —
+    it is DB-assigned, so a golden keyed on it could never match the offline reduction.
+    """
+    return {
+        "report": "monthly_trend",
+        "fiscal_year": FISCAL_YEAR,
+        "accounts": [
+            {
+                "code": trend.code,
+                "name": trend.name,
+                "normal_balance": trend.normal_balance.value,
+                "opening_balance": _money(trend.opening_balance),
+                "closing_balance": _money(trend.closing_balance),
+                "points": [
+                    {
+                        "month": point.month,
+                        "debit_total": _money(point.debit_total),
+                        "credit_total": _money(point.credit_total),
+                        "net_change": _money(point.net_change),
+                        "closing_balance": _money(point.closing_balance),
+                    }
+                    for point in trend.points
+                ],
+            }
+            for trend in trends
+        ],
+    }
+
+
+def _monthly_trend_snapshot_from_dataset() -> dict[str, Any]:
+    """Generate the monthly-trend golden for the fixed :data:`MONTHLY_TREND_ACCOUNTS`."""
+    return monthly_trend_snapshot(
+        [monthly_trend_from_dataset(code) for code in MONTHLY_TREND_ACCOUNTS]
+    )
+
+
 #: name → (filename, generator). The generator returns the golden-shaped dict from the
 #: in-memory dataset (no DB), so golden files can be produced offline. Downstream report
 #: Issues append their own entry here.
@@ -75,6 +122,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "trial_balance": (
         "trial_balance.json",
         lambda: trial_balance_snapshot(trial_balance_from_dataset()),
+    ),
+    "monthly_trend": (
+        "monthly_trend.json",
+        _monthly_trend_snapshot_from_dataset,
     ),
 }
 
@@ -129,6 +180,62 @@ def diff_snapshots(expected: dict[str, Any], actual: dict[str, Any]) -> list[str
                     f"{exp.get(field)!r} != {act.get(field)!r}"
                 )
     return problems
+
+
+def diff_monthly_trend(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+    """Return human-readable differences between two monthly-trend snapshots.
+
+    Accounts are matched by ``code`` and the per-month points by ``month``, so a diff points
+    at the offending cell ("1141 2025-06: closing_balance 1290000.00 != 1300000.00") rather
+    than dumping the whole structure. Empty list ⇒ identical.
+    """
+    problems: list[str] = []
+
+    for key in ("report", "fiscal_year"):
+        if expected.get(key) != actual.get(key):
+            problems.append(f"{key}: {expected.get(key)!r} != {actual.get(key)!r}")
+
+    expected_accounts = {acc["code"]: acc for acc in expected.get("accounts", [])}
+    actual_accounts = {acc["code"]: acc for acc in actual.get("accounts", [])}
+
+    for code in sorted(expected_accounts.keys() - actual_accounts.keys()):
+        problems.append(f"{code}: missing from actual")
+    for code in sorted(actual_accounts.keys() - expected_accounts.keys()):
+        problems.append(f"{code}: unexpected in actual")
+
+    for code in sorted(expected_accounts.keys() & actual_accounts.keys()):
+        exp, act = expected_accounts[code], actual_accounts[code]
+        for field in ("name", "normal_balance", "opening_balance", "closing_balance"):
+            if exp.get(field) != act.get(field):
+                problems.append(f"{code}: {field} {exp.get(field)!r} != {act.get(field)!r}")
+
+        exp_points = {p["month"]: p for p in exp.get("points", [])}
+        act_points = {p["month"]: p for p in act.get("points", [])}
+        for month in sorted(exp_points.keys() - act_points.keys()):
+            problems.append(f"{code} {month}: missing from actual")
+        for month in sorted(act_points.keys() - exp_points.keys()):
+            problems.append(f"{code} {month}: unexpected in actual")
+        for month in sorted(exp_points.keys() & act_points.keys()):
+            pe, pa = exp_points[month], act_points[month]
+            for field in ("debit_total", "credit_total", "net_change", "closing_balance"):
+                if pe.get(field) != pa.get(field):
+                    problems.append(
+                        f"{code} {month}: {field} {pe.get(field)!r} != {pa.get(field)!r}"
+                    )
+    return problems
+
+
+#: report → comparison function. Reports not listed fall back to :func:`diff_snapshots`
+#: (the trial-balance shape). A report registers its own differ here when its JSON shape
+#: differs from the per-account-row trial balance.
+GOLDEN_DIFFERS: dict[str, Callable[[dict[str, Any], dict[str, Any]], list[str]]] = {
+    "monthly_trend": diff_monthly_trend,
+}
+
+
+def diff_report(report: str, expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+    """Diff two snapshots of ``report`` using its registered differ (default trial-balance)."""
+    return GOLDEN_DIFFERS.get(report, diff_snapshots)(expected, actual)
 
 
 def _serialize(snapshot: dict[str, Any]) -> str:
@@ -186,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{report}: {exc}", file=sys.stderr)
             stale += 1
             continue
-        problems = diff_snapshots(current, fresh)
+        problems = diff_report(report, current, fresh)
         if problems:
             stale += 1
             print(f"{report}: golden is stale ({len(problems)} difference(s)):", file=sys.stderr)
