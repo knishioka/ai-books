@@ -326,6 +326,13 @@ _LIABILITY_CATEGORIES: tuple[StatementCategory, ...] = (
 )
 _EQUITY_CATEGORIES: tuple[StatementCategory, ...] = (StatementCategory.EQUITY,)
 
+#: Every B/S 表示区分 that :func:`assemble_balance_sheet` actually places into a section. A
+#: B/S-typed category missing from this set would be silently dropped from the statement
+#: (breaking 貸借一致), so the assembler asserts coverage against it — see the guard below.
+_BALANCE_SHEET_CATEGORIES: frozenset[StatementCategory] = frozenset(
+    _ASSET_CATEGORIES + _LIABILITY_CATEGORIES + _EQUITY_CATEGORIES
+)
+
 
 def _balance_sheet_sections(
     by_category: dict[StatementCategory, list[BalanceSheetLine]],
@@ -374,6 +381,18 @@ def assemble_balance_sheet(
             by_category.setdefault(item.statement_category, []).append(
                 BalanceSheetLine(code=item.code, name=item.name, balance=item.balance)
             )
+
+    # Fail loud if a B/S 表示区分 carried a balance but is not placed into any section: a new
+    # category added to StatementCategory but not to the section tuples would otherwise be
+    # silently dropped, quietly breaking 貸借一致. Mirrors the RepositoryError raised for a
+    # touched account with no 表示区分 at all (LedgerRepository.balance_sheet).
+    unplaced = by_category.keys() - _BALANCE_SHEET_CATEGORIES
+    if unplaced:
+        names = ", ".join(sorted(category.value for category in unplaced))
+        raise ValueError(
+            f"balance sheet 表示区分 not assigned to any section: {names}; "
+            "add them to _ASSET_CATEGORIES / _LIABILITY_CATEGORIES / _EQUITY_CATEGORIES"
+        )
 
     assets, total_assets = _balance_sheet_sections(by_category, _ASSET_CATEGORIES)
     liabilities, total_liabilities = _balance_sheet_sections(by_category, _LIABILITY_CATEGORIES)

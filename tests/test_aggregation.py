@@ -404,3 +404,45 @@ def test_profit_and_loss_skips_balance_sheet_accounts() -> None:
     assert pl.unclassified == []
     assert pl.sales.subtotal == Decimal("1000")
     assert pl.net_income == Decimal("1000")
+
+
+# --- assemble_balance_sheet ---------------------------------------------------
+
+
+def _bs(code: str, category: StatementCategory, balance: str) -> aggregation.ClassifiedBalance:
+    return aggregation.ClassifiedBalance(
+        code=code, name=code, statement_category=category, balance=Decimal(balance)
+    )
+
+
+def test_assemble_balance_sheet_groups_sections_and_balances() -> None:
+    # 資産 = 負債 + 純資産 (当期純利益 込) over a minimal hand-built set.
+    balance_sheet = aggregation.assemble_balance_sheet(
+        [
+            _bs("1110", StatementCategory.CURRENT_ASSETS, "1000"),
+            _bs("2510", StatementCategory.FIXED_LIABILITIES, "400"),
+            _bs("3110", StatementCategory.EQUITY, "300"),
+            # a 収益 feeds 当期純利益 (300), folded into 純資産: 300 equity + 300 net = 600
+            _bs("4110", StatementCategory.SALES, "300"),
+        ]
+    )
+    assert balance_sheet.total_assets == Decimal("1000")
+    assert balance_sheet.total_liabilities == Decimal("400")
+    assert balance_sheet.net_income == Decimal("300")
+    assert balance_sheet.total_equity == Decimal("600")
+    assert balance_sheet.is_balanced
+
+
+def test_assemble_balance_sheet_fails_loud_on_unplaced_category(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A B/S 表示区分 carrying a balance but not assigned to any section must raise rather than
+    # be silently dropped (which would quietly break 貸借一致). Simulate a future category by
+    # shrinking the handled set so CURRENT_ASSETS is no longer placed.
+    monkeypatch.setattr(
+        aggregation,
+        "_BALANCE_SHEET_CATEGORIES",
+        aggregation._BALANCE_SHEET_CATEGORIES - {StatementCategory.CURRENT_ASSETS},
+    )
+    with pytest.raises(ValueError, match="not assigned to any section"):
+        aggregation.assemble_balance_sheet([_bs("1110", StatementCategory.CURRENT_ASSETS, "1000")])
