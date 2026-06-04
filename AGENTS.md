@@ -55,6 +55,10 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 - 過去 migration: applied 済 migration は編集せず、新規ファイルで forward-only に変更 (Supabase/Postgres)
 - Supabase / Vercel の接続情報・サービスキー — 環境変数経由のみ。コード/コミットに含めない
 
+## Agent permissions
+
+- AI エージェント (Claude Code 等) の権限 (allow/deny) は **`.claude/settings.json` が SSOT**。ルーチン安全コマンドは allow、破壊的操作 (`rm -rf` / force push / volumes 削除 / 本番 DB 破壊 / `~/.ai-books` 書込 等) は deny。個人差分は gitignore 済の `.claude/settings.local.json` に置き、共有しない。
+
 ## Architectural invariants
 
 1. **Read-only viewer only, no data-entry UI**. データ入力/編集は MCP tool / CLI のみ。閲覧は **Vercel 上の read-only 集計ビュー**に限り許可 (trial balance / P/L / B/S / 青色申告決算書 等の render のみ)。書込 UI・HTML 入力フォームは導入しない
