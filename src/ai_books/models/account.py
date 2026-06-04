@@ -14,7 +14,13 @@ from datetime import datetime
 from pydantic import model_validator
 
 from .base import DomainModel
-from .enums import AccountType, NormalSide, normal_side_for
+from .enums import (
+    STATEMENT_CATEGORY_ACCOUNT_TYPE,
+    AccountType,
+    NormalSide,
+    StatementCategory,
+    normal_side_for,
+)
 
 
 class Account(DomainModel):
@@ -24,7 +30,7 @@ class Account(DomainModel):
     code: str  # 勘定科目コード
     name: str  # 勘定科目名
     account_type: AccountType  # 科目区分
-    statement_category: str | None = None  # 集計分類 (決算書の表示区分)
+    statement_category: StatementCategory | None = None  # 集計分類 (決算書の表示区分)
     normal_balance: NormalSide  # 正常残高
     parent_id: int | None = None  # 内訳 (上位科目)
     is_active: bool = True
@@ -45,4 +51,16 @@ class Account(DomainModel):
     def _check_not_self_parent(self) -> Account:
         if self.parent_id is not None and self.id is not None and self.parent_id == self.id:
             raise ValueError("account cannot be its own parent")
+        return self
+
+    @model_validator(mode="after")
+    def _check_statement_category_matches_type(self) -> Account:
+        if self.statement_category is None:
+            return self
+        expected = STATEMENT_CATEGORY_ACCOUNT_TYPE[self.statement_category]
+        if self.account_type != expected:
+            raise ValueError(
+                f"statement_category {self.statement_category.value} requires "
+                f"account_type {expected.value}, got {self.account_type.value}"
+            )
         return self

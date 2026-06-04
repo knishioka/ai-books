@@ -6,6 +6,11 @@ import ai_books
 from ai_books import server
 
 
+async def test_chart_of_accounts_tools_registered() -> None:
+    tools = {tool.name for tool in await server.mcp.list_tools()}
+    assert {"list_accounts", "get_account", "search_accounts"} <= tools
+
+
 def test_package_has_version() -> None:
     assert isinstance(ai_books.__version__, str)
     assert ai_books.__version__

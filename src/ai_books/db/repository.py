@@ -21,11 +21,22 @@ from psycopg.rows import dict_row
 from pydantic import BaseModel
 
 from ai_books.errors import RepositoryError
-from ai_books.models import Account, JournalEntry, JournalLine
+from ai_books.models import (
+    Account,
+    AccountType,
+    JournalEntry,
+    JournalLine,
+    StatementCategory,
+)
 
 #: A bound SQL statement's positional parameters.
 Params = Sequence[Any]
 _NO_PARAMS: Params = ()
+
+
+def _category_value(account: Account) -> str | None:
+    """The text to store for ``statement_category`` (the enum's value, or ``None``)."""
+    return None if account.statement_category is None else account.statement_category.value
 
 
 class BaseRepository[ModelT: BaseModel]:
@@ -88,7 +99,7 @@ class AccountRepository(BaseRepository[Account]):
                 account.code,
                 account.name,
                 account.account_type.value,
-                account.statement_category,
+                _category_value(account),
                 account.normal_balance.value,
                 account.parent_id,
                 account.is_active,
@@ -105,6 +116,44 @@ class AccountRepository(BaseRepository[Account]):
     def get_by_code(self, code: str) -> Account | None:
         """Fetch one account by its 勘定科目コード (``None`` if absent)."""
         return self.fetch_one("SELECT * FROM accounts WHERE code = %s", (code,))
+
+    def find(
+        self,
+        *,
+        account_type: AccountType | None = None,
+        statement_category: StatementCategory | None = None,
+        is_active: bool | None = None,
+    ) -> list[Account]:
+        """List accounts, optionally filtered by 区分 / 表示区分 / 有効フラグ.
+
+        Every filter is optional and ``AND``-combined; omitting all returns the whole
+        chart. Results are ordered by 勘定科目コード so output is stable.
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if account_type is not None:
+            clauses.append("account_type = %s")
+            params.append(account_type.value)
+        if statement_category is not None:
+            clauses.append("statement_category = %s")
+            params.append(statement_category.value)
+        if is_active is not None:
+            clauses.append("is_active = %s")
+            params.append(is_active)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.fetch_all(f"SELECT * FROM accounts {where} ORDER BY code", params)
+
+    def search(self, query: str, *, include_inactive: bool = False) -> list[Account]:
+        """Find accounts whose code or 科目名 contains ``query`` (case-insensitive).
+
+        Active accounts only unless ``include_inactive`` is set. Ordered by code.
+        """
+        pattern = f"%{query}%"
+        active = "" if include_inactive else "AND is_active"
+        return self.fetch_all(
+            f"SELECT * FROM accounts WHERE (code ILIKE %s OR name ILIKE %s) {active} ORDER BY code",
+            (pattern, pattern),
+        )
 
 
 class JournalRepository(BaseRepository[JournalEntry]):
