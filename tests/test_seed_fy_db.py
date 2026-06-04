@@ -23,6 +23,7 @@ from ai_books.reports import (
     balance_sheet_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
+    profit_and_loss_snapshot,
 )
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
@@ -32,6 +33,7 @@ from tests.fixtures.seed_fy import (
     journal_book_from_db,
     load_fiscal_year,
     load_golden,
+    profit_and_loss_from_db,
     trial_balance_from_db,
     trial_balance_snapshot,
 )
@@ -136,6 +138,30 @@ def test_read_api_balances_match_golden(migrated_conn: psycopg.Connection[Any]) 
         assert balance.balance == Decimal(golden_rows[code]["balance"])
         assert balance.debit_total == Decimal(golden_rows[code]["debit_total"])
         assert balance.credit_total == Decimal(golden_rows[code]["credit_total"])
+
+
+# --- 決算書: 損益計算書 (Issue #20) --------------------------------------------
+
+
+def test_db_profit_and_loss_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#20): the DB-read 損益計算書 (段階利益・表示区分集約) equals the frozen golden, so the
+    # SQL aggregation and the offline reduction agree end to end (出力が #17 の golden と一致).
+    load_fiscal_year(migrated_conn)
+    actual = profit_and_loss_snapshot(profit_and_loss_from_db(migrated_conn))
+    expected = load_golden("profit_and_loss")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB profit & loss diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_profit_and_loss_net_income_reconciles(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#20): 各段階利益が試算表と整合, verified against the real stored rows — the P/L
+    # 当期純利益 equals the trial balance's Σ収益 - Σ費用 computed via the read engine.
+    load_fiscal_year(migrated_conn)
+    pl = profit_and_loss_from_db(migrated_conn)
+    assert pl.is_consistent
+    assert pl.net_income == Decimal("-580500")
+    assert pl.cost_of_goods_sold.subtotal == Decimal("1490000")  # 製造原価を含む 売上原価
+    assert pl.unclassified == []
 
 
 # --- 帳簿レポート: 仕訳帳 / 総勘定元帳 (Issue #19) ------------------------------

@@ -34,7 +34,7 @@ from datetime import date
 from decimal import Decimal
 from typing import NamedTuple
 
-from ai_books.models import EntrySide, NormalSide, StatementCategory
+from ai_books.models import AccountType, EntrySide, NormalSide, StatementCategory
 from ai_books.seed.accounts import CHART_OF_ACCOUNTS
 
 #: The fiscal year this dataset models. Used to label golden snapshots.
@@ -294,8 +294,13 @@ def normal_side(code: str) -> NormalSide:
     return _BY_CODE[code].normal_balance
 
 
+def account_type(code: str) -> AccountType:
+    """The 科目区分 for ``code`` from the canonical chart."""
+    return _BY_CODE[code].account_type
+
+
 def statement_category(code: str) -> StatementCategory:
-    """The 表示区分 for ``code`` from the canonical chart (drives BS/PL roll-up, #21/#20)."""
+    """The 表示区分 (決算書集計分類) for ``code`` from the canonical chart (drives PL/BS roll-up)."""
     return _BY_CODE[code].statement_category
 
 

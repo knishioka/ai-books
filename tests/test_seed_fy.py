@@ -14,11 +14,12 @@ from typing import Any
 
 import pytest
 
-from ai_books.models import EntrySide
+from ai_books.models import AccountType, EntrySide
 from ai_books.reports import (
     balance_sheet_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
+    profit_and_loss_snapshot,
 )
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
@@ -32,11 +33,13 @@ from tests.fixtures.seed_fy import (
     load_golden,
     monthly_trend_from_dataset,
     monthly_trend_snapshot,
+    profit_and_loss_from_dataset,
     trial_balance_from_dataset,
     trial_balance_snapshot,
     validate_dataset,
 )
 from tests.fixtures.seed_fy import golden as golden_mod
+from tests.fixtures.seed_fy.dataset import account_type
 
 
 def _row(snapshot: dict[str, Any], code: str) -> dict[str, Any]:
@@ -158,6 +161,49 @@ def test_committed_general_ledger_golden_is_up_to_date() -> None:
     fresh = general_ledger_snapshot(general_ledger_from_dataset())
     problems = diff_snapshots(load_golden("general_ledger"), fresh)
     assert problems == [], "golden/general_ledger.json is stale:\n  - " + "\n  - ".join(problems)
+
+
+def test_committed_profit_and_loss_golden_is_up_to_date() -> None:
+    # AC (#20): 出力が #17 の golden と一致 — the P/L snapshot matches the frozen golden.
+    fresh = profit_and_loss_snapshot(profit_and_loss_from_dataset())
+    problems = diff_snapshots(load_golden("profit_and_loss"), fresh)
+    assert problems == [], (
+        "golden/profit_and_loss.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update profit_and_loss`:\n  - "
+        + "\n  - ".join(problems)
+    )
+
+
+def test_profit_and_loss_stages_reconcile_with_trial_balance() -> None:
+    # AC (#20): PL の各段階利益が試算表と整合 (売上総利益・営業利益・経常利益・当期純利益).
+    pl = profit_and_loss_from_dataset()
+    assert pl.is_consistent
+
+    # 当期純利益 must equal Σ収益 - Σ費用 taken independently from the trial balance.
+    tb = trial_balance_from_dataset()
+    revenue = sum(
+        (row.balance for row in tb.rows if account_type(row.code) is AccountType.REVENUE),
+        Decimal(0),
+    )
+    expense = sum(
+        (row.balance for row in tb.rows if account_type(row.code) is AccountType.EXPENSE),
+        Decimal(0),
+    )
+    assert pl.net_income == revenue - expense == Decimal("-580500")
+    # The staged figures the README/golden fix.
+    assert pl.gross_profit == Decimal("160000")  # 売上1,650,000 - 売上原価1,490,000
+    assert pl.operating_income == Decimal("-560000")
+    assert pl.ordinary_income == Decimal("-580500")
+
+
+def test_profit_and_loss_classifies_every_revenue_expense_account() -> None:
+    # AC (#20): 表示区分への科目集約が網羅的 — the synthetic year leaves nothing 未分類.
+    pl = profit_and_loss_from_dataset()
+    assert pl.unclassified == []
+    # 製造原価 folds into 売上原価 for the PL本体 (#23 produces the 製造原価報告書).
+    cogs_codes = {line.code for line in pl.cost_of_goods_sold.lines}
+    assert {"6120", "6210", "6330"} <= cogs_codes  # 材料費 / 労務費 / 製造経費
+    assert pl.cost_of_goods_sold.subtotal == Decimal("1490000")
 
 
 def test_journal_book_is_chronological_and_complete() -> None:
