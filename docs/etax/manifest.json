@@ -1,0 +1,83 @@
+{
+  "spike": "#76 — acquire & decode official 所得税関係 XML spec for 青色申告決算書",
+  "acquired_at": "2026-06-05",
+  "target_tax_year": "令和7年分 (2025, 申告期間 令和8年1月5日〜)",
+  "source_index": {
+    "spec_list": "https://www.e-tax.nta.go.jp/shiyo/shiyo3.htm",
+    "update_history": "https://www.e-tax.nta.go.jp/shiyo/shiyo2.htm",
+    "schedule": "https://www.e-tax.nta.go.jp/shiyo/keikaku.htm",
+    "submission_format": "XML (交換ファイル拡張子 .xtx)"
+  },
+  "packages": [
+    {
+      "name": "XML構造設計書及び帳票フィールド仕様書【所得税関係】",
+      "file": "e-tax09.CAB",
+      "url": "https://www.e-tax.nta.go.jp/shiyo/download/e-tax09.CAB",
+      "channel": "download (確定版)",
+      "published": "令和7年10月30日 (2025-10-30)",
+      "size_bytes": 8508996,
+      "sha256": "5f1014bfbeed9665bbeca1592d1492e71fa853d6523b6dcbb2aea131c21ca07b",
+      "contents": "58 files — XML構造設計書(所得-申告) と 帳票フィールド仕様書(所得-申告) の .xlsx (帳票バージョン Ver1x〜Ver23x)",
+      "redistribution": "国税庁 著作物のため raw を本リポに同梱しない (fetch script で都度取得)"
+    },
+    {
+      "name": "XMLスキーマ (.xsd)",
+      "file": "e-tax19.CAB",
+      "url": "https://www.e-tax.nta.go.jp/shiyo/download/e-tax19.CAB",
+      "channel": "download (確定版)",
+      "published": "令和8年5月18日 (2026-05-18)",
+      "size_bytes": 9843510,
+      "sha256": "573a5b8770a47e9971dd3db6f81c4f84868dbccbedfabca969f5bde2ced4359b",
+      "contents": "17011 files (MSZIP) — 全税目の .xsd。所得税は 19XMLスキーマ/shotoku/ 配下 (例 KOA210-011.xsd)。",
+      "redistribution": "国税庁 著作物のため raw を本リポに同梱しない (fetch script で都度取得)"
+    },
+    {
+      "name": "データ形式等に関する仕様書",
+      "file": "e-tax01.CAB",
+      "url": "https://www.e-tax.nta.go.jp/shiyo/download/e-tax01.CAB",
+      "channel": "download (確定版)",
+      "published": "令和7年10月30日 (2025-10-30)",
+      "size_bytes": 572588,
+      "sha256": "e1abd3729b5dbc0e2fbb03b81e709285f6fd8cbe671a7bc8ed97c37bb8ce37ff",
+      "contents": "6 files — データ形式等仕様書.docx 他 (XML/.xtx の符号化・データ型の総則)",
+      "redistribution": "国税庁 著作物のため raw を本リポに同梱しない (fetch script で都度取得)"
+    }
+  ],
+  "青色申告決算書_forms": [
+    {
+      "form_id": "KOA210",
+      "label": "青色申告決算書(一般用)",
+      "version": "11.0",
+      "xsd": "19XMLスキーマ/shotoku/KOA210-011.xsd",
+      "xsd_sha256": "806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313",
+      "xsd_documentation_date": "2023年09月27日",
+      "field_spec_workbook": "帳票フィールド仕様書(所得-申告)Ver11x.xlsx",
+      "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+      "pages": 4,
+      "note": "製造原価の計算 (AMH00010〜AMH00220) はこの一般用フォームに内包される"
+    },
+    {
+      "form_id": "KOA220",
+      "label": "青色申告決算書(不動産所得用)",
+      "version": "8.0",
+      "xsd": "19XMLスキーマ/shotoku/KOA220-008.xsd",
+      "xsd_sha256": "7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78",
+      "xsd_documentation_date": "2020年08月31日",
+      "field_spec_workbook": "帳票フィールド仕様書(所得-申告)Ver8x.xlsx",
+      "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+      "note": "KOA220 の最新版は 8.0 (008 が .xsd 最終)。様式が安定しているため令和7年分も v8.0 が現行。"
+    },
+    {
+      "form_id": "KOA240",
+      "label": "青色申告決算書(農業所得用)",
+      "version": "8.0",
+      "xsd": "19XMLスキーマ/shotoku/KOA240-008.xsd",
+      "xsd_sha256": "af43691b489cac8bad109a4810bdbaf2dca291ed061249a5483e581972ab6c03",
+      "xsd_documentation_date": "2020年08月31日",
+      "field_spec_workbook": "帳票フィールド仕様書(所得-申告)Ver8x.xlsx",
+      "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+      "note": "KOA240 の最新版は 8.0 (008 が .xsd 最終)。"
+    }
+  ],
+  "version_to_year_note": "帳票バージョンは年度ではなく様式改定で増える。過年分申告のため旧版も同梱される。所得税確定版パッケージ(令和7年10月30日)内で各帳票の最高版が令和7年分の現行版: 一般用=KOA210 v11.0(001-011), 不動産=KOA220 v8.0(001-008), 農業=KOA240 v8.0(001-008)。現金主義用 KOA230 v10.0 も存在。"
+}
