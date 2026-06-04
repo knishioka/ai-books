@@ -1,0 +1,27 @@
+# Local test/dev Postgres — a single lightweight container, NOT the full
+# `supabase start` stack (GoTrue/Realtime/Storage/Kong/Studio/…). The test suite
+# and the viewer golden cross-check only need Postgres: migrations are plain
+# Postgres (no RLS/Auth/Storage), and tests/conftest.py isolates every test in a
+# throwaway schema — so one long-lived container is reused across runs.
+#
+# Image major version (17) is kept in sync with the CI `verify` / `web-golden`
+# jobs and supabase/config.toml. Driven by scripts/test.sh.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ai-books-test-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_books_test
+    ports:
+      - "${AI_BOOKS_TEST_PORT:-54329}:5432"
+    # RAM-backed data dir: fast and self-cleaning. No persistence is needed —
+    # conftest recreates the schema per test and seed_verify_db.py re-migrates.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_books_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
