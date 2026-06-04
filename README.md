@@ -80,6 +80,26 @@ uv run python -c "from ai_books import db; print(db.ping())"   # -> 1
 only when `AI_BOOKS_DB_URL` is set, so `./scripts/verify.sh` stays green even
 without a running database; CI runs it against a Postgres service container.
 
+## Web viewer (Vercel, read-only)
+
+A **read-only** aggregation viewer lives in [`web/`](./web) (Next.js, deployed on
+Vercel). It renders Supabase/Postgres data — chart of accounts today, ledgers and
+financial statements later — and has **no data-entry UI** (writes flow through MCP;
+see [AGENTS.md](./AGENTS.md) invariant #1). Data is queried server-side, so no
+database credential ever reaches the browser.
+
+Run it against your local Supabase (`supabase start` must be running):
+
+```bash
+cd web
+npm install
+cp .env.example .env.local         # set AI_BOOKS_DB_URL (the `DB URL` from supabase start)
+npm run dev                        # http://localhost:3000
+```
+
+Full local + Vercel deployment instructions (including the recommended read-only
+DB role for production) are in [web/README.md](./web/README.md).
+
 ## Schema & migrations
 
 The system of record is defined by **forward-only SQL migrations** under
