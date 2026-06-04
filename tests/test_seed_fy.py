@@ -17,6 +17,7 @@ import pytest
 from ai_books.models import AccountType, EntrySide
 from ai_books.reports import (
     balance_sheet_snapshot,
+    financial_statements_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
@@ -29,6 +30,7 @@ from tests.fixtures.seed_fy import (
     SeedLine,
     balance_sheet_from_dataset,
     diff_snapshots,
+    financial_statements_from_dataset,
     general_ledger_from_dataset,
     journal_book_from_dataset,
     load_golden,
@@ -350,3 +352,60 @@ def test_golden_updates_only_via_explicit_flag(
     assert golden_mod.main(["--update"]) == 0
     assert path.exists()
     assert golden_mod.main([]) == 0
+
+
+# --- 青色申告決算書 (Issue #23) ------------------------------------------------
+
+
+def test_committed_financial_statements_golden_is_up_to_date() -> None:
+    # AC (#23): 出力が #17 の golden と一致 — the 決算書 snapshot matches the frozen golden.
+    fresh = financial_statements_snapshot(financial_statements_from_dataset())
+    problems = diff_snapshots(load_golden("financial_statements"), fresh)
+    assert problems == [], (
+        "golden/financial_statements.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update financial_statements`:\n  - "
+        + "\n  - ".join(problems)
+    )
+
+
+def test_financial_statements_breakdowns_reconcile_with_pl_and_bs() -> None:
+    # AC (#23): 各内訳合計が PL/BS と一致 — the composed self-check ties every 内訳 back to the
+    # PL/BS, and the staged figures the README fixes hold.
+    fs = financial_statements_from_dataset()
+    assert fs.is_consistent
+
+    # 月別売上合計 = 売上高, 月別仕入合計 = 仕入高 + 原材料仕入高.
+    assert fs.monthly.sales_total == fs.profit_and_loss.sales.subtotal == Decimal("1650000")
+    assert fs.monthly.purchases_total == Decimal("900000")
+    assert len(fs.monthly.rows) == 12  # tiles the whole fiscal year like the form
+
+    # 製造原価の計算 = 材料費 + 労務費 + 製造経費, and 売上原価 splits into 商品 + 製造.
+    assert fs.manufacturing_cost.cost_of_goods_manufactured == Decimal("940000")
+    assert fs.merchandise_cost_of_sales == Decimal("550000")
+    assert (
+        fs.profit_and_loss.cost_of_goods_sold.subtotal
+        == fs.merchandise_cost_of_sales + fs.manufacturing_cost.cost_of_goods_manufactured
+    )
+
+
+def test_financial_statements_depreciation_ties_to_fixed_assets_and_pl() -> None:
+    # AC (#23): 減価償却費の計算欄が固定資産データと整合 — each 固定資産's 当期償却 foots to the PL
+    # 減価償却費 (経費 + 製造経費) and its 期末簿価 equals the 貸借対照表 figure.
+    fs = financial_statements_from_dataset()
+    depreciation = {line.code: line for line in fs.depreciation.lines}
+    # 機械装置 (製造減価償却) と 工具器具備品 (販管減価償却) — 直接法.
+    assert depreciation["1530"].acquisition_cost == Decimal("1200000")
+    assert depreciation["1530"].depreciation_expense == Decimal("240000")
+    assert depreciation["1530"].closing_book_value == Decimal("960000")
+    assert depreciation["1550"].depreciation_expense == Decimal("60000")
+    # 償却費合計 = PL 減価償却費 (6330 240,000 + 7210 60,000).
+    assert fs.depreciation.total_depreciation == fs.depreciation.expense_total == Decimal("300000")
+    # 期末簿価 == 貸借対照表 固定資産 残高.
+    bs_fixed = {
+        line.code: line.balance
+        for section in fs.balance_sheet.assets
+        if section.category.value == "fixed_assets"
+        for line in section.lines
+    }
+    assert bs_fixed["1530"] == depreciation["1530"].closing_book_value
+    assert bs_fixed["1550"] == depreciation["1550"].closing_book_value

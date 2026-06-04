@@ -25,7 +25,15 @@ from ai_books.models import (
     BalanceSheet,
     BalanceSheetLine,
     BalanceSheetSection,
+    DepreciationLine,
+    DepreciationSchedule,
     EntryStatus,
+    FinancialStatements,
+    ManufacturingCost,
+    ManufacturingCostLine,
+    ManufacturingCostSection,
+    MonthlySalesPurchases,
+    MonthlySalesPurchasesRow,
     MonthlyTrendPoint,
     NormalSide,
     ProfitAndLoss,
@@ -505,4 +513,195 @@ def assemble_profit_and_loss(
         ordinary_income=ordinary_income,
         net_income=net_income,
         unclassified=unclassified,
+    )
+
+
+# ── 青色申告決算書 (financial statements, Issue #23) ──────────────────────────────
+# Composes the already-assembled 損益計算書 (#20) と 貸借対照表 (#21) with the 内訳 the
+# 決算書 form carries: 月別売上(収入)・仕入 / 減価償却費の計算 / 製造原価の計算. Every breakdown is
+# derived from the same journal/勘定科目 data (no 固定資産 / 従業員 マスタ), and reconciled back to
+# the PL/BS by :attr:`FinancialStatements.is_consistent`.
+
+#: The 勘定科目名 of the 減価償却費 accounts (経費 7210 / 製造経費 6330 share this name). Summing
+#: the PL lines with this name gives the expense-side 償却費 the 減価償却費の計算 must foot to.
+DEPRECIATION_ACCOUNT_NAME = "減価償却費"
+
+#: 月別仕入金額 sums the 仕入 accounts (仕入高 / 原材料仕入高) — those whose 科目名 ends with this
+#: suffix, which the 棚卸高 振替 accounts (期首/期末商品・原材料棚卸高) deliberately do not.
+PURCHASE_ACCOUNT_NAME_SUFFIX = "仕入高"
+
+#: 製造原価 区分 in form order: ``(section key, 日本語ラベル, 表示区分)``.
+_MANUFACTURING_SECTIONS: tuple[tuple[str, str, StatementCategory], ...] = (
+    ("materials", "材料費", StatementCategory.MANUFACTURING_MATERIALS),
+    ("labor", "労務費", StatementCategory.MANUFACTURING_LABOR),
+    ("overhead", "製造経費", StatementCategory.MANUFACTURING_OVERHEAD),
+)
+
+
+class FixedAssetTotals(NamedTuple):
+    """One 固定資産勘定's footings, ready to become a 減価償却費の計算 row (直接法).
+
+    ``acquisition_cost`` is the account's 累計借方 up to 期末 (取得価額 = 期首簿価 + 当期取得),
+    ``depreciation_expense`` the 当期の貸方 (当期減少額 — 直接法では償却費), and ``closing_book_value``
+    the 期末簿価 in 正常残高方向 (= the account's 貸借対照表 上の残高).
+    """
+
+    code: str
+    name: str
+    acquisition_cost: Decimal
+    depreciation_expense: Decimal
+    closing_book_value: Decimal
+
+
+def is_purchase_account_name(name: str) -> bool:
+    """True when ``name`` is a 仕入 account (仕入高 / 原材料仕入高), not a 棚卸高 振替 account."""
+    return name.endswith(PURCHASE_ACCOUNT_NAME_SUFFIX)
+
+
+def _assemble_manufacturing_cost(profit_and_loss: ProfitAndLoss) -> ManufacturingCost:
+    """Regroup the PL本体's 製造原価科目 (folded into 売上原価) into the 製造原価の計算.
+
+    Reads the 売上原価 lines tagged with a 製造原価 表示区分 (材料費 / 労務費 / 製造経費), keeping
+    them in 科目コード順, so the breakdown sums to exactly the 製造 portion of 売上原価 by sharing
+    its source lines. 当期製品製造原価 equals 当期製造費用 (no 仕掛品 account is seeded).
+    """
+    lines_by_category: dict[StatementCategory, list[ManufacturingCostLine]] = {
+        category: [] for _key, _label, category in _MANUFACTURING_SECTIONS
+    }
+    for line in profit_and_loss.cost_of_goods_sold.lines:
+        if line.category in lines_by_category:
+            lines_by_category[line.category].append(
+                ManufacturingCostLine(code=line.code, name=line.name, amount=line.amount)
+            )
+
+    sections: dict[str, ManufacturingCostSection] = {}
+    total = Decimal(0)
+    for key, label, category in _MANUFACTURING_SECTIONS:
+        lines = lines_by_category[category]
+        subtotal = sum((line.amount for line in lines), Decimal(0))
+        sections[key] = ManufacturingCostSection(
+            key=key, label=label, lines=lines, subtotal=subtotal
+        )
+        total += subtotal
+
+    return ManufacturingCost(
+        materials=sections["materials"],
+        labor=sections["labor"],
+        overhead=sections["overhead"],
+        total_manufacturing_cost=total,
+        cost_of_goods_manufactured=total,  # 当期製造費用 + 期首仕掛品 - 期末仕掛品 (仕掛品なし)
+    )
+
+
+def _assemble_monthly_sales_purchases(
+    start: date,
+    end: date,
+    sales_by_month: dict[date, MonthAmounts],
+    purchases_by_month: dict[date, MonthAmounts],
+) -> MonthlySalesPurchases:
+    """Tile [start, end] into 12 月 of 売上(収入)金額 and 仕入金額, with the column footings.
+
+    Reuses :func:`month_windows` so the fiscal year tiles the same way the 月次推移 does; each
+    month's 売上 is signed credit-normal (収益) and 仕入 debit-normal (費用) via the one signing
+    rule, so a quiet month carries zeros and ``sales_total`` foots to the PL's 売上高.
+    """
+    rows: list[MonthlySalesPurchasesRow] = []
+    sales_total = Decimal(0)
+    purchases_total = Decimal(0)
+    for window in month_windows(start, end):
+        sales_amounts = sales_by_month.get(window.month_start, MonthAmounts(Decimal(0), Decimal(0)))
+        purchase_amounts = purchases_by_month.get(
+            window.month_start, MonthAmounts(Decimal(0), Decimal(0))
+        )
+        sales = ledger.balance_from_totals(
+            sales_amounts.debit_total, sales_amounts.credit_total, NormalSide.CREDIT
+        )
+        purchases = ledger.balance_from_totals(
+            purchase_amounts.debit_total, purchase_amounts.credit_total, NormalSide.DEBIT
+        )
+        rows.append(MonthlySalesPurchasesRow(month=window.label, sales=sales, purchases=purchases))
+        sales_total += sales
+        purchases_total += purchases
+    return MonthlySalesPurchases(
+        rows=rows, sales_total=sales_total, purchases_total=purchases_total
+    )
+
+
+def _depreciation_expense_total(profit_and_loss: ProfitAndLoss) -> Decimal:
+    """Σ of the PL's 減価償却費 lines (経費 + 製造経費) — the expense-side 償却費 to foot to."""
+    sections = (
+        profit_and_loss.cost_of_goods_sold,
+        profit_and_loss.selling_admin_expenses,
+        profit_and_loss.non_operating_expenses,
+    )
+    return sum(
+        (
+            line.amount
+            for section in sections
+            for line in section.lines
+            if line.name == DEPRECIATION_ACCOUNT_NAME
+        ),
+        Decimal(0),
+    )
+
+
+def _assemble_depreciation_schedule(
+    profit_and_loss: ProfitAndLoss, fixed_assets: list[FixedAssetTotals]
+) -> DepreciationSchedule:
+    """Build the 減価償却費の計算 from each 固定資産's 当期減少額, footed against PL 減価償却費.
+
+    Only 固定資産 that recorded 当期償却 (当期の貸方 ≠ 0) become rows — 非償却資産 (土地 等) and
+    untouched assets are left out, matching the form. ``expense_total`` is the PL's 減価償却費, so
+    :attr:`DepreciationSchedule.is_consistent` checks the asset-side 償却費 equals the expense side
+    (固定資産データと整合). ``fixed_assets`` is expected pre-ordered by 勘定科目コード.
+    """
+    lines = [
+        DepreciationLine(
+            code=asset.code,
+            name=asset.name,
+            acquisition_cost=asset.acquisition_cost,
+            depreciation_expense=asset.depreciation_expense,
+            closing_book_value=asset.closing_book_value,
+        )
+        for asset in fixed_assets
+        if asset.depreciation_expense != 0
+    ]
+    total = sum((line.depreciation_expense for line in lines), Decimal(0))
+    return DepreciationSchedule(
+        lines=lines,
+        total_depreciation=total,
+        expense_total=_depreciation_expense_total(profit_and_loss),
+    )
+
+
+def assemble_financial_statements(
+    *,
+    fiscal_year: str,
+    start_date: date,
+    end_date: date,
+    profit_and_loss: ProfitAndLoss,
+    balance_sheet: BalanceSheet,
+    sales_by_month: dict[date, MonthAmounts],
+    purchases_by_month: dict[date, MonthAmounts],
+    fixed_assets: list[FixedAssetTotals],
+) -> FinancialStatements:
+    """Compose the 青色申告決算書 from the assembled PL/BS and the journal-derived 内訳.
+
+    The 損益計算書 (#20) and 貸借対照表 (#21) are carried verbatim; the 内訳 are built here from the
+    same books — 製造原価 regroups the PL's 売上原価 製造原価科目, 月別売上・仕入 tiles the
+    per-month footings, and 減価償却 reads each 固定資産's 当期減少額. Every breakdown is reconciled
+    back to the PL/BS by :attr:`FinancialStatements.is_consistent`, so the composed object either
+    ties out end to end or surfaces exactly where it does not.
+    """
+    return FinancialStatements(
+        fiscal_year=fiscal_year,
+        start_date=start_date,
+        end_date=end_date,
+        profit_and_loss=profit_and_loss,
+        monthly=_assemble_monthly_sales_purchases(
+            start_date, end_date, sales_by_month, purchases_by_month
+        ),
+        depreciation=_assemble_depreciation_schedule(profit_and_loss, fixed_assets),
+        balance_sheet=balance_sheet,
+        manufacturing_cost=_assemble_manufacturing_cost(profit_and_loss),
     )

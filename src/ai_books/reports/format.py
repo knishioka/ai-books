@@ -19,12 +19,17 @@ from typing import Any
 from ai_books.models import (
     BalanceSheet,
     BalanceSheetSection,
+    DepreciationSchedule,
     EntrySide,
     EntryStatus,
+    FinancialStatements,
     GeneralLedger,
     GeneralLedgerAccount,
     JournalBook,
     JournalBookEntry,
+    ManufacturingCost,
+    ManufacturingCostSection,
+    MonthlySalesPurchases,
     ProfitAndLoss,
     ProfitAndLossLine,
     ProfitAndLossSection,
@@ -570,5 +575,130 @@ def profit_and_loss_text(pl: ProfitAndLoss) -> str:
         lines.append("【未分類科目 (表示区分なし)】")
         for line in pl.unclassified:
             lines.append(f"    {line.code} {line.name}  {money(line.amount)}")
+
+    return "\n".join(lines) + "\n"
+
+
+# --- 青色申告決算書 (financial statements, Issue #23) ---------------------------
+
+
+def _manufacturing_section(section: ManufacturingCostSection) -> dict[str, Any]:
+    return {
+        "key": section.key,
+        "label": section.label,
+        "lines": [
+            {"code": line.code, "name": line.name, "amount": money(line.amount)}
+            for line in section.lines
+        ],
+        "subtotal": money(section.subtotal),
+    }
+
+
+def _manufacturing_cost_snapshot(manufacturing_cost: ManufacturingCost) -> dict[str, Any]:
+    return {
+        "materials": _manufacturing_section(manufacturing_cost.materials),
+        "labor": _manufacturing_section(manufacturing_cost.labor),
+        "overhead": _manufacturing_section(manufacturing_cost.overhead),
+        "total_manufacturing_cost": money(manufacturing_cost.total_manufacturing_cost),
+        "cost_of_goods_manufactured": money(manufacturing_cost.cost_of_goods_manufactured),
+    }
+
+
+def _monthly_snapshot(monthly: MonthlySalesPurchases) -> dict[str, Any]:
+    return {
+        "rows": [
+            {"month": row.month, "sales": money(row.sales), "purchases": money(row.purchases)}
+            for row in monthly.rows
+        ],
+        "sales_total": money(monthly.sales_total),
+        "purchases_total": money(monthly.purchases_total),
+    }
+
+
+def _depreciation_snapshot(depreciation: DepreciationSchedule) -> dict[str, Any]:
+    return {
+        "lines": [
+            {
+                "code": line.code,
+                "name": line.name,
+                "acquisition_cost": money(line.acquisition_cost),
+                "depreciation_expense": money(line.depreciation_expense),
+                "closing_book_value": money(line.closing_book_value),
+            }
+            for line in depreciation.lines
+        ],
+        "total_depreciation": money(depreciation.total_depreciation),
+        "expense_total": money(depreciation.expense_total),
+    }
+
+
+def financial_statements_snapshot(fs: FinancialStatements) -> dict[str, Any]:
+    """Turn a :class:`~ai_books.models.FinancialStatements` into its canonical JSON shape.
+
+    The four 面 are nested in form order: the 損益計算書 (1面) and 貸借対照表 (4面) reuse their own
+    snapshots verbatim, with the 月別売上(収入)・仕入 (2面), 減価償却費の計算 (3面), and
+    製造原価の計算 (4面) breakdowns alongside. Amounts are fixed-point strings (浮動小数禁止); this
+    is the shape the golden harness freezes and the Vercel viewer (#25) renders.
+    """
+    return {
+        "report": "financial_statements",
+        "fiscal_year": fs.fiscal_year,
+        "start_date": fs.start_date.isoformat(),
+        "end_date": fs.end_date.isoformat(),
+        "profit_and_loss": profit_and_loss_snapshot(fs.profit_and_loss),
+        "monthly": _monthly_snapshot(fs.monthly),
+        "depreciation": _depreciation_snapshot(fs.depreciation),
+        "manufacturing_cost": _manufacturing_cost_snapshot(fs.manufacturing_cost),
+        "balance_sheet": balance_sheet_snapshot(fs.balance_sheet),
+    }
+
+
+def financial_statements_text(fs: FinancialStatements) -> str:
+    """Render the 青色申告決算書 as 整形テキスト for human inspection (4面を順に並べる)."""
+    lines: list[str] = [
+        "青色申告決算書 (Blue-Return Financial Statements)",
+        f"  会計年度: {fs.fiscal_year} ({fs.start_date.isoformat()} 〜 {fs.end_date.isoformat()})",
+        "",
+        "■ 1面 ",
+        profit_and_loss_text(fs.profit_and_loss).rstrip("\n"),
+        "",
+        "■ 2面 月別売上(収入)金額及び仕入金額",
+    ]
+    for row in fs.monthly.rows:
+        lines.append(f"    {row.month}  売上 {money(row.sales)}  仕入 {money(row.purchases)}")
+    lines.append(
+        f"    合計  売上 {money(fs.monthly.sales_total)}  仕入 {money(fs.monthly.purchases_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 3面 減価償却費の計算")
+    for dep in fs.depreciation.lines:
+        lines.append(
+            f"    {dep.code} {dep.name}  取得価額 {money(dep.acquisition_cost)}"
+            f"  本年分償却費 {money(dep.depreciation_expense)}"
+            f"  期末簿価 {money(dep.closing_book_value)}"
+        )
+    lines.append(
+        f"    本年分償却費 合計 {money(fs.depreciation.total_depreciation)}"
+        f"  (PL 減価償却費 {money(fs.depreciation.expense_total)})"
+    )
+
+    lines.append("")
+    lines.append("■ 4面 製造原価の計算")
+    for section in (
+        fs.manufacturing_cost.materials,
+        fs.manufacturing_cost.labor,
+        fs.manufacturing_cost.overhead,
+    ):
+        lines.append(f"  【{section.label}】")
+        for line in section.lines:
+            lines.append(f"    {line.code} {line.name}  {money(line.amount)}")
+        lines.append(f"    {section.label} 計  {money(section.subtotal)}")
+    lines.append(f"  当期製造費用  {money(fs.manufacturing_cost.total_manufacturing_cost)}")
+    lines.append(f"  当期製品製造原価  {money(fs.manufacturing_cost.cost_of_goods_manufactured)}")
+
+    lines.append("")
+    lines.append("■ 4面 ")
+    lines.append(balance_sheet_text(fs.balance_sheet).rstrip("\n"))
 
     return "\n".join(lines) + "\n"

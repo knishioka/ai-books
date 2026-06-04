@@ -33,6 +33,7 @@ from ai_books.models import (
     BalanceSheet,
     EntrySide,
     EntryStatus,
+    FinancialStatements,
     FiscalYear,
     GeneralLedger,
     GeneralLedgerAccount,
@@ -865,6 +866,153 @@ class LedgerRepository:
                 )
             )
         return aggregation.assemble_balance_sheet(balances, as_of=as_of, status=status)
+
+    def financial_statements(
+        self,
+        *,
+        fiscal_year: str,
+        start: date,
+        end: date,
+        status: EntryStatus | None = None,
+    ) -> FinancialStatements:
+        """Compose the 青色申告決算書 over the fiscal year ``[start, end]`` (#23).
+
+        Reuses the production engines for the 損益計算書 (:meth:`profit_and_loss`) and the
+        貸借対照表 (:meth:`balance_sheet` as of 期末) — no second aggregation to drift — then
+        reads the form's 内訳 from the same journal/勘定科目 data: the per-month 売上(収入)・仕入
+        footings and each 固定資産's 当期減少額. The grouping / 突合 arithmetic is delegated to
+        :func:`ai_books.aggregation.assemble_financial_statements`, so every breakdown reconciles
+        with the PL/BS (:attr:`~ai_books.models.FinancialStatements.is_consistent`). ``status``
+        follows the same rule as every other read (default excludes 取消).
+        """
+        profit_and_loss = self.profit_and_loss(
+            fiscal_year=fiscal_year, start=start, end=end, status=status
+        )
+        balance_sheet = self.balance_sheet(as_of=end, status=status)
+        sales_by_month = self._monthly_amounts(
+            "a.statement_category = 'sales'", start=start, end=end, status=status
+        )
+        purchases_by_month = self._monthly_amounts(
+            "a.name LIKE '%%' || %(purchase_suffix)s",
+            start=start,
+            end=end,
+            status=status,
+            extra_params={"purchase_suffix": aggregation.PURCHASE_ACCOUNT_NAME_SUFFIX},
+        )
+        fixed_assets = self._fixed_asset_totals(start=start, end=end, status=status)
+        return aggregation.assemble_financial_statements(
+            fiscal_year=fiscal_year,
+            start_date=start,
+            end_date=end,
+            profit_and_loss=profit_and_loss,
+            balance_sheet=balance_sheet,
+            sales_by_month=sales_by_month,
+            purchases_by_month=purchases_by_month,
+            fixed_assets=fixed_assets,
+        )
+
+    def _monthly_amounts(
+        self,
+        account_selector: str,
+        *,
+        start: date,
+        end: date,
+        status: EntryStatus | None,
+        extra_params: dict[str, Any] | None = None,
+    ) -> dict[date, aggregation.MonthAmounts]:
+        """Sum 借方 / 貸方 per calendar month for the accounts matching ``account_selector``.
+
+        ``account_selector`` is an ``accounts`` predicate (e.g. ``a.statement_category = 'sales'``)
+        spliced into the WHERE clause; the date window and 取消 rule mirror every other read. The
+        :class:`~ai_books.aggregation.MonthAmounts` are keyed by 月初 (the ``date_trunc`` bucket),
+        ready for :func:`ai_books.aggregation.assemble_financial_statements` to sign and tile.
+        """
+        params: dict[str, Any] = {
+            "start": start,
+            "end": end,
+            "status": status.value if status is not None else None,
+            **(extra_params or {}),
+        }
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT date_trunc('month', je.entry_date)::date AS month_start,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE {account_selector}
+                  AND je.entry_date >= %(start)s::date
+                  AND je.entry_date <= %(end)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY month_start
+                """,
+                params,
+            )
+            rows = cur.fetchall()
+        return {
+            row["month_start"]: aggregation.MonthAmounts(
+                debit_total=Decimal(row["debit_total"]),
+                credit_total=Decimal(row["credit_total"]),
+            )
+            for row in rows
+        }
+
+    def _fixed_asset_totals(
+        self, *, start: date, end: date, status: EntryStatus | None
+    ) -> list[aggregation.FixedAssetTotals]:
+        """Each 固定資産勘定's 取得価額 / 当期償却 / 期末簿価, for the 減価償却費の計算 (直接法).
+
+        ``acquisition_cost`` and ``closing_book_value`` are cumulative up to 期末 (so the 簿価
+        equals the 貸借対照表 figure even with prior-year activity), while ``depreciation_expense``
+        is only the 当期の貸方 (this fiscal year's 減少額 — the 償却費). Ordered by 勘定科目コード.
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.code, a.name, a.normal_balance,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)
+                           AS debit_total,
+                       COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)
+                           AS credit_total,
+                       COALESCE(SUM(jl.amount) FILTER (
+                           WHERE jl.side = 'credit' AND je.entry_date >= %(start)s::date), 0)
+                           AS period_credit
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE a.statement_category = 'fixed_assets'
+                  AND je.entry_date <= %(end)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY a.code, a.name, a.normal_balance
+                ORDER BY a.code
+                """,
+                {
+                    "start": start,
+                    "end": end,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            rows = cur.fetchall()
+        return [
+            aggregation.FixedAssetTotals(
+                code=row["code"],
+                name=row["name"],
+                acquisition_cost=Decimal(row["debit_total"]),
+                depreciation_expense=Decimal(row["period_credit"]),
+                closing_book_value=ledger.balance_from_totals(
+                    Decimal(row["debit_total"]),
+                    Decimal(row["credit_total"]),
+                    NormalSide(row["normal_balance"]),
+                ),
+            )
+            for row in rows
+        ]
 
     def monthly_trend(
         self,

@@ -1,0 +1,362 @@
+{
+  "report": "financial_statements",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "profit_and_loss": {
+    "report": "profit_and_loss",
+    "fiscal_year": "FY2025",
+    "start_date": "2025-01-01",
+    "end_date": "2025-12-31",
+    "sales": {
+      "key": "sales",
+      "label": "売上高",
+      "lines": [
+        {
+          "code": "4110",
+          "name": "売上高",
+          "category": "sales",
+          "amount": "1650000.00"
+        }
+      ],
+      "subtotal": "1650000.00"
+    },
+    "cost_of_goods_sold": {
+      "key": "cost_of_goods_sold",
+      "label": "売上原価",
+      "lines": [
+        {
+          "code": "5110",
+          "name": "期首商品棚卸高",
+          "category": "cost_of_goods_sold",
+          "amount": "300000.00"
+        },
+        {
+          "code": "5120",
+          "name": "仕入高",
+          "category": "cost_of_goods_sold",
+          "amount": "600000.00"
+        },
+        {
+          "code": "5130",
+          "name": "期末商品棚卸高",
+          "category": "cost_of_goods_sold",
+          "amount": "-350000.00"
+        },
+        {
+          "code": "6120",
+          "name": "原材料仕入高",
+          "category": "manufacturing_materials",
+          "amount": "300000.00"
+        },
+        {
+          "code": "6210",
+          "name": "賃金",
+          "category": "manufacturing_labor",
+          "amount": "400000.00"
+        },
+        {
+          "code": "6330",
+          "name": "減価償却費",
+          "category": "manufacturing_overhead",
+          "amount": "240000.00"
+        }
+      ],
+      "subtotal": "1490000.00"
+    },
+    "gross_profit": "160000.00",
+    "selling_admin_expenses": {
+      "key": "selling_admin_expenses",
+      "label": "販売費及び一般管理費",
+      "lines": [
+        {
+          "code": "7130",
+          "name": "水道光熱費",
+          "category": "selling_admin_expenses",
+          "amount": "120000.00"
+        },
+        {
+          "code": "7140",
+          "name": "旅費交通費",
+          "category": "selling_admin_expenses",
+          "amount": "80000.00"
+        },
+        {
+          "code": "7150",
+          "name": "通信費",
+          "category": "selling_admin_expenses",
+          "amount": "60000.00"
+        },
+        {
+          "code": "7200",
+          "name": "消耗品費",
+          "category": "selling_admin_expenses",
+          "amount": "40000.00"
+        },
+        {
+          "code": "7210",
+          "name": "減価償却費",
+          "category": "selling_admin_expenses",
+          "amount": "60000.00"
+        },
+        {
+          "code": "7250",
+          "name": "地代家賃",
+          "category": "selling_admin_expenses",
+          "amount": "360000.00"
+        }
+      ],
+      "subtotal": "720000.00"
+    },
+    "operating_income": "-560000.00",
+    "non_operating_income": {
+      "key": "non_operating_income",
+      "label": "営業外収益",
+      "lines": [
+        {
+          "code": "8110",
+          "name": "受取利息",
+          "category": "non_operating_income",
+          "amount": "500.00"
+        }
+      ],
+      "subtotal": "500.00"
+    },
+    "non_operating_expenses": {
+      "key": "non_operating_expenses",
+      "label": "営業外費用",
+      "lines": [
+        {
+          "code": "8210",
+          "name": "利子割引料",
+          "category": "non_operating_expenses",
+          "amount": "21000.00"
+        }
+      ],
+      "subtotal": "21000.00"
+    },
+    "ordinary_income": "-580500.00",
+    "net_income": "-580500.00",
+    "unclassified": []
+  },
+  "monthly": {
+    "rows": [
+      {
+        "month": "2025-01",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-02",
+        "sales": "220000.00",
+        "purchases": "900000.00"
+      },
+      {
+        "month": "2025-03",
+        "sales": "550000.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-04",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-05",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-06",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-07",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-08",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-09",
+        "sales": "880000.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-10",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-11",
+        "sales": "0.00",
+        "purchases": "0.00"
+      },
+      {
+        "month": "2025-12",
+        "sales": "0.00",
+        "purchases": "0.00"
+      }
+    ],
+    "sales_total": "1650000.00",
+    "purchases_total": "900000.00"
+  },
+  "depreciation": {
+    "lines": [
+      {
+        "code": "1530",
+        "name": "機械装置",
+        "acquisition_cost": "1200000.00",
+        "depreciation_expense": "240000.00",
+        "closing_book_value": "960000.00"
+      },
+      {
+        "code": "1550",
+        "name": "工具器具備品",
+        "acquisition_cost": "480000.00",
+        "depreciation_expense": "60000.00",
+        "closing_book_value": "420000.00"
+      }
+    ],
+    "total_depreciation": "300000.00",
+    "expense_total": "300000.00"
+  },
+  "manufacturing_cost": {
+    "materials": {
+      "key": "materials",
+      "label": "材料費",
+      "lines": [
+        {
+          "code": "6120",
+          "name": "原材料仕入高",
+          "amount": "300000.00"
+        }
+      ],
+      "subtotal": "300000.00"
+    },
+    "labor": {
+      "key": "labor",
+      "label": "労務費",
+      "lines": [
+        {
+          "code": "6210",
+          "name": "賃金",
+          "amount": "400000.00"
+        }
+      ],
+      "subtotal": "400000.00"
+    },
+    "overhead": {
+      "key": "overhead",
+      "label": "製造経費",
+      "lines": [
+        {
+          "code": "6330",
+          "name": "減価償却費",
+          "amount": "240000.00"
+        }
+      ],
+      "subtotal": "240000.00"
+    },
+    "total_manufacturing_cost": "940000.00",
+    "cost_of_goods_manufactured": "940000.00"
+  },
+  "balance_sheet": {
+    "report": "balance_sheet",
+    "as_of": "2025-12-31",
+    "status": "posted",
+    "assets": [
+      {
+        "category": "current_assets",
+        "lines": [
+          {
+            "code": "1110",
+            "name": "現金",
+            "balance": "300000.00"
+          },
+          {
+            "code": "1141",
+            "name": "普通預金",
+            "balance": "169500.00"
+          },
+          {
+            "code": "1160",
+            "name": "売掛金",
+            "balance": "880000.00"
+          },
+          {
+            "code": "1180",
+            "name": "商品",
+            "balance": "350000.00"
+          },
+          {
+            "code": "1290",
+            "name": "事業主貸",
+            "balance": "240000.00"
+          }
+        ],
+        "subtotal": "1939500.00"
+      },
+      {
+        "category": "fixed_assets",
+        "lines": [
+          {
+            "code": "1530",
+            "name": "機械装置",
+            "balance": "960000.00"
+          },
+          {
+            "code": "1550",
+            "name": "工具器具備品",
+            "balance": "420000.00"
+          }
+        ],
+        "subtotal": "1380000.00"
+      }
+    ],
+    "liabilities": [
+      {
+        "category": "current_liabilities",
+        "lines": [],
+        "subtotal": "0.00"
+      },
+      {
+        "category": "fixed_liabilities",
+        "lines": [
+          {
+            "code": "2510",
+            "name": "長期借入金",
+            "balance": "600000.00"
+          }
+        ],
+        "subtotal": "600000.00"
+      }
+    ],
+    "equity": [
+      {
+        "category": "equity",
+        "lines": [
+          {
+            "code": "3110",
+            "name": "元入金",
+            "balance": "3200000.00"
+          },
+          {
+            "code": "3120",
+            "name": "事業主借",
+            "balance": "100000.00"
+          }
+        ],
+        "subtotal": "3300000.00"
+      }
+    ],
+    "net_income": "-580500.00",
+    "total_assets": "3319500.00",
+    "total_liabilities": "600000.00",
+    "total_equity": "2719500.00"
+  }
+}

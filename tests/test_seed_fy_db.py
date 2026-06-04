@@ -21,6 +21,7 @@ from ai_books.db.repository import AccountRepository, JournalRepository, LedgerR
 from ai_books.models import EntryStatus
 from ai_books.reports import (
     balance_sheet_snapshot,
+    financial_statements_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
@@ -30,6 +31,7 @@ from tests.fixtures.seed_fy import (
     FY_ENTRIES,
     balance_sheet_from_db,
     diff_snapshots,
+    financial_statements_from_db,
     general_ledger_from_db,
     journal_book_from_db,
     load_fiscal_year,
@@ -285,3 +287,35 @@ def test_general_ledger_drops_voided_from_balances(migrated_conn: psycopg.Connec
         _entry_id(migrated_conn, "FY2025-004"), "取消テスト"
     )
     assert cash_closing() == before - Decimal("220000")
+
+
+# --- 青色申告決算書 (Issue #23) ------------------------------------------------
+
+
+def test_db_financial_statements_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#23): the DB-read 決算書 (PL/BS + 月別売上・仕入 / 減価償却 / 製造原価 の内訳) equals the
+    # frozen golden, so the SQL aggregation and the offline reduction agree end to end.
+    load_fiscal_year(migrated_conn)
+    actual = financial_statements_snapshot(financial_statements_from_db(migrated_conn))
+    expected = load_golden("financial_statements")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB financial statements diverged from golden:\n  - " + "\n  - ".join(
+        problems
+    )
+
+
+def test_db_financial_statements_reconciles(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#23): 各内訳合計が PL/BS と一致 + 製造原価が売上原価と整合 + 減価償却が固定資産データと
+    # 整合, verified over the real stored rows.
+    load_fiscal_year(migrated_conn)
+    fs = financial_statements_from_db(migrated_conn)
+    assert fs.is_consistent
+    # 月別売上 → 売上高, 製造原価 → 売上原価, 減価償却 → PL 減価償却費 & BS 固定資産簿価.
+    assert fs.monthly.sales_total == fs.profit_and_loss.sales.subtotal == Decimal("1650000")
+    assert fs.manufacturing_cost.cost_of_goods_manufactured == Decimal("940000")
+    assert (
+        fs.profit_and_loss.cost_of_goods_sold.subtotal
+        == fs.merchandise_cost_of_sales + fs.manufacturing_cost.cost_of_goods_manufactured
+    )
+    assert fs.depreciation.total_depreciation == fs.depreciation.expense_total == Decimal("300000")
+    assert fs.balance_sheet.is_balanced
