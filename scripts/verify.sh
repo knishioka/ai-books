@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # verify.sh — ai-books verification entrypoint.
-# See AGENTS.md "Verification" and workspace docs/templates/verify-sh-template.sh.
+# See AGENTS.md "Verification" for the contract this script implements.
 #
 # Usage:
 #   ./scripts/verify.sh           # human-readable (text)
