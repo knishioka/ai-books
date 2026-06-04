@@ -137,3 +137,357 @@ footer {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* --- top navigation --------------------------------------------------------- */
+
+.site-nav {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+
+.site-nav-brand {
+  font-weight: 700;
+  color: var(--fg);
+  text-decoration: none;
+  margin-right: 0.5rem;
+}
+
+.site-nav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.site-nav a:hover {
+  text-decoration: underline;
+}
+
+.site-footer {
+  max-width: 1080px;
+  margin: 2rem auto 3rem;
+  padding: 0 1.25rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.container {
+  max-width: 1080px;
+}
+
+/* --- report header + controls ---------------------------------------------- */
+
+.report-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-header-titles h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.2rem;
+}
+
+.report-subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.report-period {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.report-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.period-selector,
+.filter-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.period-selector label,
+.filter-form label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.period-selector select,
+.filter-form select {
+  font: inherit;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+}
+
+.period-selector button,
+.filter-form button,
+.print-button,
+.download-button {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.print-button:hover,
+.download-button:hover,
+.period-selector button:hover,
+.filter-form button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.filter-form {
+  margin-bottom: 1.25rem;
+}
+
+/* --- report tables ---------------------------------------------------------- */
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.report-table th,
+.report-table td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-table thead th {
+  background: #fafafa;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  position: sticky;
+  top: 0;
+}
+
+.report-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.report-table .nowrap {
+  white-space: nowrap;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-negative {
+  color: #b91c1c;
+}
+
+.report-table .section-head td {
+  background: #f4f4f6;
+  font-weight: 600;
+}
+
+.report-table .subtotal td {
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+
+.report-table .profit td {
+  font-weight: 700;
+  background: #f0f4ff;
+}
+
+.report-table tfoot td,
+.report-table .grand-total td {
+  font-weight: 700;
+  border-top: 2px solid var(--fg);
+}
+
+.report-table .opening td,
+.report-table .warn-row td {
+  color: var(--muted);
+}
+
+.report-table .warn-row td {
+  background: var(--warn-bg);
+}
+
+.section-caption {
+  text-align: left;
+  caption-side: top;
+  font-weight: 700;
+  padding: 0.5rem 0.75rem;
+  background: #eef2ff;
+  color: var(--accent);
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+.worksheet-table {
+  font-size: 0.8rem;
+  min-width: 920px;
+}
+
+.journal-table .journal-entry-start td {
+  border-top: 1px solid #d1d5db;
+}
+
+.ledger-account {
+  margin-bottom: 1.5rem;
+}
+
+.ledger-account-title {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  padding: 0.75rem 1rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.ledger-account-balance {
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.report-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1.5rem;
+}
+
+.report-index-list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.report-index-list a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.report-index-list a:hover {
+  border-color: var(--accent);
+}
+
+.report-index-label {
+  font-weight: 600;
+}
+
+.report-index-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.statement-face {
+  margin-bottom: 2rem;
+}
+
+.statement-face h2 {
+  font-size: 1.05rem;
+  border-left: 4px solid var(--accent);
+  padding-left: 0.6rem;
+  margin: 0 0 0.75rem;
+}
+
+.etax-downloads {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--accent);
+}
+
+/* --- print / PDF ------------------------------------------------------------ */
+
+@media print {
+  .site-nav,
+  .report-header-controls,
+  .filter-form,
+  .etax-downloads,
+  .site-footer {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+  }
+
+  .report-table {
+    font-size: 10pt;
+  }
+
+  .report-table thead th {
+    position: static;
+  }
+
+  .ledger-account,
+  .statement-face {
+    break-inside: avoid;
+  }
+}
