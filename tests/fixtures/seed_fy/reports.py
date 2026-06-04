@@ -37,6 +37,7 @@ from ai_books.models import (
     BalanceSheet,
     EntrySide,
     EntryStatus,
+    FinancialStatements,
     GeneralLedger,
     GeneralLedgerAccount,
     GeneralLedgerRow,
@@ -46,6 +47,7 @@ from ai_books.models import (
     MonthlyTrend,
     NormalSide,
     ProfitAndLoss,
+    StatementCategory,
     TrialBalance,
     TrialBalanceRow,
     Worksheet,
@@ -511,3 +513,146 @@ def balance_sheet_from_db(
 ) -> BalanceSheet:
     """Read the 貸借対照表 from Postgres through the production :class:`LedgerRepository`."""
     return LedgerRepository(conn).balance_sheet(status=status)
+
+
+# ── 青色申告決算書 (financial statements, Issue #23) ─────────────────────────────
+# Same dual-path cross-check: a pure reduction of the in-memory dataset (the offline golden
+# source, no DB) and a DB-backed read through the production engine. Both feed the assembled
+# PL/BS plus the journal-derived 内訳 (月別売上・仕入 / 減価償却 / 製造原価) into
+# :func:`ai_books.aggregation.assemble_financial_statements`, so the 内訳 ↔ PL/BS 突合 is shared
+# and a divergence pins a storage/aggregation bug.
+
+
+def _balance_sheet_as_of_end(entries: tuple[SeedEntry, ...]) -> BalanceSheet:
+    """The 貸借対照表 as of 期末 (期末時点) — matches the DB path's ``balance_sheet(as_of=end)``."""
+    trial_balance = trial_balance_from_dataset(entries)
+    balances = [
+        aggregation.ClassifiedBalance(
+            code=row.code,
+            name=row.name,
+            statement_category=statement_category(row.code),
+            balance=row.balance,
+        )
+        for row in trial_balance.rows
+    ]
+    return aggregation.assemble_balance_sheet(balances, as_of=FY_END, status=EntryStatus.POSTED)
+
+
+def _monthly_amounts_from_dataset(
+    entries: tuple[SeedEntry, ...], codes: set[str]
+) -> dict[date, aggregation.MonthAmounts]:
+    """Sum 借方 / 貸方 per 月初 for the given account ``codes`` over the fiscal year."""
+    debit_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal(0))
+    credit_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal(0))
+    for entry in entries:
+        if entry.entry_date < FY_START or entry.entry_date > FY_END:
+            continue
+        month_start = date(entry.entry_date.year, entry.entry_date.month, 1)
+        for line in entry.lines:
+            if line.account_code not in codes:
+                continue
+            bucket = debit_by_month if line.side is EntrySide.DEBIT else credit_by_month
+            bucket[month_start] += line.amount
+    return {
+        month: aggregation.MonthAmounts(
+            debit_total=debit_by_month.get(month, Decimal(0)),
+            credit_total=credit_by_month.get(month, Decimal(0)),
+        )
+        for month in debit_by_month.keys() | credit_by_month.keys()
+    }
+
+
+def _fixed_asset_totals_from_dataset(
+    entries: tuple[SeedEntry, ...],
+) -> list[aggregation.FixedAssetTotals]:
+    """Each 固定資産勘定's 取得価額 / 当期償却 / 期末簿価 from the dataset (直接法), 科目コード順."""
+    codes = sorted(
+        {
+            line.account_code
+            for entry in entries
+            for line in entry.lines
+            if statement_category(line.account_code) is StatementCategory.FIXED_ASSETS
+        }
+    )
+    debit_by_code: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    credit_by_code: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    period_credit_by_code: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    for entry in entries:
+        if entry.entry_date > FY_END:
+            continue
+        for line in entry.lines:
+            if line.account_code not in codes:
+                continue
+            if line.side is EntrySide.DEBIT:
+                debit_by_code[line.account_code] += line.amount
+            else:
+                credit_by_code[line.account_code] += line.amount
+                if entry.entry_date >= FY_START:
+                    period_credit_by_code[line.account_code] += line.amount
+    return [
+        aggregation.FixedAssetTotals(
+            code=code,
+            name=account_name(code),
+            acquisition_cost=debit_by_code.get(code, Decimal(0)),
+            depreciation_expense=period_credit_by_code.get(code, Decimal(0)),
+            closing_book_value=ledger.balance_from_totals(
+                debit_by_code.get(code, Decimal(0)),
+                credit_by_code.get(code, Decimal(0)),
+                normal_side(code),
+            ),
+        )
+        for code in codes
+    ]
+
+
+def financial_statements_from_dataset(
+    entries: tuple[SeedEntry, ...] = FY_ENTRIES,
+) -> FinancialStatements:
+    """Reduce the in-memory dataset into a 青色申告決算書 — no database required.
+
+    Assembles the PL/BS offline (sharing the production engines) and the 内訳 from the same
+    dataset reduction (月別売上・仕入, 減価償却, 製造原価), then hands them to the production
+    :func:`ai_books.aggregation.assemble_financial_statements`, so the offline golden source and
+    the DB path agree on *structure* while summing independently.
+    """
+    profit_and_loss = profit_and_loss_from_dataset(entries)
+    balance_sheet = _balance_sheet_as_of_end(entries)
+    sales_codes = {
+        line.account_code
+        for entry in entries
+        for line in entry.lines
+        if statement_category(line.account_code) is StatementCategory.SALES
+    }
+    purchase_codes = {
+        line.account_code
+        for entry in entries
+        for line in entry.lines
+        if aggregation.is_purchase_account_name(account_name(line.account_code))
+    }
+    return aggregation.assemble_financial_statements(
+        fiscal_year=FISCAL_YEAR,
+        start_date=FY_START,
+        end_date=FY_END,
+        profit_and_loss=profit_and_loss,
+        balance_sheet=balance_sheet,
+        sales_by_month=_monthly_amounts_from_dataset(entries, sales_codes),
+        purchases_by_month=_monthly_amounts_from_dataset(entries, purchase_codes),
+        fixed_assets=_fixed_asset_totals_from_dataset(entries),
+    )
+
+
+def financial_statements_from_db(
+    conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
+) -> FinancialStatements:
+    """Compute the 青色申告決算書 from the DB via the production engine.
+
+    Resolves the :data:`~tests.fixtures.seed_fy.dataset.FISCAL_YEAR` row and delegates to
+    :meth:`ai_books.db.repository.LedgerRepository.financial_statements` — the code Issue #23
+    ships — so there is no second arithmetic path to drift from
+    :func:`financial_statements_from_dataset`.
+    """
+    year = FiscalYearRepository(conn).get_by_name(FISCAL_YEAR)
+    assert year is not None, f"fiscal year {FISCAL_YEAR} not seeded"
+    return LedgerRepository(conn).financial_statements(
+        fiscal_year=year.name, start=year.start_date, end=year.end_date, status=status
+    )

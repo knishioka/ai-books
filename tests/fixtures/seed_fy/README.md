@@ -10,18 +10,19 @@
 
 ## 構成
 
-| ファイル                      | 役割                                                            |
-| ----------------------------- | --------------------------------------------------------------- |
-| `dataset.py`                  | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`  |
-| `loader.py`                   | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件) |
-| `reports.py`                  | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装     |
-| `golden.py`                   | スナップショットの直列化・比較 (diff)・更新。レポート非依存     |
-| `golden/trial_balance.json`   | 試算表のゴールデン (committed)                                  |
-| `golden/journal_book.json`    | 仕訳帳のゴールデン (#19, committed)                             |
-| `golden/general_ledger.json`  | 総勘定元帳のゴールデン (#19, committed)                         |
-| `golden/profit_and_loss.json` | 損益計算書のゴールデン (#20, committed)                         |
-| `golden/balance_sheet.json`   | 貸借対照表のゴールデン (#21, committed)                         |
-| `golden/worksheet.json`       | 精算表のゴールデン (#22, committed)                             |
+| ファイル                           | 役割                                                            |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `dataset.py`                       | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`  |
+| `loader.py`                        | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件) |
+| `reports.py`                       | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装     |
+| `golden.py`                        | スナップショットの直列化・比較 (diff)・更新。レポート非依存     |
+| `golden/trial_balance.json`        | 試算表のゴールデン (committed)                                  |
+| `golden/journal_book.json`         | 仕訳帳のゴールデン (#19, committed)                             |
+| `golden/general_ledger.json`       | 総勘定元帳のゴールデン (#19, committed)                         |
+| `golden/profit_and_loss.json`      | 損益計算書のゴールデン (#20, committed)                         |
+| `golden/balance_sheet.json`        | 貸借対照表のゴールデン (#21, committed)                         |
+| `golden/worksheet.json`            | 精算表のゴールデン (#22, committed)                             |
+| `golden/financial_statements.json` | 青色申告決算書のゴールデン (#23, committed)                     |
 
 純粋計算 (`trial_balance_from_dataset`) とゴールデン生成は **DB 不要**。pytest ハーネスは
 DB にロードした結果を SQL で集計 (`trial_balance_from_db`) し、ゴールデンと比較する。2 つの
@@ -146,3 +147,23 @@ uv run pytest -q tests/test_seed_fy.py tests/test_seed_fy_db.py
 当期純利益(−580,500) = **2,719,500**。よって 資産合計 3,319,500 = 負債600,000 +
 純資産2,719,500 が成立する。当期純利益 −580,500 は損益計算書 (#20) の当期純利益と一致する
 (`test_balance_sheet_balances` / `test_balance_sheet_net_income_matches_trial_balance` が検証)。
+
+## 青色申告決算書 (aoiro kessansho, #23) の内訳突合
+
+決算書 (`financial_statements`) は損益計算書 (1面) と貸借対照表 (4面) に、提出書式の内訳を
+重ねたもの。各内訳は同じ仕訳/勘定科目データから導出し、PL/BS の数字と突合する
+(`FinancialStatements.is_consistent`)。固定資産マスタ・従業員マスタは持たず、減価償却は
+固定資産勘定の当期減少額 (直接法では当期償却費) として算出する。
+
+| 面  | 内訳                            | 合計          | 突合先                              |
+| --- | ------------------------------- | ------------- | ----------------------------------- |
+| 2面 | 月別売上(収入)金額              | **1,650,000** | PL 売上高 (2月220k/3月550k/9月880k) |
+| 2面 | 月別仕入金額                    | **900,000**   | 仕入高600k + 原材料仕入高300k (2月)  |
+| 3面 | 減価償却費の計算                | **300,000**   | PL 減価償却費 (6330 240k + 7210 60k) |
+| 4面 | 製造原価の計算 (当期製品製造原価) | **940,000**   | 売上原価のうち製造分 (材料300k+労務400k+経費240k) |
+
+減価償却の各行は固定資産勘定そのものから導く (直接法): 機械装置 取得1,200,000 / 当期償却
+240,000 / 期末簿価 **960,000**、工具器具備品 取得480,000 / 当期償却60,000 / 期末簿価
+**420,000**。期末簿価は貸借対照表の固定資産残高と一致する。製造原価 940,000 + 商品売上原価
+550,000 = 売上原価 **1,490,000** も成立する。純粋計算 (`financial_statements_from_dataset`) と
+DB 集計 (`financial_statements_from_db`) の双方で検証する。

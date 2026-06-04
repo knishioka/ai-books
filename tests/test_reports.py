@@ -30,6 +30,8 @@ from ai_books.models import (
 from ai_books.reports import (
     balance_sheet_snapshot,
     balance_sheet_text,
+    financial_statements_snapshot,
+    financial_statements_text,
     general_ledger_csv,
     general_ledger_snapshot,
     general_ledger_text,
@@ -45,6 +47,7 @@ from ai_books.reports import (
 )
 from tests.fixtures.seed_fy import (
     balance_sheet_from_dataset,
+    financial_statements_from_dataset,
     general_ledger_from_dataset,
     journal_book_from_dataset,
     profit_and_loss_from_dataset,
@@ -328,3 +331,32 @@ def test_profit_and_loss_surfaces_unclassified_accounts() -> None:
     text = profit_and_loss_text(pl)
     assert "未分類科目" in text
     assert "9999 謎の費用" in text
+
+
+# --- 青色申告決算書 (Issue #23) ------------------------------------------------
+
+
+def test_financial_statements_snapshot_nests_the_four_faces() -> None:
+    # The 決算書 snapshot nests the PL/BS verbatim plus the 月別売上・仕入 / 減価償却 / 製造原価 内訳.
+    snapshot = financial_statements_snapshot(financial_statements_from_dataset())
+    assert snapshot["report"] == "financial_statements"
+    assert snapshot["profit_and_loss"]["report"] == "profit_and_loss"
+    assert snapshot["balance_sheet"]["report"] == "balance_sheet"
+    assert snapshot["monthly"]["sales_total"] == "1650000.00"
+    assert snapshot["manufacturing_cost"]["cost_of_goods_manufactured"] == "940000.00"
+    assert snapshot["depreciation"]["total_depreciation"] == "300000.00"
+    # Amounts are fixed-point strings (浮動小数禁止).
+    assert isinstance(snapshot["monthly"]["rows"][0]["sales"], str)
+
+
+def test_financial_statements_text_lays_out_every_face() -> None:
+    # 整形テキスト walks the four 面 so a human can eyeball the 決算書 end to end.
+    text = financial_statements_text(financial_statements_from_dataset())
+    assert "青色申告決算書" in text
+    assert "月別売上(収入)金額及び仕入金額" in text
+    assert "減価償却費の計算" in text
+    assert "製造原価の計算" in text
+    assert "当期製品製造原価  940000.00" in text
+    # The nested PL/BS bodies are present.
+    assert "損益計算書" in text
+    assert "貸借対照表" in text

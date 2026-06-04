@@ -1,4 +1,4 @@
-"""帳簿・決算書レポートの出力フォーマット (Issue #19 帳簿 / #20 損益計算書 / #21 貸借対照表 / #22 精算表).
+"""帳簿・決算書レポートの出力フォーマット (Issue #19 帳簿 / #20 損益計算書 / #21 貸借対照表 / #22 精算表 / #23 青色申告決算書).
 
 The report *data* — 仕訳帳 (:class:`~ai_books.models.JournalBook`), 総勘定元帳
 (:class:`~ai_books.models.GeneralLedger`), 損益計算書 (:class:`~ai_books.models.ProfitAndLoss`),
@@ -24,6 +24,8 @@ from __future__ import annotations
 from .format import (
     balance_sheet_snapshot,
     balance_sheet_text,
+    financial_statements_snapshot,
+    financial_statements_text,
     general_ledger_csv,
     general_ledger_snapshot,
     general_ledger_text,
@@ -41,6 +43,8 @@ from .format import (
 __all__ = [
     "balance_sheet_snapshot",
     "balance_sheet_text",
+    "financial_statements_snapshot",
+    "financial_statements_text",
     "general_ledger_csv",
     "general_ledger_snapshot",
     "general_ledger_text",

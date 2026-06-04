@@ -29,6 +29,17 @@ from .enums import (
     StatementCategory,
     normal_side_for,
 )
+from .financial_statements import (
+    MANUFACTURING_CATEGORIES,
+    DepreciationLine,
+    DepreciationSchedule,
+    FinancialStatements,
+    ManufacturingCost,
+    ManufacturingCostLine,
+    ManufacturingCostSection,
+    MonthlySalesPurchases,
+    MonthlySalesPurchasesRow,
+)
 from .imports import ImportSummary
 from .journal import (
     YEAR_END_ADJUSTMENT_SOURCE,
@@ -56,6 +67,7 @@ from .worksheet import Worksheet, WorksheetRow
 __all__ = [
     "CREDIT_NORMAL_TYPES",
     "DEBIT_NORMAL_TYPES",
+    "MANUFACTURING_CATEGORIES",
     "STATEMENT_CATEGORY_ACCOUNT_TYPE",
     "YEAR_END_ADJUSTMENT_SOURCE",
     "Account",
@@ -66,9 +78,12 @@ __all__ = [
     "BalanceSheet",
     "BalanceSheetLine",
     "BalanceSheetSection",
+    "DepreciationLine",
+    "DepreciationSchedule",
     "DomainModel",
     "EntrySide",
     "EntryStatus",
+    "FinancialStatements",
     "FiscalYear",
     "GeneralLedger",
     "GeneralLedgerAccount",
@@ -83,6 +98,11 @@ __all__ = [
     "JournalLine",
     "JournalLineInput",
     "LedgerRow",
+    "ManufacturingCost",
+    "ManufacturingCostLine",
+    "ManufacturingCostSection",
+    "MonthlySalesPurchases",
+    "MonthlySalesPurchasesRow",
     "MonthlyTrend",
     "MonthlyTrendPoint",
     "NormalSide",
