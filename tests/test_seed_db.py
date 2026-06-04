@@ -27,11 +27,12 @@ pytestmark = pytest.mark.skipif(
 
 
 def _count(conn: psycopg.Connection[Any]) -> int:
+    # migrated_conn uses dict_row, so address columns by name (row["n"]), not index.
     with conn.cursor() as cur:
-        cur.execute("SELECT count(*) FROM accounts")
+        cur.execute("SELECT count(*) AS n FROM accounts")
         row = cur.fetchone()
         assert row is not None
-        return int(row[0])
+        return int(row["n"])
 
 
 def test_seed_inserts_full_chart(migrated_conn: psycopg.Connection[Any]) -> None:
@@ -55,8 +56,10 @@ def test_seed_populates_every_statement_category(migrated_conn: psycopg.Connecti
     # AC: each 青色申告決算書 表示区分 has ≥1 account after seeding.
     seed_accounts(migrated_conn)
     with migrated_conn.cursor() as cur:
-        cur.execute("SELECT DISTINCT statement_category FROM accounts")
-        present = {StatementCategory(row[0]) for row in cur.fetchall() if row[0] is not None}
+        cur.execute("SELECT DISTINCT statement_category AS cat FROM accounts")
+        present = {
+            StatementCategory(row["cat"]) for row in cur.fetchall() if row["cat"] is not None
+        }
     assert present >= REQUIRED_CATEGORIES
 
 
