@@ -23,6 +23,9 @@ from ai_books.models import (
     GeneralLedgerAccount,
     JournalBook,
     JournalBookEntry,
+    ProfitAndLoss,
+    ProfitAndLossLine,
+    ProfitAndLossSection,
 )
 
 #: Two-decimal quantum matching ``numeric(18, 2)``.
@@ -261,3 +264,85 @@ def _period_label(start: date | None, end: date | None) -> str:
     if start is None and end is None:
         return "全期間"
     return f"{_iso(start) or '開始'} 〜 {_iso(end) or '終了'}"
+
+
+# --- 損益計算書 (profit & loss, Issue #20) --------------------------------------
+
+
+def _pl_line(line: ProfitAndLossLine) -> dict[str, Any]:
+    return {
+        "code": line.code,
+        "name": line.name,
+        "category": None if line.category is None else line.category.value,
+        "amount": money(line.amount),
+    }
+
+
+def _pl_section(section: ProfitAndLossSection) -> dict[str, Any]:
+    return {
+        "key": section.key,
+        "label": section.label,
+        "lines": [_pl_line(line) for line in section.lines],
+        "subtotal": money(section.subtotal),
+    }
+
+
+def profit_and_loss_snapshot(pl: ProfitAndLoss) -> dict[str, Any]:
+    """Turn a :class:`~ai_books.models.ProfitAndLoss` into its canonical JSON shape.
+
+    Sections stay in 段階表示 order, each with its 科目別 lines (科目コード順) and subtotal; the
+    derived 段階利益 (売上総利益 / 営業利益 / 経常利益 / 当期純利益) sit between them, and any
+    未分類科目 are listed so a coverage gap is visible in the file. Amounts are fixed-point
+    strings (浮動小数禁止). This is the shape the golden harness freezes and the Vercel viewer
+    (#25) renders.
+    """
+    return {
+        "report": "profit_and_loss",
+        "fiscal_year": pl.fiscal_year,
+        "start_date": pl.start_date.isoformat(),
+        "end_date": pl.end_date.isoformat(),
+        "sales": _pl_section(pl.sales),
+        "cost_of_goods_sold": _pl_section(pl.cost_of_goods_sold),
+        "gross_profit": money(pl.gross_profit),
+        "selling_admin_expenses": _pl_section(pl.selling_admin_expenses),
+        "operating_income": money(pl.operating_income),
+        "non_operating_income": _pl_section(pl.non_operating_income),
+        "non_operating_expenses": _pl_section(pl.non_operating_expenses),
+        "ordinary_income": money(pl.ordinary_income),
+        "net_income": money(pl.net_income),
+        "unclassified": [_pl_line(line) for line in pl.unclassified],
+    }
+
+
+def profit_and_loss_text(pl: ProfitAndLoss) -> str:
+    """Render the 損益計算書 as 整形テキスト for human inspection (段階利益を挟んで表示)."""
+    lines: list[str] = [
+        "損益計算書 (Profit & Loss)",
+        f"  会計年度: {pl.fiscal_year} ({pl.start_date.isoformat()} 〜 {pl.end_date.isoformat()})",
+    ]
+
+    def emit_section(section: ProfitAndLossSection) -> None:
+        lines.append(f"【{section.label}】")
+        for line in section.lines:
+            lines.append(f"    {line.code} {line.name}  {money(line.amount)}")
+        lines.append(f"    {section.label} 計  {money(section.subtotal)}")
+
+    def emit_profit(label: str, amount: Decimal) -> None:
+        lines.append(f"  {label}  {money(amount)}")
+
+    emit_section(pl.sales)
+    emit_section(pl.cost_of_goods_sold)
+    emit_profit("売上総利益", pl.gross_profit)
+    emit_section(pl.selling_admin_expenses)
+    emit_profit("営業利益", pl.operating_income)
+    emit_section(pl.non_operating_income)
+    emit_section(pl.non_operating_expenses)
+    emit_profit("経常利益", pl.ordinary_income)
+    emit_profit("当期純利益", pl.net_income)
+
+    if pl.unclassified:
+        lines.append("【未分類科目 (表示区分なし)】")
+        for line in pl.unclassified:
+            lines.append(f"    {line.code} {line.name}  {money(line.amount)}")
+
+    return "\n".join(lines) + "\n"

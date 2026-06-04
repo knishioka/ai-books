@@ -27,7 +27,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
+from ai_books.reports import (
+    general_ledger_snapshot,
+    journal_book_snapshot,
+    profit_and_loss_snapshot,
+)
 
 from .dataset import FISCAL_YEAR
 from .reports import (
@@ -35,6 +39,7 @@ from .reports import (
     general_ledger_from_dataset,
     journal_book_from_dataset,
     monthly_trend_from_dataset,
+    profit_and_loss_from_dataset,
     trial_balance_from_dataset,
 )
 
@@ -138,6 +143,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "general_ledger": (
         "general_ledger.json",
         lambda: general_ledger_snapshot(general_ledger_from_dataset()),
+    ),
+    "profit_and_loss": (
+        "profit_and_loss.json",
+        lambda: profit_and_loss_snapshot(profit_and_loss_from_dataset()),
     ),
 }
 

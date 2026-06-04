@@ -19,6 +19,10 @@ from ai_books.models import (
     JournalBook,
     JournalBookEntry,
     JournalBookLine,
+    ProfitAndLoss,
+    ProfitAndLossLine,
+    ProfitAndLossSection,
+    StatementCategory,
 )
 from ai_books.reports import (
     general_ledger_csv,
@@ -28,8 +32,14 @@ from ai_books.reports import (
     journal_book_snapshot,
     journal_book_text,
     money,
+    profit_and_loss_snapshot,
+    profit_and_loss_text,
 )
-from tests.fixtures.seed_fy import general_ledger_from_dataset, journal_book_from_dataset
+from tests.fixtures.seed_fy import (
+    general_ledger_from_dataset,
+    journal_book_from_dataset,
+    profit_and_loss_from_dataset,
+)
 
 
 def test_money_is_fixed_two_decimals() -> None:
@@ -143,3 +153,78 @@ def test_general_ledger_text_renders_carry_and_balance() -> None:
     assert "総勘定元帳" in text
     assert "繰越" in text
     assert "期末残高" in text
+
+
+# --- 損益計算書 (profit & loss, Issue #20) --------------------------------------
+
+
+def test_profit_and_loss_snapshot_is_jsonable_and_staged() -> None:
+    snapshot = profit_and_loss_snapshot(profit_and_loss_from_dataset())
+    assert snapshot["report"] == "profit_and_loss"
+    assert snapshot["fiscal_year"] == "FY2025"
+    assert snapshot["start_date"] == "2025-01-01"
+    assert snapshot["end_date"] == "2025-12-31"
+    # Sections carry a subtotal and 科目別 lines; amounts are strings (浮動小数禁止).
+    assert snapshot["sales"]["subtotal"] == "1650000.00"
+    assert isinstance(snapshot["sales"]["lines"][0]["amount"], str)
+    assert snapshot["cost_of_goods_sold"]["subtotal"] == "1490000.00"  # 製造原価を含む
+    # The derived 段階利益 sit between the sections.
+    assert snapshot["gross_profit"] == "160000.00"
+    assert snapshot["operating_income"] == "-560000.00"
+    assert snapshot["ordinary_income"] == "-580500.00"
+    assert snapshot["net_income"] == "-580500.00"
+    assert snapshot["unclassified"] == []
+
+
+def test_profit_and_loss_text_renders_each_stage() -> None:
+    text = profit_and_loss_text(profit_and_loss_from_dataset())
+    assert "損益計算書" in text
+    for stage in ("売上総利益", "営業利益", "経常利益", "当期純利益"):
+        assert stage in text
+    assert "-580500.00" in text  # 当期純損失
+
+
+def _unclassified_pl() -> ProfitAndLoss:
+    """A P/L carrying one 未分類 expense (表示区分なし) to pin the surfacing behaviour."""
+    empty = ProfitAndLossSection(key="x", label="x", lines=[], subtotal=Decimal("0"))
+    return ProfitAndLoss(
+        fiscal_year="FY2025",
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 12, 31),
+        sales=ProfitAndLossSection(
+            key="sales",
+            label="売上高",
+            lines=[
+                ProfitAndLossLine(
+                    code="4110",
+                    name="売上高",
+                    category=StatementCategory.SALES,
+                    amount=Decimal("1000"),
+                )
+            ],
+            subtotal=Decimal("1000"),
+        ),
+        cost_of_goods_sold=empty,
+        gross_profit=Decimal("1000"),
+        selling_admin_expenses=empty,
+        operating_income=Decimal("1000"),
+        non_operating_income=empty,
+        non_operating_expenses=empty,
+        ordinary_income=Decimal("1000"),
+        net_income=Decimal("1000"),
+        unclassified=[
+            ProfitAndLossLine(code="9999", name="謎の費用", category=None, amount=Decimal("500"))
+        ],
+    )
+
+
+def test_profit_and_loss_surfaces_unclassified_accounts() -> None:
+    # AC (#20): 未分類科目を検出 — an un-categorised account shows up in both outputs.
+    pl = _unclassified_pl()
+    snapshot = profit_and_loss_snapshot(pl)
+    assert snapshot["unclassified"] == [
+        {"code": "9999", "name": "謎の費用", "category": None, "amount": "500.00"}
+    ]
+    text = profit_and_loss_text(pl)
+    assert "未分類科目" in text
+    assert "9999 謎の費用" in text
