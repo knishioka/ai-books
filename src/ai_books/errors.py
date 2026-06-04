@@ -22,7 +22,20 @@ if TYPE_CHECKING:
 
 
 class AiBooksError(Exception):
-    """Base class for every error raised by ai-books application code."""
+    """Base class for every error raised by ai-books application code.
+
+    The write tools surface failures to the calling agent *machine-readably*: every
+    subclass returns a stable ``{"error": <code>, "message": ...}`` payload from
+    :meth:`to_dict`, which a tool can serialise verbatim. Subclasses extend the
+    payload (e.g. field-level ``details``) but never change those two base keys.
+    """
+
+    #: Stable machine-readable error code for this class (overridden per subclass).
+    error_code = "error"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serialisable payload suitable for an MCP tool response."""
+        return {"error": self.error_code, "message": str(self)}
 
 
 class DomainValidationError(AiBooksError):
@@ -32,6 +45,8 @@ class DomainValidationError(AiBooksError):
     — one per failed constraint — mirroring (a trimmed view of) Pydantic's own
     error report so the structure is stable across models.
     """
+
+    error_code = "validation_error"
 
     def __init__(self, message: str, errors: list[dict[str, str]] | None = None) -> None:
         super().__init__(message)
@@ -80,7 +95,61 @@ class RepositoryError(AiBooksError):
 class RecordNotFoundError(RepositoryError):
     """A lookup that was expected to find a row found none."""
 
+    error_code = "not_found"
+
     def __init__(self, entity: str, key: object) -> None:
         super().__init__(f"{entity} not found: {key!r}")
         self.entity = entity
         self.key = key
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "error": self.error_code,
+            "message": str(self),
+            "entity": self.entity,
+            "key": str(self.key),
+        }
+
+
+class InactiveAccountError(AiBooksError):
+    """A write referenced an account that exists but is no longer active (無効科目).
+
+    Distinct from :class:`RecordNotFoundError` so a caller can tell "no such code"
+    from "that code is retired" — both are rejected, but the fix differs.
+    """
+
+    error_code = "inactive_account"
+
+    def __init__(self, code: str) -> None:
+        super().__init__(f"account {code!r} is inactive and cannot be used on a journal line")
+        self.code = code
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"error": self.error_code, "message": str(self), "code": self.code}
+
+
+class EntryStateError(AiBooksError):
+    """A journal-entry lifecycle transition that the 状態 does not allow.
+
+    Posted entries are immutable (訂正は逆仕訳 or 取消で); a draft must exist and be
+    balanced before it can be posted; a 取消済 entry cannot be voided again. Each such
+    rejection raises this with the entry id, its current status, and the attempted
+    action so the caller knows exactly why the transition was refused.
+    """
+
+    error_code = "invalid_state"
+
+    def __init__(self, entry_id: int, current_status: str, action: str, detail: str) -> None:
+        super().__init__(f"cannot {action} entry {entry_id} (status={current_status}): {detail}")
+        self.entry_id = entry_id
+        self.current_status = current_status
+        self.action = action
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "error": self.error_code,
+            "message": str(self),
+            "entry_id": self.entry_id,
+            "current_status": self.current_status,
+            "action": self.action,
+        }

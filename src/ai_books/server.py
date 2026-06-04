@@ -8,22 +8,30 @@ Registers the read-only query surface:
   / ``get_account_balance`` / ``get_account_ledger``) — the shared read API that
   aggregation (#18) and the Vercel viewer (#16) reuse (Issue #15).
 
-Plus the ``hello`` smoke test. Write tools (#13) land separately.
+Plus the write surface (#13): ``create_journal_entry`` / ``update_journal_entry`` /
+``post_journal_entry`` / ``void_journal_entry``, which delegate to
+:class:`~ai_books.services.JournalService` so balance, Decimal precision, account-FK,
+and lifecycle validation happen server-side (invariant #2) and every write appends an
+audit-log trail (invariant #5). And the ``hello`` smoke test.
 
 The account tools keep their logic in plain ``_…`` helpers that take an open
 connection (unit-testable against the throwaway-schema fixture without going
 through FastMCP dispatch); the journal/balance/ledger tools open a short-lived
 connection and delegate to the repository layer. Either way amounts stay
-``Decimal`` (serialised as a string, never a float).
+``Decimal`` (serialised as a string, never a float). The write tools translate the
+service's typed failures into a :class:`ToolError` whose message is the JSON
+``to_dict`` payload, so a calling agent gets a machine-readable reason.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
 import psycopg
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 from ai_books import db
 from ai_books.db.repository import (
@@ -31,7 +39,7 @@ from ai_books.db.repository import (
     JournalRepository,
     LedgerRepository,
 )
-from ai_books.errors import RecordNotFoundError
+from ai_books.errors import AiBooksError, RecordNotFoundError
 from ai_books.models import (
     Account,
     AccountBalance,
@@ -39,9 +47,11 @@ from ai_books.models import (
     AccountType,
     EntryStatus,
     JournalEntry,
+    JournalEntryInput,
     JournalEntryPage,
     StatementCategory,
 )
+from ai_books.services import JournalService
 
 mcp: FastMCP = FastMCP(
     name="ai-books",
@@ -249,6 +259,80 @@ def get_account_ledger(
             end=_parse_date(end_date, "end_date"),
             status=_parse_status(status),
         )
+
+
+# --- journal writes (Issue #13) -----------------------------------------------
+
+
+def _tool_error(exc: AiBooksError) -> ToolError:
+    """Wrap a domain failure as a :class:`ToolError` carrying its machine-readable payload."""
+    return ToolError(json.dumps(exc.to_dict(), ensure_ascii=False))
+
+
+@mcp.tool
+def create_journal_entry(entry: JournalEntryInput, actor: str = "ai-agent") -> JournalEntry:
+    """Create a journal entry (仕訳) after full server-side validation.
+
+    The entry must balance (借方合計 = 貸方合計), every line must reference an existing
+    *active* 勘定科目 by code, amounts must fit ``numeric(18, 2)``, and the 取引日 must
+    fall within a defined fiscal year when any exist. A 伝票番号 is auto-assigned from
+    the sequence unless one is supplied. Returns the stored entry; on a validation,
+    account, or period failure raises a ``ToolError`` whose message is a JSON payload.
+    """
+    with db.connect() as conn:
+        try:
+            return JournalService(conn).create_entry(entry, actor=actor)
+        except AiBooksError as exc:
+            raise _tool_error(exc) from exc
+
+
+@mcp.tool
+def update_journal_entry(
+    entry_id: int, entry: JournalEntryInput, actor: str = "ai-agent"
+) -> JournalEntry:
+    """Replace a *draft* entry's header and lines (posted entries are immutable).
+
+    Only a ``draft`` can be edited — a posted entry must be corrected by a reversing
+    entry or 取消 (``void_journal_entry``). The same balance / account / period rules
+    as create apply. Returns the updated entry; raises ``ToolError`` if it is not a
+    draft or fails validation.
+    """
+    with db.connect() as conn:
+        try:
+            return JournalService(conn).update_entry(entry_id, entry, actor=actor)
+        except AiBooksError as exc:
+            raise _tool_error(exc) from exc
+
+
+@mcp.tool
+def post_journal_entry(entry_id: int, actor: str = "ai-agent") -> JournalEntry:
+    """Confirm a draft entry into the books (draft → posted, 記帳確定).
+
+    Only a balanced draft with lines can be posted. Returns the posted entry; raises
+    ``ToolError`` if the entry is not a draft or has no lines.
+    """
+    with db.connect() as conn:
+        try:
+            return JournalService(conn).post_entry(entry_id, actor=actor)
+        except AiBooksError as exc:
+            raise _tool_error(exc) from exc
+
+
+@mcp.tool
+def void_journal_entry(entry_id: int, reason: str, actor: str = "ai-agent") -> JournalEntry:
+    """Cancel an entry (取消) without deleting it, keeping 帳簿の連続性.
+
+    A ``draft`` or ``posted`` entry can be voided; an already-voided one cannot. The
+    row is kept and flipped to ``voided`` with the ``reason`` recorded, and the
+    before/after is written to the audit log (電子帳簿保存 訂正・削除履歴). Voided entries
+    no longer count toward balances or the 総勘定元帳. Returns the voided entry; raises
+    ``ToolError`` if it is already voided or the reason is empty.
+    """
+    with db.connect() as conn:
+        try:
+            return JournalService(conn).void_entry(entry_id, reason=reason, actor=actor)
+        except AiBooksError as exc:
+            raise _tool_error(exc) from exc
 
 
 def main() -> None:

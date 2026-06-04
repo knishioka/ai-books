@@ -21,7 +21,9 @@ from ai_books.models import (
     EntryStatus,
     FiscalYear,
     JournalEntry,
+    JournalEntryInput,
     JournalLine,
+    JournalLineInput,
     NormalSide,
     Period,
     normal_side_for,
@@ -49,6 +51,7 @@ def test_enum_values_match_postgres() -> None:
     assert NormalSide.CREDIT.value == "credit"
     assert EntrySide.DEBIT.value == "debit"
     assert EntryStatus.POSTED.value == "posted"
+    assert EntryStatus.VOIDED.value == "voided"
 
 
 # --- Account ------------------------------------------------------------------
@@ -185,6 +188,43 @@ def test_journal_entry_multi_line_balance() -> None:
     )
     assert entry.total_debit == Decimal("1000.00")
     assert entry.is_balanced
+
+
+def test_journal_entry_void_fields_default_none() -> None:
+    entry = JournalEntry(entry_date=date(2026, 4, 1))
+    assert entry.void_reason is None
+    assert entry.voided_at is None
+    assert entry.status is EntryStatus.DRAFT
+
+
+# --- write-tool input DTOs ----------------------------------------------------
+
+
+def test_journal_line_input_reuses_amount_rules() -> None:
+    line = JournalLineInput(account_code="1110", side=EntrySide.DEBIT, amount=Decimal("1234.56"))
+    assert line.account_code == "1110"
+    with pytest.raises(ValidationError, match="positive"):
+        JournalLineInput(account_code="1110", side=EntrySide.DEBIT, amount=Decimal("0"))
+    with pytest.raises(ValidationError, match="decimal places"):
+        JournalLineInput(account_code="1110", side=EntrySide.DEBIT, amount=Decimal("1.234"))
+
+
+def test_journal_entry_input_defaults_to_draft() -> None:
+    entry = JournalEntryInput(entry_date=date(2026, 4, 1))
+    assert entry.status is EntryStatus.DRAFT
+    assert entry.lines == []
+    assert entry.voucher_no is None
+
+
+def test_journal_entry_input_rejects_voided_status() -> None:
+    # 取消 is reachable only through void_journal_entry, never fabricated on input.
+    with pytest.raises(ValidationError, match="void_journal_entry"):
+        JournalEntryInput(entry_date=date(2026, 4, 1), status=EntryStatus.VOIDED)
+
+
+def test_journal_entry_input_rejects_unknown_field() -> None:
+    with pytest.raises(ValidationError):
+        JournalEntryInput(entry_date=date(2026, 4, 1), bogus="x")  # type: ignore[call-arg]
 
 
 # --- FiscalYear / Period ------------------------------------------------------
