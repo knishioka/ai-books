@@ -97,8 +97,16 @@ runs:
 ./scripts/test.sh          # boot postgres:17-alpine + run the full suite (DB tests included)
 ./scripts/test.sh -k etax  # extra args are forwarded to pytest
 ./scripts/test.sh --web    # also cross-check the viewer's numbers against golden
-./scripts/test.sh --down   # stop the test container
+./scripts/test.sh --pooler # run the suite THROUGH a pgbouncer pooler (Supabase parity, #52)
+./scripts/test.sh --down   # stop the test containers
 ```
+
+`--pooler` stands a pgbouncer (transaction mode) in front of Postgres — mirroring Supabase's
+production pooler, which routes each transaction to a possibly-different backend and so cannot
+preserve prepared statements. It runs the migrate + seed write path, the report/aggregation/
+ledger/e-Tax queries and the viewer golden cross-check all over the pooler, proving the viewer's
+`prepare: false` path and the prepared-statement-free Python client stay pooler-safe. A regression
+that re-enables prepared statements fails `tests/test_pooler_db.py` (and the CI `pooler` job).
 
 The container is left running between invocations for fast reuse. If `AI_BOOKS_DB_URL`
 is already set (e.g. in CI), it is used as-is and no container is started. This mirrors
