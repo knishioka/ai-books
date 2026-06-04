@@ -1,0 +1,574 @@
+{
+  "report": "journal_book",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "status": "posted",
+  "entries": [
+    {
+      "voucher_no": "FY2025-000",
+      "entry_date": "2025-01-01",
+      "description": "期首残高 (開業/繰越)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1110",
+          "account_name": "現金",
+          "side": "debit",
+          "amount": "200000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "debit",
+          "amount": "2200000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1180",
+          "account_name": "商品",
+          "side": "debit",
+          "amount": "300000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1530",
+          "account_name": "機械装置",
+          "side": "debit",
+          "amount": "1200000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "2510",
+          "account_name": "長期借入金",
+          "side": "credit",
+          "amount": "700000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "3110",
+          "account_name": "元入金",
+          "side": "credit",
+          "amount": "3200000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-001",
+      "entry_date": "2025-01-20",
+      "description": "事業主借 (私費を事業口座へ)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "debit",
+          "amount": "100000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "3120",
+          "account_name": "事業主借",
+          "side": "credit",
+          "amount": "100000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-002",
+      "entry_date": "2025-02-01",
+      "description": "商品仕入 (掛)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "5120",
+          "account_name": "仕入高",
+          "side": "debit",
+          "amount": "600000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "2120",
+          "account_name": "買掛金",
+          "side": "credit",
+          "amount": "600000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-003",
+      "entry_date": "2025-02-05",
+      "description": "原材料仕入 (預金払)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "6120",
+          "account_name": "原材料仕入高",
+          "side": "debit",
+          "amount": "300000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "300000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-004",
+      "entry_date": "2025-02-15",
+      "description": "売上 (現金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1110",
+          "account_name": "現金",
+          "side": "debit",
+          "amount": "220000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "4110",
+          "account_name": "売上高",
+          "side": "credit",
+          "amount": "220000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-005",
+      "entry_date": "2025-03-20",
+      "description": "売上 (掛)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1160",
+          "account_name": "売掛金",
+          "side": "debit",
+          "amount": "550000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "4110",
+          "account_name": "売上高",
+          "side": "credit",
+          "amount": "550000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-006",
+      "entry_date": "2025-03-31",
+      "description": "買掛金支払 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "2120",
+          "account_name": "買掛金",
+          "side": "debit",
+          "amount": "600000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "600000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-007",
+      "entry_date": "2025-04-30",
+      "description": "売掛金回収 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "debit",
+          "amount": "550000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1160",
+          "account_name": "売掛金",
+          "side": "credit",
+          "amount": "550000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-008",
+      "entry_date": "2025-05-10",
+      "description": "水道光熱費 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7130",
+          "account_name": "水道光熱費",
+          "side": "debit",
+          "amount": "120000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "120000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-009",
+      "entry_date": "2025-06-01",
+      "description": "工具器具備品 取得 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1550",
+          "account_name": "工具器具備品",
+          "side": "debit",
+          "amount": "480000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "480000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-010",
+      "entry_date": "2025-06-25",
+      "description": "賃金 支払 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "6210",
+          "account_name": "賃金",
+          "side": "debit",
+          "amount": "400000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "400000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-011",
+      "entry_date": "2025-07-15",
+      "description": "通信費 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7150",
+          "account_name": "通信費",
+          "side": "debit",
+          "amount": "60000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "60000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-012",
+      "entry_date": "2025-08-20",
+      "description": "旅費交通費 (現金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7140",
+          "account_name": "旅費交通費",
+          "side": "debit",
+          "amount": "80000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1110",
+          "account_name": "現金",
+          "side": "credit",
+          "amount": "80000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-013",
+      "entry_date": "2025-09-10",
+      "description": "売上 (掛, 期末未回収)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1160",
+          "account_name": "売掛金",
+          "side": "debit",
+          "amount": "880000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "4110",
+          "account_name": "売上高",
+          "side": "credit",
+          "amount": "880000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-014",
+      "entry_date": "2025-10-05",
+      "description": "消耗品費 (現金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7200",
+          "account_name": "消耗品費",
+          "side": "debit",
+          "amount": "40000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1110",
+          "account_name": "現金",
+          "side": "credit",
+          "amount": "40000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-015",
+      "entry_date": "2025-11-01",
+      "description": "地代家賃 (年額, 預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7250",
+          "account_name": "地代家賃",
+          "side": "debit",
+          "amount": "600000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "600000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-016",
+      "entry_date": "2025-12-20",
+      "description": "借入金返済 (元金 + 利息)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "2510",
+          "account_name": "長期借入金",
+          "side": "debit",
+          "amount": "100000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "8210",
+          "account_name": "利子割引料",
+          "side": "debit",
+          "amount": "21000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "credit",
+          "amount": "121000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-017",
+      "entry_date": "2025-12-31",
+      "description": "受取利息 (預金)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1141",
+          "account_name": "普通預金",
+          "side": "debit",
+          "amount": "500.00",
+          "line_description": null
+        },
+        {
+          "account_code": "8110",
+          "account_name": "受取利息",
+          "side": "credit",
+          "amount": "500.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-018",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 地代家賃 家事按分 40%",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1290",
+          "account_name": "事業主貸",
+          "side": "debit",
+          "amount": "240000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "7250",
+          "account_name": "地代家賃",
+          "side": "credit",
+          "amount": "240000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-019",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 減価償却 (機械装置, 製造)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "6330",
+          "account_name": "減価償却費",
+          "side": "debit",
+          "amount": "240000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1530",
+          "account_name": "機械装置",
+          "side": "credit",
+          "amount": "240000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-020",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 減価償却 (工具器具備品, 販管)",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "7210",
+          "account_name": "減価償却費",
+          "side": "debit",
+          "amount": "60000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1550",
+          "account_name": "工具器具備品",
+          "side": "credit",
+          "amount": "60000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-021",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 期首商品棚卸高 振替",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "5110",
+          "account_name": "期首商品棚卸高",
+          "side": "debit",
+          "amount": "300000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "1180",
+          "account_name": "商品",
+          "side": "credit",
+          "amount": "300000.00",
+          "line_description": null
+        }
+      ]
+    },
+    {
+      "voucher_no": "FY2025-022",
+      "entry_date": "2025-12-31",
+      "description": "期末整理: 期末商品棚卸高 計上",
+      "status": "posted",
+      "void_reason": null,
+      "lines": [
+        {
+          "account_code": "1180",
+          "account_name": "商品",
+          "side": "debit",
+          "amount": "350000.00",
+          "line_description": null
+        },
+        {
+          "account_code": "5130",
+          "account_name": "期末商品棚卸高",
+          "side": "credit",
+          "amount": "350000.00",
+          "line_description": null
+        }
+      ]
+    }
+  ],
+  "total_debit": "10791500.00",
+  "total_credit": "10791500.00"
+}

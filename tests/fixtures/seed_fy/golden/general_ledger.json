@@ -1,0 +1,881 @@
+{
+  "report": "general_ledger",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "status": "posted",
+  "accounts": [
+    {
+      "code": "1110",
+      "name": "現金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "300000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141",
+            "1180",
+            "1530",
+            "2510",
+            "3110"
+          ],
+          "side": "debit",
+          "amount": "200000.00",
+          "running_balance": "200000.00"
+        },
+        {
+          "entry_date": "2025-02-15",
+          "voucher_no": "FY2025-004",
+          "description": "売上 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "4110"
+          ],
+          "side": "debit",
+          "amount": "220000.00",
+          "running_balance": "420000.00"
+        },
+        {
+          "entry_date": "2025-08-20",
+          "voucher_no": "FY2025-012",
+          "description": "旅費交通費 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7140"
+          ],
+          "side": "credit",
+          "amount": "80000.00",
+          "running_balance": "340000.00"
+        },
+        {
+          "entry_date": "2025-10-05",
+          "voucher_no": "FY2025-014",
+          "description": "消耗品費 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7200"
+          ],
+          "side": "credit",
+          "amount": "40000.00",
+          "running_balance": "300000.00"
+        }
+      ]
+    },
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "169500.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110",
+            "1180",
+            "1530",
+            "2510",
+            "3110"
+          ],
+          "side": "debit",
+          "amount": "2200000.00",
+          "running_balance": "2200000.00"
+        },
+        {
+          "entry_date": "2025-01-20",
+          "voucher_no": "FY2025-001",
+          "description": "事業主借 (私費を事業口座へ)",
+          "line_description": null,
+          "counter_accounts": [
+            "3120"
+          ],
+          "side": "debit",
+          "amount": "100000.00",
+          "running_balance": "2300000.00"
+        },
+        {
+          "entry_date": "2025-02-05",
+          "voucher_no": "FY2025-003",
+          "description": "原材料仕入 (預金払)",
+          "line_description": null,
+          "counter_accounts": [
+            "6120"
+          ],
+          "side": "credit",
+          "amount": "300000.00",
+          "running_balance": "2000000.00"
+        },
+        {
+          "entry_date": "2025-03-31",
+          "voucher_no": "FY2025-006",
+          "description": "買掛金支払 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "2120"
+          ],
+          "side": "credit",
+          "amount": "600000.00",
+          "running_balance": "1400000.00"
+        },
+        {
+          "entry_date": "2025-04-30",
+          "voucher_no": "FY2025-007",
+          "description": "売掛金回収 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1160"
+          ],
+          "side": "debit",
+          "amount": "550000.00",
+          "running_balance": "1950000.00"
+        },
+        {
+          "entry_date": "2025-05-10",
+          "voucher_no": "FY2025-008",
+          "description": "水道光熱費 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7130"
+          ],
+          "side": "credit",
+          "amount": "120000.00",
+          "running_balance": "1830000.00"
+        },
+        {
+          "entry_date": "2025-06-01",
+          "voucher_no": "FY2025-009",
+          "description": "工具器具備品 取得 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1550"
+          ],
+          "side": "credit",
+          "amount": "480000.00",
+          "running_balance": "1350000.00"
+        },
+        {
+          "entry_date": "2025-06-25",
+          "voucher_no": "FY2025-010",
+          "description": "賃金 支払 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "6210"
+          ],
+          "side": "credit",
+          "amount": "400000.00",
+          "running_balance": "950000.00"
+        },
+        {
+          "entry_date": "2025-07-15",
+          "voucher_no": "FY2025-011",
+          "description": "通信費 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7150"
+          ],
+          "side": "credit",
+          "amount": "60000.00",
+          "running_balance": "890000.00"
+        },
+        {
+          "entry_date": "2025-11-01",
+          "voucher_no": "FY2025-015",
+          "description": "地代家賃 (年額, 預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "7250"
+          ],
+          "side": "credit",
+          "amount": "600000.00",
+          "running_balance": "290000.00"
+        },
+        {
+          "entry_date": "2025-12-20",
+          "voucher_no": "FY2025-016",
+          "description": "借入金返済 (元金 + 利息)",
+          "line_description": null,
+          "counter_accounts": [
+            "2510",
+            "8210"
+          ],
+          "side": "credit",
+          "amount": "121000.00",
+          "running_balance": "169000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-017",
+          "description": "受取利息 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "8110"
+          ],
+          "side": "debit",
+          "amount": "500.00",
+          "running_balance": "169500.00"
+        }
+      ]
+    },
+    {
+      "code": "1160",
+      "name": "売掛金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "880000.00",
+      "rows": [
+        {
+          "entry_date": "2025-03-20",
+          "voucher_no": "FY2025-005",
+          "description": "売上 (掛)",
+          "line_description": null,
+          "counter_accounts": [
+            "4110"
+          ],
+          "side": "debit",
+          "amount": "550000.00",
+          "running_balance": "550000.00"
+        },
+        {
+          "entry_date": "2025-04-30",
+          "voucher_no": "FY2025-007",
+          "description": "売掛金回収 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "credit",
+          "amount": "550000.00",
+          "running_balance": "0.00"
+        },
+        {
+          "entry_date": "2025-09-10",
+          "voucher_no": "FY2025-013",
+          "description": "売上 (掛, 期末未回収)",
+          "line_description": null,
+          "counter_accounts": [
+            "4110"
+          ],
+          "side": "debit",
+          "amount": "880000.00",
+          "running_balance": "880000.00"
+        }
+      ]
+    },
+    {
+      "code": "1180",
+      "name": "商品",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "350000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110",
+            "1141",
+            "1530",
+            "2510",
+            "3110"
+          ],
+          "side": "debit",
+          "amount": "300000.00",
+          "running_balance": "300000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-021",
+          "description": "期末整理: 期首商品棚卸高 振替",
+          "line_description": null,
+          "counter_accounts": [
+            "5110"
+          ],
+          "side": "credit",
+          "amount": "300000.00",
+          "running_balance": "0.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-022",
+          "description": "期末整理: 期末商品棚卸高 計上",
+          "line_description": null,
+          "counter_accounts": [
+            "5130"
+          ],
+          "side": "debit",
+          "amount": "350000.00",
+          "running_balance": "350000.00"
+        }
+      ]
+    },
+    {
+      "code": "1290",
+      "name": "事業主貸",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "240000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-018",
+          "description": "期末整理: 地代家賃 家事按分 40%",
+          "line_description": null,
+          "counter_accounts": [
+            "7250"
+          ],
+          "side": "debit",
+          "amount": "240000.00",
+          "running_balance": "240000.00"
+        }
+      ]
+    },
+    {
+      "code": "1530",
+      "name": "機械装置",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "960000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110",
+            "1141",
+            "1180",
+            "2510",
+            "3110"
+          ],
+          "side": "debit",
+          "amount": "1200000.00",
+          "running_balance": "1200000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-019",
+          "description": "期末整理: 減価償却 (機械装置, 製造)",
+          "line_description": null,
+          "counter_accounts": [
+            "6330"
+          ],
+          "side": "credit",
+          "amount": "240000.00",
+          "running_balance": "960000.00"
+        }
+      ]
+    },
+    {
+      "code": "1550",
+      "name": "工具器具備品",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "420000.00",
+      "rows": [
+        {
+          "entry_date": "2025-06-01",
+          "voucher_no": "FY2025-009",
+          "description": "工具器具備品 取得 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "480000.00",
+          "running_balance": "480000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-020",
+          "description": "期末整理: 減価償却 (工具器具備品, 販管)",
+          "line_description": null,
+          "counter_accounts": [
+            "7210"
+          ],
+          "side": "credit",
+          "amount": "60000.00",
+          "running_balance": "420000.00"
+        }
+      ]
+    },
+    {
+      "code": "2120",
+      "name": "買掛金",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "0.00",
+      "rows": [
+        {
+          "entry_date": "2025-02-01",
+          "voucher_no": "FY2025-002",
+          "description": "商品仕入 (掛)",
+          "line_description": null,
+          "counter_accounts": [
+            "5120"
+          ],
+          "side": "credit",
+          "amount": "600000.00",
+          "running_balance": "600000.00"
+        },
+        {
+          "entry_date": "2025-03-31",
+          "voucher_no": "FY2025-006",
+          "description": "買掛金支払 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "600000.00",
+          "running_balance": "0.00"
+        }
+      ]
+    },
+    {
+      "code": "2510",
+      "name": "長期借入金",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "600000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110",
+            "1141",
+            "1180",
+            "1530",
+            "3110"
+          ],
+          "side": "credit",
+          "amount": "700000.00",
+          "running_balance": "700000.00"
+        },
+        {
+          "entry_date": "2025-12-20",
+          "voucher_no": "FY2025-016",
+          "description": "借入金返済 (元金 + 利息)",
+          "line_description": null,
+          "counter_accounts": [
+            "8210",
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "100000.00",
+          "running_balance": "600000.00"
+        }
+      ]
+    },
+    {
+      "code": "3110",
+      "name": "元入金",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "3200000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-01",
+          "voucher_no": "FY2025-000",
+          "description": "期首残高 (開業/繰越)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110",
+            "1141",
+            "1180",
+            "1530",
+            "2510"
+          ],
+          "side": "credit",
+          "amount": "3200000.00",
+          "running_balance": "3200000.00"
+        }
+      ]
+    },
+    {
+      "code": "3120",
+      "name": "事業主借",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "100000.00",
+      "rows": [
+        {
+          "entry_date": "2025-01-20",
+          "voucher_no": "FY2025-001",
+          "description": "事業主借 (私費を事業口座へ)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "credit",
+          "amount": "100000.00",
+          "running_balance": "100000.00"
+        }
+      ]
+    },
+    {
+      "code": "4110",
+      "name": "売上高",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "1650000.00",
+      "rows": [
+        {
+          "entry_date": "2025-02-15",
+          "voucher_no": "FY2025-004",
+          "description": "売上 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110"
+          ],
+          "side": "credit",
+          "amount": "220000.00",
+          "running_balance": "220000.00"
+        },
+        {
+          "entry_date": "2025-03-20",
+          "voucher_no": "FY2025-005",
+          "description": "売上 (掛)",
+          "line_description": null,
+          "counter_accounts": [
+            "1160"
+          ],
+          "side": "credit",
+          "amount": "550000.00",
+          "running_balance": "770000.00"
+        },
+        {
+          "entry_date": "2025-09-10",
+          "voucher_no": "FY2025-013",
+          "description": "売上 (掛, 期末未回収)",
+          "line_description": null,
+          "counter_accounts": [
+            "1160"
+          ],
+          "side": "credit",
+          "amount": "880000.00",
+          "running_balance": "1650000.00"
+        }
+      ]
+    },
+    {
+      "code": "5110",
+      "name": "期首商品棚卸高",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "300000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-021",
+          "description": "期末整理: 期首商品棚卸高 振替",
+          "line_description": null,
+          "counter_accounts": [
+            "1180"
+          ],
+          "side": "debit",
+          "amount": "300000.00",
+          "running_balance": "300000.00"
+        }
+      ]
+    },
+    {
+      "code": "5120",
+      "name": "仕入高",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "600000.00",
+      "rows": [
+        {
+          "entry_date": "2025-02-01",
+          "voucher_no": "FY2025-002",
+          "description": "商品仕入 (掛)",
+          "line_description": null,
+          "counter_accounts": [
+            "2120"
+          ],
+          "side": "debit",
+          "amount": "600000.00",
+          "running_balance": "600000.00"
+        }
+      ]
+    },
+    {
+      "code": "5130",
+      "name": "期末商品棚卸高",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "-350000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-022",
+          "description": "期末整理: 期末商品棚卸高 計上",
+          "line_description": null,
+          "counter_accounts": [
+            "1180"
+          ],
+          "side": "credit",
+          "amount": "350000.00",
+          "running_balance": "-350000.00"
+        }
+      ]
+    },
+    {
+      "code": "6120",
+      "name": "原材料仕入高",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "300000.00",
+      "rows": [
+        {
+          "entry_date": "2025-02-05",
+          "voucher_no": "FY2025-003",
+          "description": "原材料仕入 (預金払)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "300000.00",
+          "running_balance": "300000.00"
+        }
+      ]
+    },
+    {
+      "code": "6210",
+      "name": "賃金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "400000.00",
+      "rows": [
+        {
+          "entry_date": "2025-06-25",
+          "voucher_no": "FY2025-010",
+          "description": "賃金 支払 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "400000.00",
+          "running_balance": "400000.00"
+        }
+      ]
+    },
+    {
+      "code": "6330",
+      "name": "減価償却費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "240000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-019",
+          "description": "期末整理: 減価償却 (機械装置, 製造)",
+          "line_description": null,
+          "counter_accounts": [
+            "1530"
+          ],
+          "side": "debit",
+          "amount": "240000.00",
+          "running_balance": "240000.00"
+        }
+      ]
+    },
+    {
+      "code": "7130",
+      "name": "水道光熱費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "120000.00",
+      "rows": [
+        {
+          "entry_date": "2025-05-10",
+          "voucher_no": "FY2025-008",
+          "description": "水道光熱費 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "120000.00",
+          "running_balance": "120000.00"
+        }
+      ]
+    },
+    {
+      "code": "7140",
+      "name": "旅費交通費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "80000.00",
+      "rows": [
+        {
+          "entry_date": "2025-08-20",
+          "voucher_no": "FY2025-012",
+          "description": "旅費交通費 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110"
+          ],
+          "side": "debit",
+          "amount": "80000.00",
+          "running_balance": "80000.00"
+        }
+      ]
+    },
+    {
+      "code": "7150",
+      "name": "通信費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "60000.00",
+      "rows": [
+        {
+          "entry_date": "2025-07-15",
+          "voucher_no": "FY2025-011",
+          "description": "通信費 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "60000.00",
+          "running_balance": "60000.00"
+        }
+      ]
+    },
+    {
+      "code": "7200",
+      "name": "消耗品費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "40000.00",
+      "rows": [
+        {
+          "entry_date": "2025-10-05",
+          "voucher_no": "FY2025-014",
+          "description": "消耗品費 (現金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1110"
+          ],
+          "side": "debit",
+          "amount": "40000.00",
+          "running_balance": "40000.00"
+        }
+      ]
+    },
+    {
+      "code": "7210",
+      "name": "減価償却費",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "60000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-020",
+          "description": "期末整理: 減価償却 (工具器具備品, 販管)",
+          "line_description": null,
+          "counter_accounts": [
+            "1550"
+          ],
+          "side": "debit",
+          "amount": "60000.00",
+          "running_balance": "60000.00"
+        }
+      ]
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "360000.00",
+      "rows": [
+        {
+          "entry_date": "2025-11-01",
+          "voucher_no": "FY2025-015",
+          "description": "地代家賃 (年額, 預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "600000.00",
+          "running_balance": "600000.00"
+        },
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-018",
+          "description": "期末整理: 地代家賃 家事按分 40%",
+          "line_description": null,
+          "counter_accounts": [
+            "1290"
+          ],
+          "side": "credit",
+          "amount": "240000.00",
+          "running_balance": "360000.00"
+        }
+      ]
+    },
+    {
+      "code": "8110",
+      "name": "受取利息",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "500.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-31",
+          "voucher_no": "FY2025-017",
+          "description": "受取利息 (預金)",
+          "line_description": null,
+          "counter_accounts": [
+            "1141"
+          ],
+          "side": "credit",
+          "amount": "500.00",
+          "running_balance": "500.00"
+        }
+      ]
+    },
+    {
+      "code": "8210",
+      "name": "利子割引料",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "21000.00",
+      "rows": [
+        {
+          "entry_date": "2025-12-20",
+          "voucher_no": "FY2025-016",
+          "description": "借入金返済 (元金 + 利息)",
+          "line_description": null,
+          "counter_accounts": [
+            "2510",
+            "1141"
+          ],
+          "side": "debit",
+          "amount": "21000.00",
+          "running_balance": "21000.00"
+        }
+      ]
+    }
+  ]
+}
