@@ -2,7 +2,7 @@
 
 ## Mission
 
-AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP) tools that expose double-entry bookkeeping (chart of accounts, journal entries, trial balance, financial statements). Human UI is intentionally minimal — at most a static aggregation dashboard.
+AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP) tools that expose double-entry bookkeeping (chart of accounts, journal entries, trial balance, financial statements). All writes/validation go through MCP. Human UI is read-only: a Vercel-hosted aggregation viewer over Supabase data — no data entry. Goal includes producing 青色申告決算書 + e-Tax 取込データ (tax-amount computation itself stays downstream). See [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md).
 
 ## Stack
 
@@ -10,7 +10,7 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 - フレームワーク: FastMCP (Model Context Protocol server)
 - パッケージマネージャ: uv
 - 主要ツール: ruff (lint + format), mypy (typecheck, strict), pytest (test)
-- ランタイム/インフラ: stdio MCP server, SQLite local file (default `~/.ai-books/db.sqlite`, override via `AI_BOOKS_DB_PATH`)
+- ランタイム/インフラ: stdio MCP server (書込/検証), Supabase (Postgres) storage, Vercel 上の read-only 集計ビュー (閲覧のみ)
 
 ## Verification
 
@@ -35,14 +35,15 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 - `LICENSE` — 一度確定したら触らない
 - `uv.lock` — `uv sync` 経由でのみ更新。手動編集禁止
 - `~/.ai-books/` 配下 — 実データ。リポ内には絶対に commit しない (`.gitignore` で `.ai-books/` も除外済)
-- 過去 migration: `src/ai_books/db/migrations/` の applied 済 SQL は編集せず、新規ファイルで forward-only に変更
+- 過去 migration: applied 済 migration は編集せず、新規ファイルで forward-only に変更 (Supabase/Postgres)
+- Supabase / Vercel の接続情報・サービスキー — 環境変数経由のみ。コード/コミットに含めない
 
 ## Architectural invariants
 
-1. **No human-facing web UI**. インターフェースは MCP tool / CLI / 生成された static report のみ。Flask/FastAPI による HTML 配信を導入しない
-2. **Server-side validation absolute**: 借方貸方バランス、Decimal 精度、account FK 検証は MCP tool 入口の Pydantic schema で実施。クライアント信頼ゼロ
-3. **SQLite single-file storage**: PostgreSQL / multi-tenant / RLS は持たない。スケール要件はそもそも対象外
-4. **No ORM until justified**: 生 SQL + `sqlite3` モジュール。Drizzle / SQLAlchemy 等は別 Issue で必要性を立証してから
+1. **Read-only viewer only, no data-entry UI**. データ入力/編集は MCP tool / CLI のみ。閲覧は **Vercel 上の read-only 集計ビュー**に限り許可 (trial balance / P/L / B/S / 青色申告決算書 等の render のみ)。書込 UI・HTML 入力フォームは導入しない
+2. **Server-side validation absolute**: 借方貸方バランス、Decimal 精度、account FK 検証は MCP tool 入口の Pydantic schema で実施。クライアント信頼ゼロ (read-only ビュー追加後も書込経路は MCP のみ)
+3. **Supabase (Postgres) storage, forward-only migration**: システムオブレコードは Supabase (Postgres)。applied 済 migration は編集せず新規ファイルで前進のみ。multi-tenant / RLS / 水平スケールは持たない (single-user 前提は不変)
+4. **No ORM until justified**: 生 SQL + Postgres ドライバ (例: `psycopg`)。Drizzle / SQLAlchemy 等は別 Issue で必要性を立証してから
 5. **Audit log は append-only**: `audit_logs` テーブルから既存行を削除/上書きするコードを書かない
 
 ## Quality bar
