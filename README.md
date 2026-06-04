@@ -39,6 +39,10 @@ Run the verification suite (lint / format / typecheck / test):
 ./scripts/verify.sh
 ```
 
+AI agents (Claude Code) can invoke the **`/verify`** and **`/test`** slash commands
+(in [`.claude/commands/`](./.claude/commands)) — thin wrappers over `./scripts/verify.sh`
+and `./scripts/test.sh`. (`/test-all` lands once #59 wires up `./scripts/test.sh --all`.)
+
 Pre-commit hooks (ruff + hygiene checks) run automatically on `git commit`.
 To run them across the whole repo:
 
