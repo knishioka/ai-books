@@ -6,6 +6,10 @@ The system of record is Supabase (Postgres). Per AGENTS.md invariant #4
 The connection string is read from the ``AI_BOOKS_DB_URL`` environment variable
 (see ``.env.example``). Locally this is the value printed by ``supabase start``;
 in production it is the Supabase cloud connection string.
+
+Submodules:
+    ``ai_books.db.migrate`` — forward-only SQL migration runner
+    (``uv run python -m ai_books.db.migrate``).
 """
 
 from __future__ import annotations

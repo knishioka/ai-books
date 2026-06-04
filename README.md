@@ -80,6 +80,31 @@ uv run python -c "from ai_books import db; print(db.ping())"   # -> 1
 only when `AI_BOOKS_DB_URL` is set, so `./scripts/verify.sh` stays green even
 without a running database; CI runs it against a Postgres service container.
 
+## Schema & migrations
+
+The system of record is defined by **forward-only SQL migrations** under
+[`supabase/migrations/`](./supabase/migrations). They establish the double-entry
+schema: `accounts` (chart of accounts, with a CHECK that keeps 科目区分 ↔ 正常残高
+consistent), `journal_entries` / `journal_lines` (amounts are `NUMERIC`, never
+float), `fiscal_years` / `periods`, and an **append-only** `audit_logs` table
+(UPDATE/DELETE/TRUNCATE are rejected by trigger).
+
+Apply pending migrations with the runner (idempotent — re-running is a no-op):
+
+```bash
+uv run python -m ai_books.db.migrate            # uses AI_BOOKS_DB_URL
+uv run python -m ai_books.db.migrate --help     # --migrations-dir / --database-url
+```
+
+The runner records each applied file in a `schema_migrations` table and applies
+only the ones not yet recorded, in filename order.
+
+**Forward-only — no rollback step.** Applied migration files are never edited or
+deleted (AGENTS.md "Never touch" / invariant #3). To undo or change something,
+**add a new migration** that counteracts it (e.g. a later file that drops a column
+or adjusts a constraint). This keeps every environment reproducible by replaying
+the same ordered list from a clean database.
+
 ## Use with Claude Desktop
 
 A reference `claude-desktop-config.json` lands in Issue #5. The shape will be:
