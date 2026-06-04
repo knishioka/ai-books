@@ -88,16 +88,15 @@ def load_fiscal_year(
     code_to_id = {a.code: a.id for a in accounts if a.id is not None}
 
     already = _existing_vouchers(conn, [e.voucher_no for e in entries])
+    to_insert = [entry for entry in entries if entry.voucher_no not in already]
     repo = JournalRepository(conn)
-    inserted = 0
     # One transaction around the batch: each insert_entry's own transaction() nests as a
     # savepoint, so the load commits as a unit (or not at all). On an autocommit connection
-    # this opens an explicit block; inside db.transaction() it nests cleanly.
-    with conn.transaction():
-        for entry in entries:
-            if entry.voucher_no in already:
-                continue
-            repo.insert_entry(_to_journal_entry(entry, code_to_id))
-            inserted += 1
+    # this opens an explicit block; inside db.transaction() it nests cleanly. Skip the block
+    # entirely when there is nothing new, so an idempotent re-call adds no transaction overhead.
+    if to_insert:
+        with conn.transaction():
+            for entry in to_insert:
+                repo.insert_entry(_to_journal_entry(entry, code_to_id))
 
-    return LoadResult(inserted=inserted, skipped=len(already), total=len(entries))
+    return LoadResult(inserted=len(to_insert), skipped=len(already), total=len(entries))
