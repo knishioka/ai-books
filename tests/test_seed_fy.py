@@ -18,12 +18,15 @@ from ai_books.models import EntrySide
 from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
+    MONTHLY_TREND_ACCOUNTS,
     SeedEntry,
     SeedLine,
     diff_snapshots,
     general_ledger_from_dataset,
     journal_book_from_dataset,
     load_golden,
+    monthly_trend_from_dataset,
+    monthly_trend_snapshot,
     trial_balance_from_dataset,
     trial_balance_snapshot,
     validate_dataset,
@@ -99,6 +102,34 @@ def test_committed_golden_file_is_up_to_date() -> None:
         "golden/trial_balance.json is stale; regenerate with "
         "`python -m tests.fixtures.seed_fy --update`:\n  - " + "\n  - ".join(problems)
     )
+
+
+def test_committed_monthly_trend_golden_is_up_to_date() -> None:
+    # AC (#18): the 月次推移 golden matches the dataset reduction (offline source of truth).
+    fresh = monthly_trend_snapshot([monthly_trend_from_dataset(c) for c in MONTHLY_TREND_ACCOUNTS])
+    committed = load_golden("monthly_trend")
+    problems = diff_snapshots(committed, fresh)
+    assert problems == [], (
+        "golden/monthly_trend.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update monthly_trend`:\n  - " + "\n  - ".join(problems)
+    )
+
+
+def test_monthly_trend_is_consistent_and_partitioned_by_month() -> None:
+    # AC (#18): 月次推移が会計期間で正しく区切られる + 期首残高 + Σ期中増減 = 期末残高.
+    for code in MONTHLY_TREND_ACCOUNTS:
+        trend = monthly_trend_from_dataset(code)
+        assert len(trend.points) == 12, f"{code}: FY2025 should tile into 12 months"
+        assert [p.month for p in trend.points] == [f"2025-{m:02d}" for m in range(1, 13)]
+        assert trend.is_consistent, f"{code}: opening + Σ net must equal closing"
+
+
+def test_monthly_trend_closing_matches_trial_balance() -> None:
+    # The 期末残高 of each trend must equal that account's trial-balance 残高 (one truth).
+    tb_rows = {row.code: row for row in trial_balance_from_dataset().rows}
+    for code in MONTHLY_TREND_ACCOUNTS:
+        trend = monthly_trend_from_dataset(code)
+        assert trend.closing_balance == tb_rows[code].balance, f"{code}: 期末残高 != 試算表残高"
 
 
 def test_diff_snapshots_pinpoints_the_changed_account() -> None:

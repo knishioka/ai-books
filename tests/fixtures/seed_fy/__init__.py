@@ -20,6 +20,8 @@ See ``README.md`` for the scenario and the hand-traceable expected balances.
 
 from __future__ import annotations
 
+from ai_books.models import TrialBalance, TrialBalanceRow
+
 from .dataset import (
     FISCAL_YEAR,
     FY_END,
@@ -35,17 +37,19 @@ from .golden import (
     diff_snapshots,
     golden_path,
     load_golden,
+    monthly_trend_snapshot,
     trial_balance_snapshot,
     write_golden,
 )
 from .loader import LoadResult, load_fiscal_year
 from .reports import (
-    TrialBalance,
-    TrialBalanceRow,
+    MONTHLY_TREND_ACCOUNTS,
     general_ledger_from_dataset,
     general_ledger_from_db,
     journal_book_from_dataset,
     journal_book_from_db,
+    monthly_trend_from_dataset,
+    monthly_trend_from_db,
     trial_balance_from_dataset,
     trial_balance_from_db,
 )
@@ -56,6 +60,7 @@ __all__ = [
     "FY_ENTRIES",
     "FY_START",
     "GOLDEN_REPORTS",
+    "MONTHLY_TREND_ACCOUNTS",
     "LoadResult",
     "SeedEntry",
     "SeedLine",
@@ -69,6 +74,9 @@ __all__ = [
     "journal_book_from_db",
     "load_fiscal_year",
     "load_golden",
+    "monthly_trend_from_dataset",
+    "monthly_trend_from_db",
+    "monthly_trend_snapshot",
     "referenced_codes",
     "trial_balance_from_dataset",
     "trial_balance_from_db",

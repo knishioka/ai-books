@@ -10,6 +10,12 @@ entry point can reject bad input machine-readably (AGENTS.md invariant #2).
 from __future__ import annotations
 
 from .account import Account
+from .aggregation import (
+    MonthlyTrend,
+    MonthlyTrendPoint,
+    TrialBalance,
+    TrialBalanceRow,
+)
 from .audit import AuditLog
 from .base import DomainModel
 from .enums import (
@@ -62,8 +68,12 @@ __all__ = [
     "JournalLine",
     "JournalLineInput",
     "LedgerRow",
+    "MonthlyTrend",
+    "MonthlyTrendPoint",
     "NormalSide",
     "Period",
     "StatementCategory",
+    "TrialBalance",
+    "TrialBalanceRow",
     "normal_side_for",
 ]

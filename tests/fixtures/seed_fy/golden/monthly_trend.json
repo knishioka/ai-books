@@ -1,0 +1,378 @@
+{
+  "report": "monthly_trend",
+  "fiscal_year": "FY2025",
+  "accounts": [
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "169500.00",
+      "points": [
+        {
+          "month": "2025-01",
+          "debit_total": "2300000.00",
+          "credit_total": "0.00",
+          "net_change": "2300000.00",
+          "closing_balance": "2300000.00"
+        },
+        {
+          "month": "2025-02",
+          "debit_total": "0.00",
+          "credit_total": "300000.00",
+          "net_change": "-300000.00",
+          "closing_balance": "2000000.00"
+        },
+        {
+          "month": "2025-03",
+          "debit_total": "0.00",
+          "credit_total": "600000.00",
+          "net_change": "-600000.00",
+          "closing_balance": "1400000.00"
+        },
+        {
+          "month": "2025-04",
+          "debit_total": "550000.00",
+          "credit_total": "0.00",
+          "net_change": "550000.00",
+          "closing_balance": "1950000.00"
+        },
+        {
+          "month": "2025-05",
+          "debit_total": "0.00",
+          "credit_total": "120000.00",
+          "net_change": "-120000.00",
+          "closing_balance": "1830000.00"
+        },
+        {
+          "month": "2025-06",
+          "debit_total": "0.00",
+          "credit_total": "880000.00",
+          "net_change": "-880000.00",
+          "closing_balance": "950000.00"
+        },
+        {
+          "month": "2025-07",
+          "debit_total": "0.00",
+          "credit_total": "60000.00",
+          "net_change": "-60000.00",
+          "closing_balance": "890000.00"
+        },
+        {
+          "month": "2025-08",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "890000.00"
+        },
+        {
+          "month": "2025-09",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "890000.00"
+        },
+        {
+          "month": "2025-10",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "890000.00"
+        },
+        {
+          "month": "2025-11",
+          "debit_total": "0.00",
+          "credit_total": "600000.00",
+          "net_change": "-600000.00",
+          "closing_balance": "290000.00"
+        },
+        {
+          "month": "2025-12",
+          "debit_total": "500.00",
+          "credit_total": "121000.00",
+          "net_change": "-120500.00",
+          "closing_balance": "169500.00"
+        }
+      ]
+    },
+    {
+      "code": "1160",
+      "name": "売掛金",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "880000.00",
+      "points": [
+        {
+          "month": "2025-01",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-02",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-03",
+          "debit_total": "550000.00",
+          "credit_total": "0.00",
+          "net_change": "550000.00",
+          "closing_balance": "550000.00"
+        },
+        {
+          "month": "2025-04",
+          "debit_total": "0.00",
+          "credit_total": "550000.00",
+          "net_change": "-550000.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-05",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-06",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-07",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-08",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-09",
+          "debit_total": "880000.00",
+          "credit_total": "0.00",
+          "net_change": "880000.00",
+          "closing_balance": "880000.00"
+        },
+        {
+          "month": "2025-10",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "880000.00"
+        },
+        {
+          "month": "2025-11",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "880000.00"
+        },
+        {
+          "month": "2025-12",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "880000.00"
+        }
+      ]
+    },
+    {
+      "code": "4110",
+      "name": "売上高",
+      "normal_balance": "credit",
+      "opening_balance": "0.00",
+      "closing_balance": "1650000.00",
+      "points": [
+        {
+          "month": "2025-01",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-02",
+          "debit_total": "0.00",
+          "credit_total": "220000.00",
+          "net_change": "220000.00",
+          "closing_balance": "220000.00"
+        },
+        {
+          "month": "2025-03",
+          "debit_total": "0.00",
+          "credit_total": "550000.00",
+          "net_change": "550000.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-04",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-05",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-06",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-07",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-08",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "770000.00"
+        },
+        {
+          "month": "2025-09",
+          "debit_total": "0.00",
+          "credit_total": "880000.00",
+          "net_change": "880000.00",
+          "closing_balance": "1650000.00"
+        },
+        {
+          "month": "2025-10",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "1650000.00"
+        },
+        {
+          "month": "2025-11",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "1650000.00"
+        },
+        {
+          "month": "2025-12",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "1650000.00"
+        }
+      ]
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "normal_balance": "debit",
+      "opening_balance": "0.00",
+      "closing_balance": "360000.00",
+      "points": [
+        {
+          "month": "2025-01",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-02",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-03",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-04",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-05",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-06",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-07",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-08",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-09",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-10",
+          "debit_total": "0.00",
+          "credit_total": "0.00",
+          "net_change": "0.00",
+          "closing_balance": "0.00"
+        },
+        {
+          "month": "2025-11",
+          "debit_total": "600000.00",
+          "credit_total": "0.00",
+          "net_change": "600000.00",
+          "closing_balance": "600000.00"
+        },
+        {
+          "month": "2025-12",
+          "debit_total": "0.00",
+          "credit_total": "240000.00",
+          "net_change": "-240000.00",
+          "closing_balance": "360000.00"
+        }
+      ]
+    }
+  ]
+}

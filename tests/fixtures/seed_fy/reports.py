@@ -1,28 +1,37 @@
-"""Trial-balance report over the synthetic year — pure and DB-backed.
+"""Reports over the synthetic year — pure reducers vs. the production engines.
 
-The golden harness compares two independent computations of the *same* trial balance:
+The golden harness compares two independent computations of the *same* report:
 
-* :func:`trial_balance_from_dataset` reduces :data:`~tests.fixtures.seed_fy.dataset.FY_ENTRIES`
-  in pure Python (no database). This is what generates the committed golden file.
-* :func:`trial_balance_from_db` aggregates ``journal_lines`` with SQL after the dataset
-  has been loaded into Postgres. This is what the pytest harness checks against golden.
+* a pure-Python reducer over :data:`~tests.fixtures.seed_fy.dataset.FY_ENTRIES` (no database) —
+  ``*_from_dataset``. These generate the committed golden files.
+* the **production** engine (:class:`ai_books.db.repository.JournalRepository` /
+  :class:`~ai_books.db.repository.LedgerRepository`) run over the same data after it has been
+  loaded into Postgres — ``*_from_db``. These are what the pytest harness checks against golden.
 
-Having two code paths that must agree turns the golden test into a genuine cross-check
-of the storage/aggregation round-trip (Decimal preserved, no line dropped, sign correct),
-not just a tautology. Both share the signing rule in :func:`ai_books.ledger.balance_from_totals`.
+The two paths compute independently (a Python reduction vs. SQL) but share the one signing rule
+in :func:`ai_books.ledger.balance_from_totals`, so a mismatch surfaces a storage/aggregation bug
+(Decimal lost, a line dropped, a sign flipped) rather than a tautology. Routing every ``*_from_db``
+through the production engine means the golden tests *are* the acceptance checks for the report
+Issues (#18 集計 / #19 帳簿) — there is no second SQL implementation to drift (二重実装を避ける).
 
-A trial balance is the foundation every later report (#18 集計 / #20 PL / #21 BS / #23 決算書)
-builds on, so this is the first — and most reusable — golden snapshot.
+A trial balance is the foundation every later report (#20 PL / #21 BS / #22 精算表 / #23 決算書)
+builds on; the 仕訳帳 / 総勘定元帳 are the 青色申告で備える帳簿 themselves.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any
 
-from ai_books import ledger
-from ai_books.db.repository import JournalRepository, LedgerRepository
+from ai_books import aggregation, ledger
+from ai_books.db.repository import (
+    AccountRepository,
+    FiscalYearRepository,
+    JournalRepository,
+    LedgerRepository,
+)
 from ai_books.models import (
     EntrySide,
     EntryStatus,
@@ -32,45 +41,27 @@ from ai_books.models import (
     JournalBook,
     JournalBookEntry,
     JournalBookLine,
+    MonthlyTrend,
     NormalSide,
+    TrialBalance,
+    TrialBalanceRow,
 )
 
-from .dataset import FY_END, FY_ENTRIES, FY_START, SeedEntry, account_name, normal_side
+from .dataset import (
+    FISCAL_YEAR,
+    FY_END,
+    FY_ENTRIES,
+    FY_START,
+    SeedEntry,
+    account_name,
+    normal_side,
+)
 
 if TYPE_CHECKING:
     import psycopg
 
 
-class TrialBalanceRow(NamedTuple):
-    """One account's footing in the trial balance (試算表の一行).
-
-    ``balance`` is signed into the account's 正常残高 direction (so a contra account
-    such as 期末商品棚卸高 shows a negative balance), exactly like
-    :class:`ai_books.models.AccountBalance`.
-    """
-
-    code: str
-    name: str
-    debit_total: Decimal
-    credit_total: Decimal
-    balance: Decimal
-
-
-class TrialBalance(NamedTuple):
-    """A full trial balance: per-account rows plus the two column footings.
-
-    ``total_debit`` / ``total_credit`` are the sums of the per-account ``debit_total`` /
-    ``credit_total`` columns; they are equal iff the books balance overall (借貸平均).
-    """
-
-    rows: tuple[TrialBalanceRow, ...]
-    total_debit: Decimal
-    total_credit: Decimal
-
-    @property
-    def is_balanced(self) -> bool:
-        """True when the debit and credit column footings are equal."""
-        return self.total_debit == self.total_credit
+# ── 合計残高試算表 (trial balance, Issue #18) ─────────────────────────────────────
 
 
 def _assemble(
@@ -79,7 +70,7 @@ def _assemble(
     name_of: dict[str, str],
     normal_of: dict[str, NormalSide],
 ) -> TrialBalance:
-    """Build a :class:`TrialBalance` from per-code debit/credit sums, ordered by code."""
+    """Build a :class:`~ai_books.models.TrialBalance` from per-code sums, ordered by code."""
     rows: list[TrialBalanceRow] = []
     total_debit = Decimal(0)
     total_credit = Decimal(0)
@@ -87,10 +78,19 @@ def _assemble(
         debit = debit_by_code.get(code, Decimal(0))
         credit = credit_by_code.get(code, Decimal(0))
         balance = ledger.balance_from_totals(debit, credit, normal_of[code])
-        rows.append(TrialBalanceRow(code, name_of[code], debit, credit, balance))
+        rows.append(
+            TrialBalanceRow(
+                code=code,
+                name=name_of[code],
+                normal_balance=normal_of[code],
+                debit_total=debit,
+                credit_total=credit,
+                balance=balance,
+            )
+        )
         total_debit += debit
         total_credit += credit
-    return TrialBalance(tuple(rows), total_debit, total_credit)
+    return TrialBalance(rows=rows, total_debit=total_debit, total_credit=total_credit)
 
 
 def trial_balance_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> TrialBalance:
@@ -111,42 +111,105 @@ def trial_balance_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> T
 def trial_balance_from_db(
     conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
 ) -> TrialBalance:
-    """Aggregate ``journal_lines`` into a trial balance with one SQL GROUP BY.
+    """Aggregate ``journal_lines`` into a trial balance via the production engine.
 
-    Independent of :func:`trial_balance_from_dataset` (raw SQL, not the in-memory
-    reduction) so a divergence between the two surfaces a storage or aggregation bug.
-    ``status`` filters which entries are summed (default: 記帳確定 only).
+    Delegates straight to :meth:`ai_books.db.repository.LedgerRepository.trial_balance` —
+    the very code Issue #18 ships — so there is no second SQL implementation to drift
+    (#18 calls for 二重実装を避ける). Independent of :func:`trial_balance_from_dataset`
+    (SQL ``GROUP BY`` vs. in-memory reduction), so a divergence surfaces a storage or
+    aggregation bug, and the golden test doubles as #18's acceptance check. ``status``
+    filters which entries are summed (default: 記帳確定 only).
     """
-    from psycopg.rows import dict_row
+    return LedgerRepository(conn).trial_balance(status=status)
 
-    with conn.cursor(row_factory=dict_row) as cur:
-        cur.execute(
-            """
-            SELECT a.code, a.name, a.normal_balance,
-                   COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
-                   COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
-            FROM journal_lines jl
-            JOIN journal_entries je ON je.id = jl.entry_id
-            JOIN accounts a ON a.id = jl.account_id
-            WHERE (%(status)s::entry_status IS NULL OR je.status = %(status)s::entry_status)
-            GROUP BY a.code, a.name, a.normal_balance
-            ORDER BY a.code
-            """,
-            {"status": status.value if status is not None else None},
+
+# ── 月次推移 (monthly trend, Issue #18) ───────────────────────────────────────────
+#: The accounts the monthly-trend golden snapshot fixes. Chosen to exercise both normal
+#: sides and movement spread across the year: 普通預金 (most active asset), 売掛金 (掛売上
+#: then 回収), 売上高 (credit-normal revenue), 地代家賃 (expense + 期末家事按分).
+MONTHLY_TREND_ACCOUNTS: tuple[str, ...] = ("1141", "1160", "4110", "7250")
+
+
+def monthly_trend_from_dataset(
+    code: str, entries: tuple[SeedEntry, ...] = FY_ENTRIES
+) -> MonthlyTrend:
+    """Reduce the in-memory dataset into one account's 月次推移 — no database required.
+
+    Sums the account's lines per calendar month and carries the balance forward through
+    the production tiling/​signing helpers (:func:`ai_books.aggregation.month_windows` /
+    :func:`~ai_books.aggregation.build_monthly_trend_points`), so the offline golden source
+    and the DB path agree on *structure* while summing independently. The opening balance
+    is whatever the account carried in from before 期首 (zero for every account in this
+    dataset, since the 期首残高 仕訳 itself falls on 期首).
+    """
+    normal = normal_side(code)
+    open_debit = Decimal(0)
+    open_credit = Decimal(0)
+    debit_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal(0))
+    credit_by_month: dict[date, Decimal] = defaultdict(lambda: Decimal(0))
+    for entry in entries:
+        for line in entry.lines:
+            if line.account_code != code:
+                continue
+            if entry.entry_date < FY_START:
+                if line.side is EntrySide.DEBIT:
+                    open_debit += line.amount
+                else:
+                    open_credit += line.amount
+                continue
+            if entry.entry_date > FY_END:
+                continue
+            month_start = date(entry.entry_date.year, entry.entry_date.month, 1)
+            month_bucket = debit_by_month if line.side is EntrySide.DEBIT else credit_by_month
+            month_bucket[month_start] += line.amount
+
+    amounts_by_month = {
+        month: aggregation.MonthAmounts(
+            debit_total=debit_by_month.get(month, Decimal(0)),
+            credit_total=credit_by_month.get(month, Decimal(0)),
         )
-        db_rows = cur.fetchall()
+        for month in debit_by_month.keys() | credit_by_month.keys()
+    }
+    opening_balance = ledger.balance_from_totals(open_debit, open_credit, normal)
+    windows = aggregation.month_windows(FY_START, FY_END)
+    points, closing_balance = aggregation.build_monthly_trend_points(
+        windows, amounts_by_month, normal, opening_balance
+    )
+    return MonthlyTrend(
+        account_id=0,  # offline reduction has no DB id; the snapshot omits it
+        code=code,
+        name=account_name(code),
+        normal_balance=normal,
+        fiscal_year=FISCAL_YEAR,
+        start_date=FY_START,
+        end_date=FY_END,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        points=points,
+    )
 
-    debit_by_code: dict[str, Decimal] = {}
-    credit_by_code: dict[str, Decimal] = {}
-    name_of: dict[str, str] = {}
-    normal_of: dict[str, NormalSide] = {}
-    for row in db_rows:
-        code = row["code"]
-        debit_by_code[code] = Decimal(row["debit_total"])
-        credit_by_code[code] = Decimal(row["credit_total"])
-        name_of[code] = row["name"]
-        normal_of[code] = NormalSide(row["normal_balance"])
-    return _assemble(debit_by_code, credit_by_code, name_of, normal_of)
+
+def monthly_trend_from_db(
+    conn: psycopg.Connection[Any], code: str, *, status: EntryStatus | None = EntryStatus.POSTED
+) -> MonthlyTrend:
+    """Compute one account's 月次推移 from the DB via the production engine.
+
+    Resolves the account and the :data:`~tests.fixtures.seed_fy.dataset.FISCAL_YEAR` row
+    (seeded by :func:`~tests.fixtures.seed_fy.loader.load_fiscal_year`) and delegates to
+    :meth:`ai_books.db.repository.LedgerRepository.monthly_trend` — the code Issue #18 ships.
+    """
+    account = AccountRepository(conn).get_by_code(code)
+    assert account is not None, f"account {code} not seeded"
+    assert account.id is not None
+    year = FiscalYearRepository(conn).get_by_name(FISCAL_YEAR)
+    assert year is not None, f"fiscal year {FISCAL_YEAR} not seeded"
+    return LedgerRepository(conn).monthly_trend(
+        account.id,
+        fiscal_year=year.name,
+        start=year.start_date,
+        end=year.end_date,
+        status=status,
+    )
 
 
 # ── 仕訳帳 / 総勘定元帳 (Issue #19) ─────────────────────────────────────────────

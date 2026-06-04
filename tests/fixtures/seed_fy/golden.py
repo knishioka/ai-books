@@ -25,17 +25,21 @@ import sys
 from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
 
 from .dataset import FISCAL_YEAR
 from .reports import (
-    TrialBalance,
+    MONTHLY_TREND_ACCOUNTS,
     general_ledger_from_dataset,
     journal_book_from_dataset,
+    monthly_trend_from_dataset,
     trial_balance_from_dataset,
 )
+
+if TYPE_CHECKING:
+    from ai_books.models import MonthlyTrend, TrialBalance
 
 #: Directory holding the committed golden JSON files (one per report).
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
@@ -75,6 +79,46 @@ def trial_balance_snapshot(trial_balance: TrialBalance) -> dict[str, Any]:
     }
 
 
+def monthly_trend_snapshot(trends: list[MonthlyTrend]) -> dict[str, Any]:
+    """Turn a list of :class:`~ai_books.models.MonthlyTrend` into golden JSON shape.
+
+    Amounts are fixed-point strings (浮動小数禁止), accounts stay in the given order and
+    each carries its 12 monthly points in order. ``account_id`` is deliberately omitted —
+    it is DB-assigned, so a golden keyed on it could never match the offline reduction.
+    """
+    return {
+        "report": "monthly_trend",
+        "fiscal_year": FISCAL_YEAR,
+        "accounts": [
+            {
+                "code": trend.code,
+                "name": trend.name,
+                "normal_balance": trend.normal_balance.value,
+                "opening_balance": _money(trend.opening_balance),
+                "closing_balance": _money(trend.closing_balance),
+                "points": [
+                    {
+                        "month": point.month,
+                        "debit_total": _money(point.debit_total),
+                        "credit_total": _money(point.credit_total),
+                        "net_change": _money(point.net_change),
+                        "closing_balance": _money(point.closing_balance),
+                    }
+                    for point in trend.points
+                ],
+            }
+            for trend in trends
+        ],
+    }
+
+
+def _monthly_trend_snapshot_from_dataset() -> dict[str, Any]:
+    """Generate the monthly-trend golden for the fixed :data:`MONTHLY_TREND_ACCOUNTS`."""
+    return monthly_trend_snapshot(
+        [monthly_trend_from_dataset(code) for code in MONTHLY_TREND_ACCOUNTS]
+    )
+
+
 #: name → (filename, generator). The generator returns the golden-shaped dict from the
 #: in-memory dataset (no DB), so golden files can be produced offline. Downstream report
 #: Issues append their own entry here.
@@ -82,6 +126,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "trial_balance": (
         "trial_balance.json",
         lambda: trial_balance_snapshot(trial_balance_from_dataset()),
+    ),
+    "monthly_trend": (
+        "monthly_trend.json",
+        _monthly_trend_snapshot_from_dataset,
     ),
     "journal_book": (
         "journal_book.json",

@@ -19,7 +19,7 @@ from ai_books.db.repository import AccountRepository, JournalRepository
 from ai_books.models import EntryStatus, JournalEntry, JournalLine
 from ai_books.seed.accounts import seed_accounts
 
-from .dataset import FY_ENTRIES, SeedEntry, validate_dataset
+from .dataset import FISCAL_YEAR, FY_END, FY_ENTRIES, FY_START, SeedEntry, validate_dataset
 
 if TYPE_CHECKING:
     import psycopg
@@ -47,6 +47,23 @@ def _existing_vouchers(conn: psycopg.Connection[Any], vouchers: list[str]) -> se
             (vouchers,),
         )
         return {row["voucher_no"] for row in cur.fetchall()}
+
+
+def _seed_fiscal_year(conn: psycopg.Connection[Any]) -> None:
+    """Insert the dataset's fiscal year (FY2025) idempotently.
+
+    The synthetic year *is* FY2025, so the ``fiscal_years`` row belongs with the seed: it is
+    what :meth:`ai_books.db.repository.LedgerRepository.monthly_trend` resolves 期首 / 期末 from
+    (#18 月次推移), and re-loading is a no-op (``ON CONFLICT (name) DO NOTHING``).
+    """
+    conn.execute(
+        """
+        INSERT INTO fiscal_years (name, start_date, end_date)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (name) DO NOTHING
+        """,
+        (FISCAL_YEAR, FY_START, FY_END),
+    )
 
 
 def _to_journal_entry(entry: SeedEntry, code_to_id: dict[str, int]) -> JournalEntry:
@@ -83,6 +100,7 @@ def load_fiscal_year(
     """
     validate_dataset(entries)
     seed_accounts(conn)
+    _seed_fiscal_year(conn)
 
     accounts = AccountRepository(conn).find()
     code_to_id = {a.code: a.id for a in accounts if a.id is not None}
