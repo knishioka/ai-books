@@ -41,6 +41,7 @@ from .report import (
     JournalBookEntry,
     JournalBookLine,
 )
+from .statement import ProfitAndLoss, ProfitAndLossLine, ProfitAndLossSection
 
 __all__ = [
     "CREDIT_NORMAL_TYPES",
@@ -72,6 +73,9 @@ __all__ = [
     "MonthlyTrendPoint",
     "NormalSide",
     "Period",
+    "ProfitAndLoss",
+    "ProfitAndLossLine",
+    "ProfitAndLossSection",
     "StatementCategory",
     "TrialBalance",
     "TrialBalanceRow",

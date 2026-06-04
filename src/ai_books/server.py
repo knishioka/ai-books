@@ -9,7 +9,9 @@ Registers the read-only query surface:
   aggregation (#18) and the Vercel viewer (#16) reuse (Issue #15);
 - aggregation tools (``trial_balance`` / ``monthly_trend``) — the 合計残高試算表 and
   月次推移 the later reports (PL/BS/精算表/決算書) derive from, built on the #15 read
-  layer (Issue #18).
+  layer (Issue #18);
+- 決算書 tools (``profit_and_loss``) — the 損益計算書, the 収益/費用 staged into the
+  青色申告決算書 layout (売上総利益 → 営業利益 → 経常利益 → 当期純利益) (Issue #20).
 
 Plus the write surface (#13): ``create_journal_entry`` / ``update_journal_entry`` /
 ``post_journal_entry`` / ``void_journal_entry``, which delegate to
@@ -57,6 +59,7 @@ from ai_books.models import (
     JournalEntryInput,
     JournalEntryPage,
     MonthlyTrend,
+    ProfitAndLoss,
     StatementCategory,
     TrialBalance,
 )
@@ -71,7 +74,8 @@ mcp: FastMCP = FastMCP(
         "search_accounts) and the journals, balances, and general ledger (総勘定元帳) — "
         "list_journal_entries / get_journal_entry / get_account_balance / "
         "get_account_ledger. Aggregation tools (trial_balance / monthly_trend) return the "
-        "合計残高試算表 and 月次推移. Amounts are exact decimals returned as strings."
+        "合計残高試算表 and 月次推移, and profit_and_loss returns the 損益計算書 (P/L) staged into "
+        "the 青色申告決算書 layout. Amounts are exact decimals returned as strings."
     ),
 )
 
@@ -317,6 +321,33 @@ def monthly_trend(
             raise RecordNotFoundError("fiscal_year", fiscal_year)
         return LedgerRepository(conn).monthly_trend(
             account_id,
+            fiscal_year=year.name,
+            start=year.start_date,
+            end=year.end_date,
+            status=_parse_status(status),
+        )
+
+
+# --- 決算書: 損益計算書 (Issue #20) -------------------------------------------
+
+
+@mcp.tool
+def profit_and_loss(fiscal_year: str, status: str | None = None) -> ProfitAndLoss:
+    """Return the 損益計算書 (P/L) for ``fiscal_year`` (会計年度名, 例: ``FY2025``).
+
+    Resolves the fiscal year's 期首 / 期末, sums the 収益/費用 over that window, and groups
+    them into the 段階表示: 売上高 → 売上原価 (製造原価を含む) → 売上総利益 → 販管費 →
+    営業利益 → 営業外損益 → 経常利益 → 当期純利益. Each section carries its 科目別 lines and a
+    subtotal; amounts are exact decimals returned as strings. Any 収益/費用 account whose
+    表示区分 is unset is surfaced under ``unclassified`` rather than dropped. Errors if the
+    fiscal year is unknown. Pass ``status='posted'`` for the 記帳確定 books; the default
+    excludes 取消.
+    """
+    with db.connect() as conn:
+        year = FiscalYearRepository(conn).get_by_name(fiscal_year)
+        if year is None:
+            raise RecordNotFoundError("fiscal_year", fiscal_year)
+        return LedgerRepository(conn).profit_and_loss(
             fiscal_year=year.name,
             start=year.start_date,
             end=year.end_date,

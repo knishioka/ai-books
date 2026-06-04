@@ -43,6 +43,7 @@ from ai_books.models import (
     JournalBookLine,
     MonthlyTrend,
     NormalSide,
+    ProfitAndLoss,
     TrialBalance,
     TrialBalanceRow,
 )
@@ -54,7 +55,9 @@ from .dataset import (
     FY_START,
     SeedEntry,
     account_name,
+    account_type,
     normal_side,
+    statement_category,
 )
 
 if TYPE_CHECKING:
@@ -209,6 +212,64 @@ def monthly_trend_from_db(
         start=year.start_date,
         end=year.end_date,
         status=status,
+    )
+
+
+# ── 損益計算書 (profit & loss, Issue #20) ─────────────────────────────────────────
+# Same dual-path cross-check as the trial balance: a pure reduction of the in-memory dataset
+# (used to generate the golden, no DB) and a DB-backed read through the production engine
+# (checked against golden by the pytest harness). Both share the one signing rule and the one
+# 表示区分 grouping (ai_books.aggregation.assemble_profit_and_loss), so a divergence surfaces a
+# storage/aggregation bug rather than a tautology. The dataset is FY2025 exactly, so the offline
+# reduction (all entries) and the DB read (bounded by the FY2025 期首/期末) cover the same data.
+
+
+def profit_and_loss_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> ProfitAndLoss:
+    """Reduce the in-memory dataset into a 損益計算書 — no database required.
+
+    Sums each account's 借方 / 貸方 then hands the per-account footings (with 区分 / 表示区分
+    borrowed from the canonical chart) to the production
+    :func:`ai_books.aggregation.assemble_profit_and_loss`, so the offline golden source and the
+    DB path agree on *structure* while summing independently.
+    """
+    debit_by_code: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    credit_by_code: dict[str, Decimal] = defaultdict(lambda: Decimal(0))
+    for entry in entries:
+        for line in entry.lines:
+            bucket = debit_by_code if line.side is EntrySide.DEBIT else credit_by_code
+            bucket[line.account_code] += line.amount
+
+    codes = sorted(debit_by_code.keys() | credit_by_code.keys())
+    accounts = [
+        aggregation.PlAccountTotals(
+            code=code,
+            name=account_name(code),
+            account_type=account_type(code),
+            statement_category=statement_category(code),
+            normal_balance=normal_side(code),
+            debit_total=debit_by_code.get(code, Decimal(0)),
+            credit_total=credit_by_code.get(code, Decimal(0)),
+        )
+        for code in codes
+    ]
+    return aggregation.assemble_profit_and_loss(
+        accounts, fiscal_year=FISCAL_YEAR, start_date=FY_START, end_date=FY_END
+    )
+
+
+def profit_and_loss_from_db(
+    conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
+) -> ProfitAndLoss:
+    """Compute the 損益計算書 from the DB via the production engine.
+
+    Resolves the :data:`~tests.fixtures.seed_fy.dataset.FISCAL_YEAR` row (seeded by
+    :func:`~tests.fixtures.seed_fy.loader.load_fiscal_year`) and delegates to
+    :meth:`ai_books.db.repository.LedgerRepository.profit_and_loss` — the code Issue #20 ships.
+    """
+    year = FiscalYearRepository(conn).get_by_name(FISCAL_YEAR)
+    assert year is not None, f"fiscal year {FISCAL_YEAR} not seeded"
+    return LedgerRepository(conn).profit_and_loss(
+        fiscal_year=year.name, start=year.start_date, end=year.end_date, status=status
     )
 
 
