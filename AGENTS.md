@@ -63,7 +63,7 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 
 1. **Read-only viewer only, no data-entry UI**. データ入力/編集は MCP tool / CLI のみ。閲覧は **Vercel 上の read-only 集計ビュー**に限り許可 (trial balance / P/L / B/S / 青色申告決算書 等の render のみ)。書込 UI・HTML 入力フォームは導入しない
 2. **Server-side validation absolute**: 借方貸方バランス、Decimal 精度、account FK 検証は MCP tool 入口の Pydantic schema で実施。クライアント信頼ゼロ (read-only ビュー追加後も書込経路は MCP のみ)
-3. **Supabase (Postgres) storage, forward-only migration**: システムオブレコードは Supabase (Postgres)。applied 済 migration は編集せず新規ファイルで前進のみ。multi-tenant / RLS / 水平スケールは持たない (single-user 前提は不変)
+3. **Supabase (Postgres) storage, forward-only migration**: システムオブレコードは Supabase (Postgres)。applied 済 migration は編集せず新規ファイルで前進のみ。multi-tenant / RLS / 水平スケールは持たない (single-user 前提は不変)。全 migration 適用後の確定スキーマは `tests/fixtures/schema/schema.sql` を golden としてドリフト検出する (`tests/test_schema_snapshot.py`)。意図的な DDL 変更時のみ `uv run python -m ai_books.db.schema_snapshot --update` で golden を更新する
 4. **No ORM until justified**: 生 SQL + Postgres ドライバ (例: `psycopg`)。Drizzle / SQLAlchemy 等は別 Issue で必要性を立証してから
 5. **Audit log は append-only**: `audit_logs` テーブルから既存行を削除/上書きするコードを書かない
 
