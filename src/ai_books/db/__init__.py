@@ -15,8 +15,11 @@ Submodules:
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 import psycopg
+from psycopg.rows import DictRow, dict_row
 
 DB_URL_ENV = "AI_BOOKS_DB_URL"
 
@@ -48,3 +51,34 @@ def ping() -> int:
         if row is None:
             raise RuntimeError("SELECT 1 returned no rows")
         return int(row[0])
+
+
+def connect(db_url: str | None = None) -> psycopg.Connection[DictRow]:
+    """Open a connection whose rows come back as ``dict``\\ s.
+
+    ``dict_row`` lets the repository layer feed a row straight into
+    ``Model.model_validate(row)`` without positional unpacking. The caller owns the
+    connection's lifetime (use it as a context manager, or :func:`transaction`).
+    """
+    return psycopg.connect(db_url or get_db_url(), row_factory=dict_row)
+
+
+@contextmanager
+def transaction(db_url: str | None = None) -> Iterator[psycopg.Connection[DictRow]]:
+    """Yield a connection wrapped in a single transaction (the unit-of-work boundary).
+
+    Commits when the block exits cleanly, rolls back on exception, and closes the
+    connection either way. This is the one place write paths should obtain a
+    connection so every logical operation is atomic.
+    """
+    with connect(db_url) as conn, conn.transaction():
+        yield conn
+
+
+__all__ = [
+    "DB_URL_ENV",
+    "connect",
+    "get_db_url",
+    "ping",
+    "transaction",
+]

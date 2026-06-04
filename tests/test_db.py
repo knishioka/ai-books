@@ -13,13 +13,29 @@ import pytest
 
 from ai_books import db
 
-
-@pytest.mark.skipif(
+_requires_db = pytest.mark.skipif(
     not os.environ.get(db.DB_URL_ENV),
-    reason=f"{db.DB_URL_ENV} not set; skipping live Postgres smoke test",
+    reason=f"{db.DB_URL_ENV} not set; skipping live Postgres test",
 )
+
+
+@_requires_db
 def test_ping_returns_one() -> None:
     assert db.ping() == 1
+
+
+@_requires_db
+def test_connect_returns_dict_rows() -> None:
+    with db.connect() as conn:
+        row = conn.execute("SELECT 1 AS one").fetchone()
+    assert row == {"one": 1}
+
+
+@_requires_db
+def test_transaction_yields_usable_connection() -> None:
+    with db.transaction() as conn:
+        row = conn.execute("SELECT 1 AS one").fetchone()
+    assert row == {"one": 1}
 
 
 def test_get_db_url_returns_value(monkeypatch: pytest.MonkeyPatch) -> None:
