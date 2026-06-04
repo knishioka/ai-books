@@ -271,6 +271,51 @@ jobs:
         run: npm run verify:golden
         working-directory: web
 
+  etax-xsd:
+    name: e-Tax .xtx official XSD validation
+    runs-on: ubuntu-latest
+    # Fetch the official 国税庁 所得税関係 .xsd (checksum-verified, NOT committed — 著作物) and run the
+    # .xtx schema-validation suite so "生成 .xtx が .xsd 検証を pass / 形式不正を機械検出" (#79) is a hard
+    # gate on every PR. The tests skip when the .xsd is absent (so verify / test.sh stay green without
+    # a fetch); this job is where they actually run. Also regenerates the committed koa210_layout.json
+    # from the fetched .xsd and fails on drift (the renderer's nesting must track the official 様式).
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      # Cache the fetched CAB archives so the government download (and SHA256 verify) only runs when
+      # manifest.json changes — fewer hits on the e-Tax server, less flakiness.
+      - name: Cache e-Tax spec archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/etax
+          key: etax-spec-${{ hashFiles('docs/etax/manifest.json') }}
+
+      - name: Fetch + verify official e-Tax .xsd
+        run: uv run python scripts/etax/fetch_etax_spec.py --out .cache/etax
+
+      - name: Assert committed KOA210 layout matches the official .xsd (no drift)
+        run: |
+          set -euo pipefail
+          uv run python scripts/etax/build_koa210_layout.py \
+            --xsd .cache/etax/extracted/KOA210-011.xsd \
+            --out /tmp/koa210_layout.json
+          diff -u src/ai_books/etax/koa210_layout.json /tmp/koa210_layout.json
+
+      - name: Run .xtx XSD validation suite
+        run: PYTHONPATH=. uv run pytest -q tests/test_etax_xtx.py
+
   pre-commit:
     runs-on: ubuntu-latest
     steps:

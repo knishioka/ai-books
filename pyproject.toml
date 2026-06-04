@@ -55,6 +55,10 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
   "pre-commit>=4.0",
+  # XSD schema validation for the generated e-Tax .xtx (#79). Pure-Python (no libxml2 / external
+  # binary) so it runs in CI. Dev-only: the .xtx *renderer* is stdlib (ai_books.etax.export); only
+  # the test/CI gate validates the output against 国税庁の .xsd (fetched on demand, never committed).
+  "xmlschema>=3.0",
 ]
 
 [tool.ruff]

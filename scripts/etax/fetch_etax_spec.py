@@ -38,6 +38,41 @@ WANTED = {
     "e-tax19.CAB": ["shotoku/KOA210-011.xsd", "shotoku/KOA220-008.xsd", "shotoku/KOA240-008.xsd"],
 }
 
+# The .xsd closure needed to XSD-validate a generated .xtx (#79): the KOA210 form schema plus the
+# 共通 (general) schemas it import/includes. These are laid out under ``<out>/schema/`` preserving the
+# shotoku/ + general/ directory split so the relative schemaLocation paths resolve, and a small
+# validation-harness wrapper (``koa210_doc.xsd``) is written beside them (see WRAPPER_SCHEMA).
+SCHEMA_FILES = {
+    "e-tax19.CAB": [
+        "shotoku/KOA210-011.xsd",
+        "general/General.xsd",
+        "general/zeimusho.xsd",
+        "general/zeimoku.xsd",
+        "general/ITreference.xsd",
+    ],
+}
+
+#: Sub-path of ``--out`` that holds the validation-ready .xsd tree (shotoku/ + general/ + wrapper).
+SCHEMA_DIRNAME = "schema"
+#: The validation harness wrapper. KOA210 is a *local* element inside ``KOA210-11-0group`` (the real
+#: 手続 envelope references that group), so it is not directly validatable as a document root. This
+#: wrapper includes the official schema and exposes the group as a global ``KOA210SET`` element; the
+#: validator wraps a generated ``<KOA210>`` in ``<KOA210SET>`` before validating. (Harness only — not
+#: an e-Tax artifact.)
+WRAPPER_SCHEMA = """<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  elementFormDefault="qualified">
+  <xsd:include schemaLocation="shotoku/KOA210-011.xsd"/>
+  <xsd:element name="KOA210SET">
+    <xsd:complexType>
+      <xsd:group ref="KOA210-11-0group"/>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
+"""
+
 
 class CabError(RuntimeError):
     """Raised when a CAB archive cannot be parsed."""
@@ -65,8 +100,15 @@ def _decode_folder(data: bytes, start: int, blocks: int, data_reserve: int, comp
     return bytes(out)
 
 
-def extract_cab(cab_path: Path, out_dir: Path, wanted: list[str]) -> list[Path]:
-    """Extract files whose in-CAB path contains any ``wanted`` substring; return written paths."""
+def extract_cab(
+    cab_path: Path, out_dir: Path, wanted: list[str], *, keep_dirs: bool = False
+) -> list[Path]:
+    """Extract files whose in-CAB path contains any ``wanted`` substring; return written paths.
+
+    With ``keep_dirs`` the file's directory under ``19XMLスキーマ/`` is preserved (so
+    ``shotoku/KOA210-011.xsd`` and ``general/General.xsd`` keep the layout their relative
+    schemaLocation paths need); otherwise it is flattened to its basename.
+    """
     data = cab_path.read_bytes()
     if data[:4] != b"MSCF":
         raise CabError(f"{cab_path.name}: not a CAB (missing MSCF signature)")
@@ -95,7 +137,12 @@ def extract_cab(cab_path: Path, out_dir: Path, wanted: list[str]) -> list[Path]:
         normalized = name.replace("\\", "/")
         if not any(token in normalized for token in wanted):
             continue
-        dest = out_dir / Path(normalized).name
+        if keep_dirs and "/" in normalized:
+            # Drop the top-level "19XMLスキーマ/" container, keep e.g. shotoku/KOA210-011.xsd.
+            relative = normalized.split("/", 1)[1] if normalized.count("/") >= 2 else normalized
+            dest = out_dir / relative
+        else:
+            dest = out_dir / Path(normalized).name
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(decoded[ifolder][uoff : uoff + size])
         written.append(dest)
@@ -146,11 +193,24 @@ def main() -> None:
             extracted = extract_cab(cab_path, args.out / "extracted", WANTED[filename])
             for path in extracted:
                 print(f"  extracted {path.relative_to(args.out)}")
+        if filename in SCHEMA_FILES:
+            schema_dir = args.out / SCHEMA_DIRNAME
+            laid_out = extract_cab(cab_path, schema_dir, SCHEMA_FILES[filename], keep_dirs=True)
+            for path in laid_out:
+                print(f"  schema    {path.relative_to(args.out)}")
+            (schema_dir / "koa210_doc.xsd").write_text(WRAPPER_SCHEMA, encoding="utf-8")
+            print(f"  schema    {Path(SCHEMA_DIRNAME) / 'koa210_doc.xsd'} (validation wrapper)")
 
     print(f"\ndone. spec workbooks/xsd under {args.out / 'extracted'}")
+    print(f"      .xsd validation tree under {args.out / SCHEMA_DIRNAME} (#79)")
     print(
         "next: python scripts/etax/build_field_catalog.py "
         f"--spec-dir {args.out / 'extracted'} --out docs/etax/field_catalog.json"
+    )
+    print(
+        "      python scripts/etax/build_koa210_layout.py "
+        f"--xsd {args.out / 'extracted' / 'KOA210-011.xsd'} "
+        "--out src/ai_books/etax/koa210_layout.json"
     )
 
 

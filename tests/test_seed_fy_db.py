@@ -345,3 +345,33 @@ def test_db_etax_export_passes_schema_validation(migrated_conn: psycopg.Connecti
     amounts = [r.value for r in export.records if r.kind.value == "amount"]
     assert amounts
     assert all("." not in value for value in amounts)
+
+
+def test_db_etax_xtx_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#79): seed_fy → 実様式の .xtx — the DB-read 決算書 renders to the same KOA210 .xtx as the
+    # offline golden, so the storage round-trip does not perturb the real e-Tax 交換ファイル.
+    from ai_books.etax import render_etax_xtx
+
+    load_fiscal_year(migrated_conn)
+    actual = {
+        "report": "etax_xtx",
+        "form_id": "KOA210",
+        "version": "11.0",
+        "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+        "xtx_lines": render_etax_xtx(etax_export_from_db(migrated_conn)).splitlines(),
+    }
+    problems = diff_snapshots(load_golden("etax_xtx"), actual)
+    assert problems == [], "DB e-Tax .xtx diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_etax_xtx_passes_official_xsd(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#79): 生成 .xtx が 国税庁 .xsd のスキーマ検証を pass — over the real stored rows.
+    # Gated on the fetched .xsd (国税庁 著作物のため非同梱); CI's etax-xsd job runs the fetch.
+    from ai_books.etax import render_etax_xtx
+    from tests.etax_xsd import skip_reason, validate_xtx, xsd_available
+
+    if not xsd_available():
+        pytest.skip(skip_reason())
+    load_fiscal_year(migrated_conn)
+    errors = validate_xtx(render_etax_xtx(etax_export_from_db(migrated_conn)))
+    assert errors == [], f"DB .xtx failed official XSD: {errors}"

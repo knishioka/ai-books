@@ -142,7 +142,9 @@ class EtaxFixedSection(NamedTuple):
 
     * ``overflow_mode="slots"`` — each unmatched 科目 takes the next of ``overflow_max`` repeating
       ``overflow_code`` slots (the 様式's 追加科目, e.g. AMF00360 rep=6), carrying its own 科目名 /
-      コード for traceability. Exhausting the slots is an **未分類** error.
+      コード for traceability. Exhausting the slots is an **未分類** error. ``overflow_name_code`` is
+      the sibling 科目名 タグ of that repeating slot (e.g. AMF00060 beside AMF00360); when set, each
+      slot also emits a TEXT record so the .xtx 追加科目 (#79) carries its 科目名.
     * ``overflow_mode="accumulate"`` — all unmatched 科目 sum into a single ``overflow_code`` (e.g.
       売上原価's 仕入金額, which absorbs 商品仕入 + 製造原価内訳).
 
@@ -159,6 +161,7 @@ class EtaxFixedSection(NamedTuple):
     overflow_label: str = "追加科目"
     overflow_max: int = 0
     overflow_mode: str = "slots"  # "slots" | "accumulate"
+    overflow_name_code: str | None = None  # 追加科目枠の 科目名 タグ (slots mode; .xtx #79)
     kind: EtaxValueKind = EtaxValueKind.AMOUNT
     max_int_digits: int = DEFAULT_MAX_INT_DIGITS
 
@@ -374,6 +377,7 @@ _SPEC_2025 = EtaxFormatSpec(
             overflow_code="AMF00360",
             overflow_label="追加科目の金額",
             overflow_max=6,
+            overflow_name_code="AMF00060",
         ),
         EtaxScalarField(
             "PL", "AMF00380", "経費 計", "profit_and_loss.selling_admin_expenses.subtotal"
@@ -443,6 +447,7 @@ _SPEC_2025 = EtaxFormatSpec(
             overflow_code="AMH00150",
             overflow_label="追加科目の金額",
             overflow_max=8,
+            overflow_name_code="AMH00010",
         ),
         EtaxScalarField(
             "MANUFACTURING",
@@ -473,6 +478,7 @@ _SPEC_2025 = EtaxFormatSpec(
             overflow_code="AMG00420",
             overflow_label="追加科目の金額",
             overflow_max=7,
+            overflow_name_code="AMG00030",
         ),
         EtaxScalarField("BS", "AMG00440", "資産の部(期末)合計", "balance_sheet.total_assets"),
         EtaxFixedSection(
@@ -485,6 +491,7 @@ _SPEC_2025 = EtaxFormatSpec(
             overflow_code="AMG00700",
             overflow_label="追加科目の金額",
             overflow_max=7,
+            overflow_name_code="AMG00470",
         ),
         EtaxScalarField(
             "BS", "AMG00750", "青色申告特別控除前の所得金額", "balance_sheet.net_income"

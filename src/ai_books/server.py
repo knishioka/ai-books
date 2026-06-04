@@ -84,7 +84,7 @@ mcp: FastMCP = FastMCP(
         "get_account_ledger. Aggregation tools (trial_balance / monthly_trend / worksheet) "
         "return the 合計残高試算表, 月次推移, and 精算表; profit_and_loss returns the 損益計算書 "
         "(P/L) staged into the 青色申告決算書 layout and balance_sheet returns the 貸借対照表 "
-        "(B/S). export_etax renders the 決算書 as e-Tax 取込データ (CSV/XML) for electronic filing. "
+        "(B/S). export_etax renders the 決算書 as e-Tax 取込データ (xtx/CSV/XML) for electronic filing. "
         "Amounts are exact decimals returned as strings."
     ),
 )
@@ -473,9 +473,11 @@ def export_etax(
 
     Builds the 決算書 (損益計算書 / 月別売上・仕入 / 減価償却 / 製造原価 / 貸借対照表) for the fiscal
     year, maps it onto the e-Tax 様式 ``format_version`` (年度ごとの様式はデータ駆動で外出し), and
-    renders it. ``format`` is ``'csv'`` or ``'xml'``. Amounts are emitted in 整数円; the mapping is
-    schema-validated (必須項目・桁数・勘定科目コード・月) and a fault returns a ``ToolError`` whose
-    JSON payload lists every problem. Errors if the fiscal year or version is unknown.
+    renders it. ``format`` is ``'xtx'`` (実 e-Tax 交換ファイル — 官式 KOA210 青色申告決算書(一般用)
+    XML, 実申告に渡すのはこれ), or ``'csv'`` / ``'xml'`` (補助の人間確認用フラット出力). Amounts are
+    emitted in 整数円; the mapping is schema-validated (必須項目・桁数・勘定科目コード・月) and a fault
+    returns a ``ToolError`` whose JSON payload lists every problem. ``'xtx'`` requires the real 様式
+    (``format_version='2025'`` → KOA210). Errors if the fiscal year or version is unknown.
 
     注意: 生成物は事業者の確定数値を含むため、ファイルに保存する場合もリポジトリにはコミットしない
     こと (運用は README 参照)。

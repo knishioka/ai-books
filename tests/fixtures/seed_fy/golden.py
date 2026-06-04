@@ -27,7 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ai_books.etax import etax_export_snapshot
+from ai_books.etax import etax_export_snapshot, render_etax_xtx
 from ai_books.reports import (
     balance_sheet_snapshot,
     financial_statements_snapshot,
@@ -133,6 +133,24 @@ def _monthly_trend_snapshot_from_dataset() -> dict[str, Any]:
     )
 
 
+def etax_xtx_snapshot() -> dict[str, Any]:
+    """Golden shape for the real e-Tax ``.xtx`` (KOA210) rendered from the synthetic year (#79).
+
+    Freezes the .xtx as a list of lines (so a regression diffs to the exact changed line, not one
+    opaque blob) plus the 様式 identity. The .xtx is a deterministic function of the same
+    :func:`etax_export_from_dataset` that backs ``etax_export.json``, so this golden pins the
+    *rendered form* while the XSD test (``tests/test_etax_xtx.py``) pins its *形式妥当性*.
+    """
+    xtx = render_etax_xtx(etax_export_from_dataset())
+    return {
+        "report": "etax_xtx",
+        "form_id": "KOA210",
+        "version": "11.0",
+        "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+        "xtx_lines": xtx.splitlines(),
+    }
+
+
 #: name → (filename, generator). The generator returns the golden-shaped dict from the
 #: in-memory dataset (no DB), so golden files can be produced offline. Downstream report
 #: Issues append their own entry here.
@@ -172,6 +190,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "etax_export": (
         "etax_export.json",
         lambda: etax_export_snapshot(etax_export_from_dataset()),
+    ),
+    "etax_xtx": (
+        "etax_xtx.json",
+        etax_xtx_snapshot,
     ),
 }
 
