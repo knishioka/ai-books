@@ -1,5 +1,5 @@
 <!--
-ai-books PR template — copied from workspace docs/templates/pull-request-template.md.
+ai-books PR template. 記述ルールの SSOT は docs/pr-description-standards.md (in-repo)。
 本文は日本語、コマンド / パス / コミットは英語。未検証は ❌ / ⚠️ / 「未検証」で隠さず明示。
 -->
 
