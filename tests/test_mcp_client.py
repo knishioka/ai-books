@@ -35,7 +35,6 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.client import CallToolResult
 from fastmcp.exceptions import ToolError
-from psycopg.rows import dict_row
 
 from ai_books import db, server
 from ai_books.db.repository import AccountRepository, JournalRepository
@@ -55,8 +54,6 @@ pytestmark = pytest.mark.skipif(
     reason=f"{db.DB_URL_ENV} not set; skipping protocol-path MCP client tests",
 )
 
-_TEST_SCHEMA = "ai_books_layer_test"
-
 
 def _structured(result: CallToolResult) -> dict[str, Any]:
     """Return a tool result's structured payload, asserting it is present.
@@ -70,25 +67,6 @@ def _structured(result: CallToolResult) -> dict[str, Any]:
 
 
 # --- fixtures -----------------------------------------------------------------
-
-
-@pytest.fixture
-def patched_connect(
-    monkeypatch: pytest.MonkeyPatch, migrated_conn: psycopg.Connection[Any]
-) -> None:
-    """Point ``db.connect`` (opened inside every tool) at the throwaway test schema.
-
-    ``migrated_conn`` is autocommit, so rows seeded through it are visible to the fresh
-    connections the tools open here — including across the worker thread FastMCP uses to
-    run sync tools. ``monkeypatch`` auto-reverts after the test.
-    """
-
-    def _connect(db_url: str | None = None) -> psycopg.Connection[Any]:
-        conn = psycopg.connect(db.get_db_url(), row_factory=dict_row)
-        conn.execute(f"SET search_path TO {_TEST_SCHEMA}, public")
-        return conn
-
-    monkeypatch.setattr(db, "connect", _connect)
 
 
 class _Seed:

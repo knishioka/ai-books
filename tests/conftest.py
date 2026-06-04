@@ -29,6 +29,8 @@ from psycopg.rows import DictRow, dict_row
 from ai_books import db, server
 from ai_books.db import migrate
 
+DB_URL_ENV = db.DB_URL_ENV
+
 MIGRATIONS_DIR = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
 _TEST_SCHEMA = "ai_books_layer_test"
 
@@ -75,3 +77,24 @@ def migrated_conn() -> Iterator[psycopg.Connection[DictRow]]:
     finally:
         connection.execute(drop)
         connection.close()
+
+
+@pytest.fixture
+def patched_connect(
+    monkeypatch: pytest.MonkeyPatch, migrated_conn: psycopg.Connection[Any]
+) -> None:
+    """Point ``db.connect`` (opened inside every tool) at the throwaway test schema.
+
+    The protocol-path tools (``test_mcp_client`` / ``test_mcp_contract``) each open their own
+    short-lived connection rather than reusing ``migrated_conn``; this redirects those opens at
+    the migrated throwaway schema so they see the seeded rows. ``migrated_conn`` is autocommit, so
+    rows seeded through it are visible to the fresh connections the tools open — including across
+    the worker thread FastMCP uses to run sync tools. ``monkeypatch`` auto-reverts after the test.
+    """
+
+    def _connect(db_url: str | None = None) -> psycopg.Connection[Any]:
+        conn = psycopg.connect(db.get_db_url(), row_factory=dict_row)
+        conn.execute(f"SET search_path TO {_TEST_SCHEMA}, public")
+        return conn
+
+    monkeypatch.setattr(db, "connect", _connect)
