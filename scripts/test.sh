@@ -124,7 +124,18 @@ if [[ "$POOLER" == true ]]; then
   uv run pytest -q tests/test_pooler_db.py "${PYTEST_ARGS[@]}"
 else
   echo "=== pytest (full suite, DB-backed tests included) ==="
-  uv run pytest -q "${PYTEST_ARGS[@]}"
+  # Measure coverage on the DB-backed full run and gate on the AGENTS.md targets
+  # (line 80 / branch 70, #58). The gate runs only for an UNFILTERED full run — when
+  # extra pytest args are forwarded (e.g. `-k journal`) coverage is partial, so we
+  # measure but skip the gate to avoid false failures.
+  COV_REPORTS=(--cov=src/ai_books --cov-branch --cov-report=term-missing
+    --cov-report=xml:coverage.xml --cov-report=json:coverage.json)
+  uv run pytest -q "${COV_REPORTS[@]}" "${PYTEST_ARGS[@]}"
+  if [[ ${#PYTEST_ARGS[@]} -eq 0 ]]; then
+    uv run python scripts/check_coverage.py coverage.json --line 80 --branch 70
+  else
+    echo "note: coverage gate skipped (pytest args filter the suite); measured only"
+  fi
 fi
 
 if [[ "$RUN_WEB" == true ]]; then

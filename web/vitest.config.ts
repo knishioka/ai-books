@@ -24,7 +24,17 @@ export default defineConfig({
     include: ["lib/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"],
+      // text for the console, html for browsing, json-summary as the CI artifact (#58).
+      reporter: ["text", "html", "json-summary"],
+      // Gate the pure data layer on the AGENTS.md targets (line 80 / branch 70). `npm run
+      // test:coverage` fails when any metric drops below these, so the web CI job (#58)
+      // enforces them on every PR. Current coverage sits well above (lines ~99 / branch ~91).
+      thresholds: {
+        lines: 80,
+        branches: 70,
+        functions: 80,
+        statements: 80,
+      },
       // Report on the pure modules this layer covers; the DB-bound modules belong to the
       // golden cross-check, not the unit layer. (Threshold enforcement is #58.)
       include: [

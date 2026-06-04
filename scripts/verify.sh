@@ -15,7 +15,20 @@ BUILD_CMD=""
 LINT_CMD="uv run ruff check ."
 FORMAT_CMD="uv run ruff format --check ."
 TYPECHECK_CMD="uv run mypy src tests"
-TEST_CMD="uv run pytest -q"
+
+# Coverage (#58). Always *measure* (term-missing for humans; xml + json as CI artifacts),
+# but only *gate* on the AGENTS.md targets (line 80 / branch 70) when a live DB is configured.
+# A DB-less verify.sh skips the DB-backed tests and so under-reports coverage — gating there
+# would produce false failures, so we measure-only. CI sets AI_BOOKS_DB_URL (Postgres service),
+# so the gate is enforced on every PR; `scripts/test.sh` likewise runs with a DB.
+COV_REPORTS="--cov=src/ai_books --cov-branch --cov-report=term-missing"
+COV_REPORTS+=" --cov-report=xml:coverage.xml --cov-report=json:coverage.json"
+if [[ -n "${AI_BOOKS_DB_URL:-}" ]]; then
+  TEST_CMD="uv run pytest -q $COV_REPORTS"
+  TEST_CMD+=" && uv run python scripts/check_coverage.py coverage.json --line 80 --branch 70"
+else
+  TEST_CMD="uv run pytest -q $COV_REPORTS"
+fi
 
 JSON_MODE=0
 [[ "${1:-}" == "--json" ]] && JSON_MODE=1
@@ -43,7 +56,7 @@ run_step() {
   fi
   log_text "$(printf '  %-10s running: %s' "$name" "$cmd")"
   local exit_code=0
-  bash -c "$cmd" >/tmp/verify-"$name".log 2>&1 || exit_code=$?
+  bash -c "$cmd" > /tmp/verify-"$name".log 2>&1 || exit_code=$?
   if [[ $exit_code -eq 0 ]]; then
     printf -v "$result_var" '%s' "pass"
     log_text "$(printf '  %-10s ✅ pass' "$name")"
@@ -59,11 +72,11 @@ run_step() {
 
 log_text "verify.sh: starting (ai-books)"
 
-run_step build     RESULT_BUILD     "$BUILD_CMD"
-run_step lint      RESULT_LINT      "$LINT_CMD"
-run_step format    RESULT_FORMAT    "$FORMAT_CMD"
+run_step build RESULT_BUILD "$BUILD_CMD"
+run_step lint RESULT_LINT "$LINT_CMD"
+run_step format RESULT_FORMAT "$FORMAT_CMD"
 run_step typecheck RESULT_TYPECHECK "$TYPECHECK_CMD"
-run_step test      RESULT_TEST      "$TEST_CMD"
+run_step test RESULT_TEST "$TEST_CMD"
 
 if [[ $JSON_MODE -eq 1 ]]; then
   printf '{"build":"%s","lint":"%s","format":"%s","typecheck":"%s","test":"%s","failures":[%s]}\n' \
