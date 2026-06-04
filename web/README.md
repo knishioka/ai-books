@@ -59,7 +59,24 @@ Checks:
 ```bash
 npm run lint        # eslint (next/core-web-vitals + next/typescript)
 npm run typecheck   # tsc --noEmit
+npm run test        # vitest (fast, DB-free unit layer — see below)
 npm run build       # next build (does not require a database)
+```
+
+### Unit tests (fast, no database)
+
+`npm run test` runs the [Vitest](https://vitest.dev) unit layer over the **pure** data logic
+(`lib/reports/*`, `lib/etax/*`, `lib/money.ts`, `lib/format.ts`) — no database, milliseconds.
+It pins the 符号則・段階利益・科目振り分け・月次タイリング・端数/桁数検証 edge cases
+(空 FY・片側のみ・unclassified・期首/期末境界・月跨ぎ) so a regression is caught immediately,
+complementing the heavier golden cross-check below (which stays the source of truth for
+end-to-end numbers). Aggregation reports are exercised with a small in-memory `sql` stand-in, so
+no DB is needed.
+
+```bash
+npm run test            # run once
+npm run test:watch      # watch mode
+npm run test:coverage   # + v8 coverage report
 ```
 
 ### Golden cross-check (numbers match the report layer)
