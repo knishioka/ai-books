@@ -229,6 +229,117 @@ class JournalRepository(BaseRepository[JournalEntry]):
             raise RepositoryError(f"journal entry {entry_id} vanished after insert")
         return stored
 
+    #: Width of the zero-padded numeric part of an auto-assigned 伝票番号 (``V0000001``).
+    _VOUCHER_NO_WIDTH = 7
+
+    def next_voucher_no(self) -> str:
+        """Return the next auto-assigned 伝票番号 from the shared sequence.
+
+        ``nextval`` is atomic, so two concurrent creates always receive distinct
+        numbers (the partial UNIQUE index on ``voucher_no`` is the storage backstop).
+        The sequence is monotonic but may gap on rollback — the intended basis for
+        downstream 連番付与 / 欠番検知, not a gapless guarantee.
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT nextval('journal_voucher_no_seq') AS seq")
+            row = cur.fetchone()
+        if row is None:  # pragma: no cover - nextval always yields a row
+            raise RepositoryError("journal_voucher_no_seq nextval produced no row")
+        return f"V{int(row['seq']):0{self._VOUCHER_NO_WIDTH}d}"
+
+    def replace_entry(self, entry_id: int, entry: JournalEntry) -> JournalEntry:
+        """Overwrite a draft entry's header and lines atomically; return it as stored.
+
+        Lines are replaced wholesale (delete + re-insert with fresh ``line_no``), so the
+        caller hands in the *complete* desired state. The lifecycle guard (draft-only)
+        lives in the service; this is the storage mechanic.
+        """
+        with self._conn.transaction(), self._conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE journal_entries
+                   SET entry_date    = %s,
+                       recorded_date = COALESCE(%s, recorded_date),
+                       description   = %s,
+                       voucher_no    = %s,
+                       source        = %s,
+                       status        = %s,
+                       updated_at    = now()
+                 WHERE id = %s
+                """,
+                (
+                    entry.entry_date,
+                    entry.recorded_date,
+                    entry.description,
+                    entry.voucher_no,
+                    entry.source,
+                    entry.status.value,
+                    entry_id,
+                ),
+            )
+            if cur.rowcount == 0:  # pragma: no cover - caller checks existence first
+                raise RecordNotFoundError("journal_entry", entry_id)
+            cur.execute("DELETE FROM journal_lines WHERE entry_id = %s", (entry_id,))
+            for line_no, line in enumerate(entry.lines, start=1):
+                cur.execute(
+                    """
+                    INSERT INTO journal_lines
+                        (entry_id, line_no, account_id, side, amount,
+                         tax_category, sub_account, line_description)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        entry_id,
+                        line_no,
+                        line.account_id,
+                        line.side.value,
+                        line.amount,
+                        line.tax_category,
+                        line.sub_account,
+                        line.line_description,
+                    ),
+                )
+        stored = self.get_entry(entry_id)
+        if stored is None:  # pragma: no cover - just updated
+            raise RepositoryError(f"journal entry {entry_id} vanished after update")
+        return stored
+
+    def mark_posted(self, entry_id: int) -> JournalEntry:
+        """Transition an entry to ``posted`` (記帳確定); return it as stored."""
+        return self._set_status(entry_id, EntryStatus.POSTED)
+
+    def mark_voided(self, entry_id: int, reason: str) -> JournalEntry:
+        """Transition an entry to ``voided`` (取消), recording the 理由 and 取消時刻.
+
+        The row is kept — voiding never deletes — so the books stay continuous and the
+        audit trail (written by the caller) has something to point at.
+        """
+        return self._set_status(entry_id, EntryStatus.VOIDED, void_reason=reason)
+
+    def _set_status(
+        self, entry_id: int, status: EntryStatus, *, void_reason: str | None = None
+    ) -> JournalEntry:
+        """Set an entry's status (and, for 取消, the void bookkeeping) atomically."""
+        voided_at_sql = "now()" if status is EntryStatus.VOIDED else "voided_at"
+        with self._conn.cursor() as cur:
+            cur.execute(
+                f"""
+                UPDATE journal_entries
+                   SET status      = %s,
+                       void_reason = %s,
+                       voided_at   = {voided_at_sql},
+                       updated_at  = now()
+                 WHERE id = %s
+                """,
+                (status.value, void_reason, entry_id),
+            )
+            if cur.rowcount == 0:  # pragma: no cover - caller checks existence first
+                raise RecordNotFoundError("journal_entry", entry_id)
+        stored = self.get_entry(entry_id)
+        if stored is None:  # pragma: no cover - just updated
+            raise RepositoryError(f"journal entry {entry_id} vanished after status change")
+        return stored
+
     def get_entry(self, entry_id: int) -> JournalEntry | None:
         """Fetch one entry with its lines attached (``None`` if absent)."""
         header = self.fetch_one("SELECT * FROM journal_entries WHERE id = %s", (entry_id,))
@@ -249,11 +360,18 @@ class JournalRepository(BaseRepository[JournalEntry]):
     # neutralises that clause — one query body serves any combination of filters.
     # The casts give psycopg an explicit type for the NULL binds (Postgres cannot
     # otherwise infer the type of a bare NULL parameter).
+    #
+    # The status clause does double duty: an explicit status matches exactly (so a
+    # caller *can* ask for ``voided`` to audit 取消 entries), while the default
+    # (no status) excludes ``voided`` so cancelled entries never silently count
+    # toward the active books. The balance / ledger reads below apply the same rule.
     _ENTRY_FILTER = """
         FROM journal_entries je
         WHERE (%(start)s::date IS NULL OR je.entry_date >= %(start)s::date)
           AND (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
-          AND (%(status)s::entry_status IS NULL OR je.status = %(status)s::entry_status)
+          AND (CASE WHEN %(status)s::entry_status IS NULL
+                    THEN je.status <> 'voided'::entry_status
+                    ELSE je.status = %(status)s::entry_status END)
           AND (%(account_id)s::bigint IS NULL OR EXISTS (
                 SELECT 1 FROM journal_lines jl
                 WHERE jl.entry_id = je.id AND jl.account_id = %(account_id)s::bigint))
@@ -411,7 +529,9 @@ class LedgerRepository:
                 WHERE jl.account_id = %(account_id)s
                   AND (%(start)s::date IS NULL OR je.entry_date >= %(start)s::date)
                   AND (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
-                  AND (%(status)s::entry_status IS NULL OR je.status = %(status)s::entry_status)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
                 ORDER BY je.entry_date, je.id, jl.line_no
                 """,
                 {
@@ -483,7 +603,9 @@ class LedgerRepository:
                 WHERE jl.account_id = %(account_id)s
                   AND (%(as_of)s::date IS NULL OR je.entry_date <= %(as_of)s::date)
                   AND (%(before)s::date IS NULL OR je.entry_date < %(before)s::date)
-                  AND (%(status)s::entry_status IS NULL OR je.status = %(status)s::entry_status)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
                 """,
                 {
                     "account_id": account_id,

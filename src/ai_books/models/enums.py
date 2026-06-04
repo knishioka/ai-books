@@ -67,6 +67,7 @@ class EntryStatus(StrEnum):
 
     DRAFT = "draft"  # 起票途中
     POSTED = "posted"  # 記帳確定
+    VOIDED = "voided"  # 取消 (物理削除せず無効化し、帳簿の連続性を維持する)
 
 
 #: Account types whose normal balance is the debit side (資産 / 費用).

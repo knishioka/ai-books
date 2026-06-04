@@ -23,7 +23,7 @@ from .enums import (
     StatementCategory,
     normal_side_for,
 )
-from .journal import JournalEntry, JournalLine
+from .journal import JournalEntry, JournalEntryInput, JournalLine, JournalLineInput
 from .period import FiscalYear, Period
 from .query import AccountBalance, AccountLedger, JournalEntryPage, LedgerRow
 
@@ -41,8 +41,10 @@ __all__ = [
     "EntryStatus",
     "FiscalYear",
     "JournalEntry",
+    "JournalEntryInput",
     "JournalEntryPage",
     "JournalLine",
+    "JournalLineInput",
     "LedgerRow",
     "NormalSide",
     "Period",
