@@ -20,7 +20,15 @@ const globalForSql = globalThis as unknown as {
   __aiBooksSql?: postgres.Sql;
 };
 
-function getSql(): postgres.Sql | null {
+/**
+ * The shared read-only SQL client, or `null` when `AI_BOOKS_DB_URL` is unset.
+ *
+ * Every report query in `lib/reports/*` and `lib/etax/*` goes through this one client so the
+ * viewer opens a single pooled, prepared-statement-free connection (pooler-safe). It returns
+ * `null` rather than throwing so a page can degrade to a friendly "未接続" banner (e.g. during
+ * a CI build with no database) instead of crashing.
+ */
+export function getSql(): postgres.Sql | null {
   if (!connectionString) {
     return null;
   }
@@ -55,31 +63,44 @@ export type ConnectionResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
+/** Error message shown when the viewer has no database configured. */
+export const NO_DB_ERROR =
+  "AI_BOOKS_DB_URL is not set. Configure it to connect to Supabase.";
+
 /**
- * Fetch the chart of accounts (勘定科目一覧), ordered by code.
- * Returns a discriminated result so the page can render a friendly state when
- * the database is unreachable or unconfigured (e.g. during CI build).
+ * Run `query` against the shared client, wrapping the result (or a failure reason) in a
+ * {@link ConnectionResult}. Centralizes the "no DB configured" and "query threw" handling so
+ * every report page renders the same graceful banner instead of a stack trace.
  */
-export async function fetchAccounts(): Promise<ConnectionResult<Account[]>> {
+export async function tryQuery<T>(
+  query: (sql: postgres.Sql) => Promise<T>,
+): Promise<ConnectionResult<T>> {
   const sql = getSql();
   if (!sql) {
-    return {
-      ok: false,
-      error: "AI_BOOKS_DB_URL is not set. Configure it to connect to Supabase.",
-    };
+    return { ok: false, error: NO_DB_ERROR };
   }
   try {
-    const rows = await sql<Account[]>`
-      SELECT code, name, account_type, normal_balance, is_active
-      FROM accounts
-      ORDER BY code
-      LIMIT 500
-    `;
-    return { ok: true, data: rows };
+    return { ok: true, data: await query(sql) };
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Unknown database error.",
     };
   }
+}
+
+/**
+ * Fetch the chart of accounts (勘定科目一覧), ordered by code.
+ * Returns a discriminated result so the page can render a friendly state when
+ * the database is unreachable or unconfigured (e.g. during CI build).
+ */
+export function fetchAccounts(): Promise<ConnectionResult<Account[]>> {
+  return tryQuery(
+    (sql) => sql<Account[]>`
+      SELECT code, name, account_type, normal_balance, is_active
+      FROM accounts
+      ORDER BY code
+      LIMIT 500
+    `,
+  );
 }

@@ -83,10 +83,12 @@ without a running database; CI runs it against a Postgres service container.
 ## Web viewer (Vercel, read-only)
 
 A **read-only** aggregation viewer lives in [`web/`](./web) (Next.js, deployed on
-Vercel). It renders Supabase/Postgres data — chart of accounts today, ledgers and
-financial statements later — and has **no data-entry UI** (writes flow through MCP;
-see [AGENTS.md](./AGENTS.md) invariant #1). Data is queried server-side, so no
-database credential ever reaches the browser.
+Vercel). It renders Supabase/Postgres data — chart of accounts, 試算表 / 月次推移,
+仕訳帳 / 総勘定元帳, 損益計算書 / 貸借対照表 / 精算表, 青色申告決算書プレビュー, and
+e-Tax 取込データのダウンロード — and has **no data-entry UI** (writes flow through MCP;
+see [AGENTS.md](./AGENTS.md) invariant #1). Every figure reproduces the report layer's
+golden output (#17) exactly; data is queried server-side, so no database credential ever
+reaches the browser. See [web/README.md](./web/README.md) for the full screen list.
 
 Run it against your local Supabase (`supabase start` must be running):
 

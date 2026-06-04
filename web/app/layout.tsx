@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { Nav } from "@/components/nav";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +14,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <Nav />
+        <main className="container">{children}</main>
+        <footer className="site-footer">
+          read-only viewer — データ入力は MCP 経由のみ（書込 UI なし）
+        </footer>
+      </body>
     </html>
   );
 }

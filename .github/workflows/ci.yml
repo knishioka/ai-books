@@ -83,6 +83,67 @@ jobs:
       - name: Build
         run: npm run build
 
+  web-golden:
+    name: Web viewer golden cross-check
+    runs-on: ubuntu-latest
+    # Asserts the viewer's data layer (lib/reports/*, lib/etax/*) reproduces the
+    # Python report layer's golden snapshots (#17) byte-for-byte: seed the synthetic
+    # FY2025 fixture into a real Postgres through the production write path, then run
+    # web/scripts/verify-golden.ts against the committed golden/*.json. This makes
+    # "表示数値が MCP/レポート層の出力と一致" (#25 AC) a hard gate on every PR.
+    # Postgres major version kept in sync with the `verify` job / supabase config.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_books_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      AI_BOOKS_DB_URL: postgresql://postgres:postgres@localhost:5432/ai_books_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      # Apply every migration and load the FY2025 fixture through the production
+      # JournalRepository write path (PYTHONPATH=. so the tests.fixtures seed loader
+      # imports from the repo root).
+      - name: Migrate + seed FY2025 fixture
+        run: PYTHONPATH=. uv run python scripts/seed_verify_db.py
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Golden cross-check
+        run: npm run verify:golden
+        working-directory: web
+
   pre-commit:
     runs-on: ubuntu-latest
     steps:
