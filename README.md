@@ -105,6 +105,21 @@ deleted (AGENTS.md "Never touch" / invariant #3). To undo or change something,
 or adjusts a constraint). This keeps every environment reproducible by replaying
 the same ordered list from a clean database.
 
+## Seed: chart of accounts
+
+The standard 個人事業/青色申告 chart of accounts (科目区分・表示区分・正常残高・内訳
+親子, plus the 製造原価 accounts) is seeded by a loader. It validates the data —
+区分 ↔ 正常残高 consistency and 表示区分 coverage — _before_ writing, and is
+idempotent (`ON CONFLICT (code) DO NOTHING`), so re-running never duplicates:
+
+```bash
+uv run python -m ai_books.seed.accounts   # uses AI_BOOKS_DB_URL (run after migrate)
+```
+
+Read it back over MCP with `list_accounts` (filter by 区分 / 表示区分 / 有効),
+`get_account` (by 勘定科目コード), and `search_accounts` (code/名称 substring) —
+all returning typed `Account` rows.
+
 ## Use with Claude Desktop
 
 A reference `claude-desktop-config.json` lands in Issue #5. The shape will be:

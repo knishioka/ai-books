@@ -15,10 +15,12 @@ from .base import DomainModel
 from .enums import (
     CREDIT_NORMAL_TYPES,
     DEBIT_NORMAL_TYPES,
+    STATEMENT_CATEGORY_ACCOUNT_TYPE,
     AccountType,
     EntrySide,
     EntryStatus,
     NormalSide,
+    StatementCategory,
     normal_side_for,
 )
 from .journal import JournalEntry, JournalLine
@@ -27,6 +29,7 @@ from .period import FiscalYear, Period
 __all__ = [
     "CREDIT_NORMAL_TYPES",
     "DEBIT_NORMAL_TYPES",
+    "STATEMENT_CATEGORY_ACCOUNT_TYPE",
     "Account",
     "AccountType",
     "AuditLog",
@@ -38,5 +41,6 @@ __all__ = [
     "JournalLine",
     "NormalSide",
     "Period",
+    "StatementCategory",
     "normal_side_for",
 ]

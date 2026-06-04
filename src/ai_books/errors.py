@@ -57,6 +57,22 @@ class DomainValidationError(AiBooksError):
         return {"error": "validation_error", "message": self.message, "details": self.errors}
 
 
+class SeedIntegrityError(AiBooksError):
+    """The chart-of-accounts seed data is internally inconsistent.
+
+    Raised by ``ai_books.seed.accounts.validate_chart`` *before* any row is written
+    when a seed entry's normal balance disagrees with its account type, a 表示区分
+    sits on the wrong account type, codes collide, a parent reference dangles, or a
+    required 表示区分 has no account mapped to it. ``problems`` lists every issue
+    found (validation does not stop at the first) so the whole seed can be fixed in
+    one pass.
+    """
+
+    def __init__(self, problems: list[str]) -> None:
+        self.problems = problems
+        super().__init__("chart-of-accounts seed is inconsistent:\n  - " + "\n  - ".join(problems))
+
+
 class RepositoryError(AiBooksError):
     """A persistence-layer failure (connection, SQL, integrity constraint, …)."""
 
