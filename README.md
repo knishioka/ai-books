@@ -39,9 +39,10 @@ Run the verification suite (lint / format / typecheck / test):
 ./scripts/verify.sh
 ```
 
-AI agents (Claude Code) can invoke the **`/verify`** and **`/test`** slash commands
-(in [`.claude/commands/`](./.claude/commands)) — thin wrappers over `./scripts/verify.sh`
-and `./scripts/test.sh`. (`/test-all` lands once #59 wires up `./scripts/test.sh --all`.)
+AI agents (Claude Code) can invoke the **`/verify`**, **`/test`** and **`/test-all`** slash
+commands (in [`.claude/commands/`](./.claude/commands)) — thin wrappers over
+`./scripts/verify.sh` and `./scripts/test.sh` (`/test-all` → `./scripts/test.sh --all`, the
+single one-command local guarantee; see [below](#running-the-full-test-suite-locally)).
 
 Pre-commit hooks (ruff + hygiene checks) run automatically on `git commit`.
 To run them across the whole repo:
@@ -98,8 +99,38 @@ runs:
 ./scripts/test.sh -k etax  # extra args are forwarded to pytest
 ./scripts/test.sh --web    # also cross-check the viewer's numbers against golden
 ./scripts/test.sh --pooler # run the suite THROUGH a pgbouncer pooler (Supabase parity, #52)
+./scripts/test.sh --all    # ONE command, every guarantee — see below (#59)
 ./scripts/test.sh --down   # stop the test containers
 ```
+
+#### `./scripts/test.sh --all` — the one-command local guarantee (#59)
+
+`--all` is the **single, mechanical "everything works locally" check**. It brings up
+Postgres + the pgbouncer pooler once, runs every guarantee block, and ends with a
+**PASS/FAIL summary**. Unlike the other modes it does _not_ stop at the first failure —
+every block runs so the summary shows the full picture, and the command exits non-zero if
+any block failed:
+
+| Block                                            | What it proves                                                                                          | Issues              |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------- |
+| Python full suite + coverage gate (direct DB)    | All DB-backed pytest (MCP, property-based, read-only role) + the line 80 / branch 70 gate               | #50/#56/#57/#54/#58 |
+| Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                    | #55/#58             |
+| Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
+| Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
+
+##### CI ↔ local guarantee mapping
+
+Each `--all` block maps 1:1 onto a CI job, so the local command reproduces CI's guarantee
+surface. lint / format / typecheck stay with `./scripts/verify.sh` (the static layer); the
+two together cover every CI job:
+
+| `./scripts/test.sh --all` block                             | CI job                    |
+| ----------------------------------------------------------- | ------------------------- |
+| Python full suite + coverage gate                           | `verify` (3.12 / 3.13)    |
+| Web unit layer + coverage gate                              | `web`                     |
+| Viewer golden cross-check (direct DB)                       | `web-golden`              |
+| Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
+| `./scripts/verify.sh` (lint/format/typecheck) + secret scan | `pre-commit` / `gitleaks` |
 
 `--pooler` stands a pgbouncer (transaction mode) in front of Postgres — mirroring Supabase's
 production pooler, which routes each transaction to a possibly-different backend and so cannot

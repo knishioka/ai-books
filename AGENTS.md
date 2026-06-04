@@ -36,12 +36,41 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 ./scripts/test.sh          # postgres:17-alpine を起動し全テスト実行 (DB 連携含む)
 ./scripts/test.sh --web    # + Vercel viewer の golden 数値一致クロスチェック
 ./scripts/test.sh --pooler # pgbouncer(transaction mode)経由で pooler 安全性を検証 (#52)
+./scripts/test.sh --all    # ← 「ローカルで全部動く」唯一の保証コマンド (#59)
 ./scripts/test.sh --down   # テスト用コンテナを停止
 ```
 
 コンテナ定義は [compose.yaml](./compose.yaml)。CI も同等の postgres:17 サービスで
 DB 連携テストと web golden を実行する。`AI_BOOKS_DB_URL` を自前で指定した場合は
 それを尊重しコンテナは起動しない。
+
+#### `--all` — ローカルで十分動くことの単一・機械的な保証点 (#59)
+
+**`./scripts/test.sh --all` が唯一の『全部動く』確認**。Postgres + pgbouncer を 1 回起動し、
+以下の全ブロックを**まとめて 1 回**実行して最後に **PASS/FAIL サマリ**を出す。他モードと違い
+途中で止めず全ブロックを走らせ、1 つでも失敗すれば非ゼロ終了する。
+
+| ブロック                                      | 内容                                                                    | 由来                |
+| --------------------------------------------- | ----------------------------------------------------------------------- | ------------------- |
+| Python full suite + coverage gate (直結 DB)   | DB 連携含む全 pytest (MCP・property・read-only ロール含む) + 閾値ゲート | #50/#56/#57/#54/#58 |
+| Web unit layer + coverage gate (vitest)       | DB 不要の web ユニット層 + v8 カバレッジゲート                          | #55/#58             |
+| Viewer golden cross-check (直結 DB)           | viewer の数値が report 層 golden と一致                                 | #17/#25             |
+| Pooler safety suite + golden (pgbouncer 越し) | pooler 安全性 (`tests/test_pooler_db.py`) + golden を pooler 越しに     | #52                 |
+
+##### CI ↔ local guarantee mapping
+
+`--all` の各ブロックは CI の各ジョブと 1:1 対応する (ローカルが CI と同じ保証範囲を再現する)。
+
+| `./scripts/test.sh --all` ブロック            | 対応 CI ジョブ            |
+| --------------------------------------------- | ------------------------- |
+| Python full suite + coverage gate             | `verify` (matrix)         |
+| Web unit layer + coverage gate                | `web`                     |
+| Viewer golden cross-check (直結 DB)           | `web-golden`              |
+| Pooler safety suite + golden (pgbouncer 越し) | `pooler`                  |
+| (CI 専用: lint/format/typecheck・secret scan) | `pre-commit` / `gitleaks` |
+
+lint / format / typecheck は `./scripts/verify.sh`(= CI `pre-commit` 相当の静的検査)で担保する。
+`--all` はランタイム/DB/web の動作保証に集中し、両者を合わせてローカルが CI 全ジョブを網羅する。
 
 `--pooler` は本番の Supabase pooler (pgbouncer, transaction mode) を再現する追加サービス
 ([compose.yaml](./compose.yaml) の `pgbouncer`) を `db` の前段に立て、migrate / seed の
