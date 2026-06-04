@@ -1,0 +1,190 @@
+{
+  "report": "trial_balance",
+  "fiscal_year": "FY2025",
+  "rows": [
+    {
+      "code": "1110",
+      "name": "現金",
+      "debit_total": "420000.00",
+      "credit_total": "120000.00",
+      "balance": "300000.00"
+    },
+    {
+      "code": "1141",
+      "name": "普通預金",
+      "debit_total": "2850500.00",
+      "credit_total": "2681000.00",
+      "balance": "169500.00"
+    },
+    {
+      "code": "1160",
+      "name": "売掛金",
+      "debit_total": "1430000.00",
+      "credit_total": "550000.00",
+      "balance": "880000.00"
+    },
+    {
+      "code": "1180",
+      "name": "商品",
+      "debit_total": "650000.00",
+      "credit_total": "300000.00",
+      "balance": "350000.00"
+    },
+    {
+      "code": "1290",
+      "name": "事業主貸",
+      "debit_total": "240000.00",
+      "credit_total": "0.00",
+      "balance": "240000.00"
+    },
+    {
+      "code": "1530",
+      "name": "機械装置",
+      "debit_total": "1200000.00",
+      "credit_total": "240000.00",
+      "balance": "960000.00"
+    },
+    {
+      "code": "1550",
+      "name": "工具器具備品",
+      "debit_total": "480000.00",
+      "credit_total": "60000.00",
+      "balance": "420000.00"
+    },
+    {
+      "code": "2120",
+      "name": "買掛金",
+      "debit_total": "600000.00",
+      "credit_total": "600000.00",
+      "balance": "0.00"
+    },
+    {
+      "code": "2510",
+      "name": "長期借入金",
+      "debit_total": "100000.00",
+      "credit_total": "700000.00",
+      "balance": "600000.00"
+    },
+    {
+      "code": "3110",
+      "name": "元入金",
+      "debit_total": "0.00",
+      "credit_total": "3200000.00",
+      "balance": "3200000.00"
+    },
+    {
+      "code": "3120",
+      "name": "事業主借",
+      "debit_total": "0.00",
+      "credit_total": "100000.00",
+      "balance": "100000.00"
+    },
+    {
+      "code": "4110",
+      "name": "売上高",
+      "debit_total": "0.00",
+      "credit_total": "1650000.00",
+      "balance": "1650000.00"
+    },
+    {
+      "code": "5110",
+      "name": "期首商品棚卸高",
+      "debit_total": "300000.00",
+      "credit_total": "0.00",
+      "balance": "300000.00"
+    },
+    {
+      "code": "5120",
+      "name": "仕入高",
+      "debit_total": "600000.00",
+      "credit_total": "0.00",
+      "balance": "600000.00"
+    },
+    {
+      "code": "5130",
+      "name": "期末商品棚卸高",
+      "debit_total": "0.00",
+      "credit_total": "350000.00",
+      "balance": "-350000.00"
+    },
+    {
+      "code": "6120",
+      "name": "原材料仕入高",
+      "debit_total": "300000.00",
+      "credit_total": "0.00",
+      "balance": "300000.00"
+    },
+    {
+      "code": "6210",
+      "name": "賃金",
+      "debit_total": "400000.00",
+      "credit_total": "0.00",
+      "balance": "400000.00"
+    },
+    {
+      "code": "6330",
+      "name": "減価償却費",
+      "debit_total": "240000.00",
+      "credit_total": "0.00",
+      "balance": "240000.00"
+    },
+    {
+      "code": "7130",
+      "name": "水道光熱費",
+      "debit_total": "120000.00",
+      "credit_total": "0.00",
+      "balance": "120000.00"
+    },
+    {
+      "code": "7140",
+      "name": "旅費交通費",
+      "debit_total": "80000.00",
+      "credit_total": "0.00",
+      "balance": "80000.00"
+    },
+    {
+      "code": "7150",
+      "name": "通信費",
+      "debit_total": "60000.00",
+      "credit_total": "0.00",
+      "balance": "60000.00"
+    },
+    {
+      "code": "7200",
+      "name": "消耗品費",
+      "debit_total": "40000.00",
+      "credit_total": "0.00",
+      "balance": "40000.00"
+    },
+    {
+      "code": "7210",
+      "name": "減価償却費",
+      "debit_total": "60000.00",
+      "credit_total": "0.00",
+      "balance": "60000.00"
+    },
+    {
+      "code": "7250",
+      "name": "地代家賃",
+      "debit_total": "600000.00",
+      "credit_total": "240000.00",
+      "balance": "360000.00"
+    },
+    {
+      "code": "8110",
+      "name": "受取利息",
+      "debit_total": "0.00",
+      "credit_total": "500.00",
+      "balance": "500.00"
+    },
+    {
+      "code": "8210",
+      "name": "利子割引料",
+      "debit_total": "21000.00",
+      "credit_total": "0.00",
+      "balance": "21000.00"
+    }
+  ],
+  "total_debit": "10791500.00",
+  "total_credit": "10791500.00"
+}
