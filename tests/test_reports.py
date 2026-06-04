@@ -14,13 +14,19 @@ from datetime import date
 from decimal import Decimal
 
 from ai_books.models import (
+    BalanceSheet,
+    BalanceSheetLine,
+    BalanceSheetSection,
     EntrySide,
     EntryStatus,
     JournalBook,
     JournalBookEntry,
     JournalBookLine,
+    StatementCategory,
 )
 from ai_books.reports import (
+    balance_sheet_snapshot,
+    balance_sheet_text,
     general_ledger_csv,
     general_ledger_snapshot,
     general_ledger_text,
@@ -29,7 +35,11 @@ from ai_books.reports import (
     journal_book_text,
     money,
 )
-from tests.fixtures.seed_fy import general_ledger_from_dataset, journal_book_from_dataset
+from tests.fixtures.seed_fy import (
+    balance_sheet_from_dataset,
+    general_ledger_from_dataset,
+    journal_book_from_dataset,
+)
 
 
 def test_money_is_fixed_two_decimals() -> None:
@@ -143,3 +153,58 @@ def test_general_ledger_text_renders_carry_and_balance() -> None:
     assert "総勘定元帳" in text
     assert "繰越" in text
     assert "期末残高" in text
+
+
+# --- 貸借対照表 (Issue #21) ------------------------------------------------------
+
+
+def test_balance_sheet_snapshot_is_jsonable_and_balanced() -> None:
+    snapshot = balance_sheet_snapshot(balance_sheet_from_dataset())
+    assert snapshot["report"] == "balance_sheet"
+    # Amounts are fixed-point strings (浮動小数禁止), 当期純利益 is a loss this year.
+    assert snapshot["total_assets"] == "3319500.00"
+    assert snapshot["net_income"] == "-580500.00"
+    assert snapshot["total_equity"] == "2719500.00"
+    # 貸借一致 visible in the file: 資産合計 = 負債合計 + 純資産合計.
+    liabilities_equity = Decimal(snapshot["total_liabilities"]) + Decimal(snapshot["total_equity"])
+    assert Decimal(snapshot["total_assets"]) == liabilities_equity
+    # Sections kept in statement order; a line names its 勘定科目 inline.
+    assert [s["category"] for s in snapshot["assets"]] == ["current_assets", "fixed_assets"]
+    cash = next(line for line in snapshot["assets"][0]["lines"] if line["code"] == "1110")
+    assert cash["name"] == "現金"
+    assert isinstance(cash["balance"], str)
+
+
+def test_balance_sheet_text_renders_sides_and_net_income() -> None:
+    text = balance_sheet_text(balance_sheet_from_dataset())
+    assert "貸借対照表" in text
+    assert "資産合計" in text
+    assert "負債合計" in text
+    assert "当期純利益  -580500.00" in text
+    assert "純資産合計  2719500.00" in text
+    # 負債・純資産合計 closes against 資産合計.
+    assert "負債・純資産合計  3319500.00" in text
+
+
+def _unbalanced_balance_sheet() -> BalanceSheet:
+    """A hand-built B/S whose sides do not foot — so :attr:`is_balanced` can be exercised."""
+    return BalanceSheet(
+        assets=[
+            BalanceSheetSection(
+                category=StatementCategory.CURRENT_ASSETS,
+                lines=[BalanceSheetLine(code="1110", name="現金", balance=Decimal("100"))],
+                subtotal=Decimal("100"),
+            )
+        ],
+        liabilities=[],
+        equity=[],
+        net_income=Decimal("0"),
+        total_assets=Decimal("100"),
+        total_liabilities=Decimal("0"),
+        total_equity=Decimal("0"),
+    )
+
+
+def test_balance_sheet_is_balanced_flag() -> None:
+    assert not _unbalanced_balance_sheet().is_balanced
+    assert balance_sheet_from_dataset().is_balanced

@@ -19,9 +19,14 @@ import pytest
 from ai_books import db
 from ai_books.db.repository import AccountRepository, JournalRepository, LedgerRepository
 from ai_books.models import EntryStatus
-from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
+from ai_books.reports import (
+    balance_sheet_snapshot,
+    general_ledger_snapshot,
+    journal_book_snapshot,
+)
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
+    balance_sheet_from_db,
     diff_snapshots,
     general_ledger_from_db,
     journal_book_from_db,
@@ -160,6 +165,42 @@ def test_db_general_ledger_matches_golden(migrated_conn: psycopg.Connection[Any]
     expected = load_golden("general_ledger")
     problems = diff_snapshots(expected, actual)
     assert problems == [], "DB general ledger diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+# --- 決算書: 貸借対照表 (Issue #21) --------------------------------------------
+
+
+def test_db_balance_sheet_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#21): the SQL-derived 貸借対照表 (試算表 → 表示区分 集約) equals the frozen golden,
+    # so the production engine and the offline reduction agree (Decimal/符号/集約 round-trip).
+    load_fiscal_year(migrated_conn)
+    actual = balance_sheet_snapshot(balance_sheet_from_db(migrated_conn))
+    expected = load_golden("balance_sheet")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB balance sheet diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_balance_sheet_balances_and_net_income_matches_pl(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # AC (#21): 貸借一致 over real stored rows, and 当期純利益 equals 収益残高 - 費用残高 of the
+    # SQL 試算表 (what the 損益計算書 #20 will report for the same period/status).
+    load_fiscal_year(migrated_conn)
+    repo = LedgerRepository(migrated_conn)
+    balance_sheet = repo.balance_sheet(status=EntryStatus.POSTED)
+    assert balance_sheet.is_balanced
+    assert balance_sheet.total_assets == Decimal("3319500")
+
+    tb_rows = {row.code: row for row in repo.trial_balance(status=EntryStatus.POSTED).rows}
+    revenue = sum(
+        (r.balance for r in tb_rows.values() if r.code.startswith("4") or r.code == "8110"),
+        Decimal(0),
+    )
+    expense = sum(
+        (r.balance for r in tb_rows.values() if r.code[0] in {"5", "6", "7"} or r.code == "8210"),
+        Decimal(0),
+    )
+    assert balance_sheet.net_income == revenue - expense == Decimal("-580500")
 
 
 def test_journal_book_traces_voided_entries(migrated_conn: psycopg.Connection[Any]) -> None:

@@ -29,6 +29,7 @@ from ai_books.models import (
     AccountBalance,
     AccountLedger,
     AccountType,
+    BalanceSheet,
     EntrySide,
     EntryStatus,
     FiscalYear,
@@ -751,6 +752,45 @@ class LedgerRepository:
             for row in rows
         ]
         return aggregation.assemble_trial_balance(totals, as_of=as_of, start_date=start)
+
+    def balance_sheet(
+        self,
+        *,
+        as_of: date | None = None,
+        status: EntryStatus | None = None,
+    ) -> BalanceSheet:
+        """Roll the 合計残高試算表 up into a 貸借対照表 as of ``as_of`` (inclusive; ``None`` = 全期間).
+
+        Reuses :meth:`trial_balance` for every touched account's signed balance (no second
+        aggregation to drift), then tags each row with its 表示区分 from the chart and delegates
+        the grouping / 当期純利益 / 貸借一致 arithmetic to
+        :func:`ai_books.aggregation.assemble_balance_sheet`. ``status`` follows the same rule as
+        every other read: an explicit value matches exactly, the default excludes 取消 (voided).
+        """
+        trial_balance = self.trial_balance(as_of=as_of, status=status)
+        category_by_code = {
+            account.code: account.statement_category
+            for account in AccountRepository(self._conn).find()
+        }
+        balances: list[aggregation.ClassifiedBalance] = []
+        for row in trial_balance.rows:
+            category = category_by_code.get(row.code)
+            if category is None:
+                # A touched account with no 表示区分 cannot be placed, which would silently
+                # break 貸借一致 — fail loudly instead (a chart-of-accounts data error).
+                raise RepositoryError(
+                    f"account {row.code} ({row.name}) has no statement_category; "
+                    "cannot assemble balance sheet"
+                )
+            balances.append(
+                aggregation.ClassifiedBalance(
+                    code=row.code,
+                    name=row.name,
+                    statement_category=category,
+                    balance=row.balance,
+                )
+            )
+        return aggregation.assemble_balance_sheet(balances, as_of=as_of, status=status)
 
     def monthly_trend(
         self,

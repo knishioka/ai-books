@@ -20,8 +20,15 @@ from typing import NamedTuple
 
 from ai_books import ledger
 from ai_books.models import (
+    STATEMENT_CATEGORY_ACCOUNT_TYPE,
+    AccountType,
+    BalanceSheet,
+    BalanceSheetLine,
+    BalanceSheetSection,
+    EntryStatus,
     MonthlyTrendPoint,
     NormalSide,
+    StatementCategory,
     TrialBalance,
     TrialBalanceRow,
 )
@@ -35,6 +42,20 @@ class AccountTotals(NamedTuple):
     normal_balance: NormalSide
     debit_total: Decimal
     credit_total: Decimal
+
+
+class ClassifiedBalance(NamedTuple):
+    """An account's signed balance tagged with its 表示区分, ready to roll up onto a 決算書.
+
+    ``balance`` is already in 正常残高方向 (the output of :func:`ai_books.ledger.balance_from_totals`,
+    i.e. a 試算表 row's balance); ``statement_category`` decides which 区分 it lands in (B/S
+    sections) or whether it feeds 当期純利益 (P/L categories).
+    """
+
+    code: str
+    name: str
+    statement_category: StatementCategory
+    balance: Decimal
 
 
 class MonthWindow(NamedTuple):
@@ -163,3 +184,79 @@ def build_monthly_trend_points(
             )
         )
     return points, running
+
+
+#: The B/S 表示区分 in statement layout order: 資産 (流動→固定), 負債 (流動→固定), 純資産.
+_ASSET_CATEGORIES: tuple[StatementCategory, ...] = (
+    StatementCategory.CURRENT_ASSETS,
+    StatementCategory.FIXED_ASSETS,
+)
+_LIABILITY_CATEGORIES: tuple[StatementCategory, ...] = (
+    StatementCategory.CURRENT_LIABILITIES,
+    StatementCategory.FIXED_LIABILITIES,
+)
+_EQUITY_CATEGORIES: tuple[StatementCategory, ...] = (StatementCategory.EQUITY,)
+
+
+def _balance_sheet_sections(
+    by_category: dict[StatementCategory, list[BalanceSheetLine]],
+    categories: tuple[StatementCategory, ...],
+) -> tuple[list[BalanceSheetSection], Decimal]:
+    """Build the sections for one side of the B/S and return them with their grand total.
+
+    Every requested 区分 yields a section (even with no lines) so the statement layout is
+    complete and stable; the section subtotal foots its lines and the returned total foots
+    the sections.
+    """
+    sections: list[BalanceSheetSection] = []
+    side_total = Decimal(0)
+    for category in categories:
+        lines = by_category.get(category, [])
+        subtotal = sum((line.balance for line in lines), Decimal(0))
+        sections.append(BalanceSheetSection(category=category, lines=lines, subtotal=subtotal))
+        side_total += subtotal
+    return sections, side_total
+
+
+def assemble_balance_sheet(
+    balances: list[ClassifiedBalance],
+    *,
+    as_of: date | None = None,
+    status: EntryStatus | None = None,
+) -> BalanceSheet:
+    """Roll classified account balances into a 貸借対照表 (資産 = 負債 + 純資産, 当期純利益 込).
+
+    Each balance is dispatched by its 表示区分: B/S categories (資産/負債/純資産) become section
+    lines, while P/L categories feed 当期純利益 (収益 add, 費用 subtract — the same figure the
+    損益計算書 #20 reports). 当期純利益 is folded into 純資産合計 so the equation closes. A B/S account
+    that nets to exactly zero is dropped (no standing balance to report); a non-zero balance is
+    kept and displayed as-is, including the rare 正常残高 と逆 (negative) case. ``balances`` is
+    expected pre-ordered by 勘定科目コード (a 試算表 is), and that order is preserved within sections.
+    """
+    by_category: dict[StatementCategory, list[BalanceSheetLine]] = {}
+    net_income = Decimal(0)
+    for item in balances:
+        account_type = STATEMENT_CATEGORY_ACCOUNT_TYPE[item.statement_category]
+        if account_type is AccountType.REVENUE:
+            net_income += item.balance
+        elif account_type is AccountType.EXPENSE:
+            net_income -= item.balance
+        elif item.balance != 0:  # 資産 / 負債 / 純資産 — drop accounts that net to zero
+            by_category.setdefault(item.statement_category, []).append(
+                BalanceSheetLine(code=item.code, name=item.name, balance=item.balance)
+            )
+
+    assets, total_assets = _balance_sheet_sections(by_category, _ASSET_CATEGORIES)
+    liabilities, total_liabilities = _balance_sheet_sections(by_category, _LIABILITY_CATEGORIES)
+    equity, equity_accounts_total = _balance_sheet_sections(by_category, _EQUITY_CATEGORIES)
+    return BalanceSheet(
+        as_of=as_of,
+        status=status,
+        assets=assets,
+        liabilities=liabilities,
+        equity=equity,
+        net_income=net_income,
+        total_assets=total_assets,
+        total_liabilities=total_liabilities,
+        total_equity=equity_accounts_total + net_income,
+    )

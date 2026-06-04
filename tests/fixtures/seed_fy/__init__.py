@@ -44,6 +44,8 @@ from .golden import (
 from .loader import LoadResult, load_fiscal_year
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
+    balance_sheet_from_dataset,
+    balance_sheet_from_db,
     general_ledger_from_dataset,
     general_ledger_from_db,
     journal_book_from_dataset,
@@ -66,6 +68,8 @@ __all__ = [
     "SeedLine",
     "TrialBalance",
     "TrialBalanceRow",
+    "balance_sheet_from_dataset",
+    "balance_sheet_from_db",
     "diff_snapshots",
     "general_ledger_from_dataset",
     "general_ledger_from_db",

@@ -17,12 +17,15 @@ from decimal import Decimal
 from typing import Any
 
 from ai_books.models import (
+    BalanceSheet,
+    BalanceSheetSection,
     EntrySide,
     EntryStatus,
     GeneralLedger,
     GeneralLedgerAccount,
     JournalBook,
     JournalBookEntry,
+    StatementCategory,
 )
 
 #: Two-decimal quantum matching ``numeric(18, 2)``.
@@ -253,6 +256,84 @@ def general_ledger_text(ledger: GeneralLedger) -> str:
                 f"{money(row.amount)}  相手 {counter}  残 {money(row.running_balance)}"
             )
         lines.append(f"    期末残高 {money(account.closing_balance)}")
+    return "\n".join(lines) + "\n"
+
+
+# --- 貸借対照表 (balance sheet, Issue #21) -------------------------------------
+
+#: 表示区分 → 日本語見出し for the 整形テキスト rendering.
+_CATEGORY_LABELS: dict[StatementCategory, str] = {
+    StatementCategory.CURRENT_ASSETS: "流動資産",
+    StatementCategory.FIXED_ASSETS: "固定資産",
+    StatementCategory.CURRENT_LIABILITIES: "流動負債",
+    StatementCategory.FIXED_LIABILITIES: "固定負債",
+    StatementCategory.EQUITY: "純資産",
+}
+
+
+def _balance_sheet_section(section: BalanceSheetSection) -> dict[str, Any]:
+    return {
+        "category": section.category.value,
+        "lines": [
+            {"code": line.code, "name": line.name, "balance": money(line.balance)}
+            for line in section.lines
+        ],
+        "subtotal": money(section.subtotal),
+    }
+
+
+def balance_sheet_snapshot(balance_sheet: BalanceSheet) -> dict[str, Any]:
+    """Turn a :class:`~ai_books.models.BalanceSheet` into its canonical JSON shape.
+
+    The three sides keep their sections in statement order (流動→固定 for 資産・負債), each line
+    naming its 勘定科目 inline. ``net_income`` (当期純利益) and the three totals are included so
+    貸借一致 (``total_assets`` == ``total_liabilities`` + ``total_equity``) is visible in the file.
+    """
+    return {
+        "report": "balance_sheet",
+        "as_of": _iso(balance_sheet.as_of),
+        "status": _status(balance_sheet.status),
+        "assets": [_balance_sheet_section(section) for section in balance_sheet.assets],
+        "liabilities": [_balance_sheet_section(section) for section in balance_sheet.liabilities],
+        "equity": [_balance_sheet_section(section) for section in balance_sheet.equity],
+        "net_income": money(balance_sheet.net_income),
+        "total_assets": money(balance_sheet.total_assets),
+        "total_liabilities": money(balance_sheet.total_liabilities),
+        "total_equity": money(balance_sheet.total_equity),
+    }
+
+
+def _balance_sheet_section_text(section: BalanceSheetSection, lines: list[str]) -> None:
+    """Append one 表示区分 block (見出し → 明細 → 区分小計) to ``lines``."""
+    label = _CATEGORY_LABELS.get(section.category, section.category.value)
+    lines.append(f"  {label}")
+    for line in section.lines:
+        lines.append(f"    {line.code} {line.name}  {money(line.balance)}")
+    lines.append(f"    {label} 計  {money(section.subtotal)}")
+
+
+def balance_sheet_text(balance_sheet: BalanceSheet) -> str:
+    """Render the 貸借対照表 as 整形テキスト for human inspection.
+
+    Lays out 資産の部 / 負債の部 / 純資産の部 with per-区分 subtotals, shows 当期純利益 as the last
+    純資産 figure, and closes with 資産合計 against 負債・純資産合計 so 貸借一致 is eyeballable.
+    """
+    as_of = balance_sheet.as_of.isoformat() if balance_sheet.as_of is not None else "全期間"
+    lines: list[str] = ["貸借対照表 (Balance Sheet)", f"  時点: {as_of}", "【資産の部】"]
+    for section in balance_sheet.assets:
+        _balance_sheet_section_text(section, lines)
+    lines.append(f"  資産合計  {money(balance_sheet.total_assets)}")
+    lines.append("【負債の部】")
+    for section in balance_sheet.liabilities:
+        _balance_sheet_section_text(section, lines)
+    lines.append(f"  負債合計  {money(balance_sheet.total_liabilities)}")
+    lines.append("【純資産の部】")
+    for section in balance_sheet.equity:
+        _balance_sheet_section_text(section, lines)
+    lines.append(f"  当期純利益  {money(balance_sheet.net_income)}")
+    lines.append(f"  純資産合計  {money(balance_sheet.total_equity)}")
+    liabilities_equity = balance_sheet.total_liabilities + balance_sheet.total_equity
+    lines.append(f"  負債・純資産合計  {money(liabilities_equity)}")
     return "\n".join(lines) + "\n"
 
 
