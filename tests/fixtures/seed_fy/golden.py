@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ai_books.reports import (
+    balance_sheet_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
@@ -37,6 +38,7 @@ from ai_books.reports import (
 from .dataset import FISCAL_YEAR
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
+    balance_sheet_from_dataset,
     general_ledger_from_dataset,
     journal_book_from_dataset,
     monthly_trend_from_dataset,
@@ -149,6 +151,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "profit_and_loss": (
         "profit_and_loss.json",
         lambda: profit_and_loss_snapshot(profit_and_loss_from_dataset()),
+    ),
+    "balance_sheet": (
+        "balance_sheet.json",
+        lambda: balance_sheet_snapshot(balance_sheet_from_dataset()),
     ),
     "worksheet": (
         "worksheet.json",

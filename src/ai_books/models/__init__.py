@@ -40,6 +40,9 @@ from .journal import (
 from .period import FiscalYear, Period
 from .query import AccountBalance, AccountLedger, JournalEntryPage, LedgerRow
 from .report import (
+    BalanceSheet,
+    BalanceSheetLine,
+    BalanceSheetSection,
     GeneralLedger,
     GeneralLedgerAccount,
     GeneralLedgerRow,
@@ -60,6 +63,9 @@ __all__ = [
     "AccountLedger",
     "AccountType",
     "AuditLog",
+    "BalanceSheet",
+    "BalanceSheetLine",
+    "BalanceSheetSection",
     "DomainModel",
     "EntrySide",
     "EntryStatus",

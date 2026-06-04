@@ -321,7 +321,7 @@ def account_type(code: str) -> AccountType:
 
 
 def statement_category(code: str) -> StatementCategory:
-    """The 表示区分 (決算書集計分類) for ``code`` from the canonical chart."""
+    """The 表示区分 (決算書集計分類) for ``code`` from the canonical chart (drives PL/BS roll-up)."""
     return _BY_CODE[code].statement_category
 
 

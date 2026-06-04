@@ -34,6 +34,7 @@ from ai_books.db.repository import (
 )
 from ai_books.models import (
     YEAR_END_ADJUSTMENT_SOURCE,
+    BalanceSheet,
     EntrySide,
     EntryStatus,
     GeneralLedger,
@@ -474,3 +475,39 @@ def worksheet_from_db(
     return LedgerRepository(conn).worksheet(
         fiscal_year=year.name, start=year.start_date, end=year.end_date, status=status
     )
+
+
+# ── 貸借対照表 (balance sheet, Issue #21) ─────────────────────────────────────────
+# Same dual-path cross-check: a pure reduction of the in-memory dataset (the offline golden
+# source, no DB) and a DB-backed read through the production engine. Both feed the same
+# in-memory trial balance into :func:`ai_books.aggregation.assemble_balance_sheet`, so the
+# grouping / 当期純利益 / 貸借一致 arithmetic is shared and a divergence pins a storage bug.
+
+
+def balance_sheet_from_dataset(entries: tuple[SeedEntry, ...] = FY_ENTRIES) -> BalanceSheet:
+    """Reduce the in-memory dataset into a 貸借対照表 — no database required.
+
+    Builds the trial balance offline, tags every row with its 表示区分 from the canonical
+    chart, and rolls it up through the production :func:`ai_books.aggregation.assemble_balance_sheet`.
+    The synthetic year is a loss year, so 当期純利益 is negative — exercising the sign handling.
+    ``status`` is fixed to ``posted`` to match the DB path (the loader stores every entry
+    POSTED), so the offline golden and :func:`balance_sheet_from_db` agree on that field.
+    """
+    trial_balance = trial_balance_from_dataset(entries)
+    balances = [
+        aggregation.ClassifiedBalance(
+            code=row.code,
+            name=row.name,
+            statement_category=statement_category(row.code),
+            balance=row.balance,
+        )
+        for row in trial_balance.rows
+    ]
+    return aggregation.assemble_balance_sheet(balances, status=EntryStatus.POSTED)
+
+
+def balance_sheet_from_db(
+    conn: psycopg.Connection[Any], *, status: EntryStatus | None = EntryStatus.POSTED
+) -> BalanceSheet:
+    """Read the 貸借対照表 from Postgres through the production :class:`LedgerRepository`."""
+    return LedgerRepository(conn).balance_sheet(status=status)

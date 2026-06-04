@@ -16,6 +16,7 @@ import pytest
 
 from ai_books.models import AccountType, EntrySide
 from ai_books.reports import (
+    balance_sheet_snapshot,
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
@@ -26,6 +27,7 @@ from tests.fixtures.seed_fy import (
     MONTHLY_TREND_ACCOUNTS,
     SeedEntry,
     SeedLine,
+    balance_sheet_from_dataset,
     diff_snapshots,
     general_ledger_from_dataset,
     journal_book_from_dataset,
@@ -276,6 +278,61 @@ def test_worksheet_splits_year_end_adjustments_into_their_own_column() -> None:
     assert closing_stock.trial_debit == closing_stock.trial_credit == Decimal("0")
     assert closing_stock.adjustment_credit == Decimal("350000")
     assert closing_stock.pl_credit == Decimal("350000")
+
+
+def test_committed_balance_sheet_golden_is_up_to_date() -> None:
+    # AC (#21): 貸借対照表 output matches the frozen golden, generated from the dataset.
+    fresh = balance_sheet_snapshot(balance_sheet_from_dataset())
+    problems = diff_snapshots(load_golden("balance_sheet"), fresh)
+    assert problems == [], "golden/balance_sheet.json is stale:\n  - " + "\n  - ".join(problems)
+
+
+def test_balance_sheet_balances() -> None:
+    # AC (#21): 資産合計 = 負債 + 純資産 が常に成立 (seed で検証).
+    balance_sheet = balance_sheet_from_dataset()
+    assert balance_sheet.is_balanced
+    assert balance_sheet.total_assets == Decimal("3319500")
+    assert balance_sheet.total_liabilities + balance_sheet.total_equity == Decimal("3319500")
+
+
+def test_balance_sheet_net_income_matches_trial_balance() -> None:
+    # AC (#21): 当期純利益 が PL と一致 — until #20 lands, anchor it to the P/L accounts of
+    # the 試算表 (収益残高 - 費用残高), which is exactly what the 損益計算書 will report.
+    rows = {row.code: row for row in trial_balance_from_dataset().rows}
+    revenue = rows["4110"].balance + rows["8110"].balance  # 売上高 + 受取利息
+    expense = sum(
+        (rows[c].balance for c in ("5110", "5120", "5130", "6120", "6210", "6330")),
+        Decimal(0),
+    ) + sum(
+        (rows[c].balance for c in ("7130", "7140", "7150", "7200", "7210", "7250", "8210")),
+        Decimal(0),
+    )
+    expected_net = revenue - expense
+    assert expected_net == Decimal("-580500")  # FY2025 は損失年度
+    assert balance_sheet_from_dataset().net_income == expected_net
+
+
+def test_balance_sheet_shows_sole_proprietor_equity_items() -> None:
+    # AC (#21): 個人事業の純資産項目 (元入金 / 事業主勘定) が正しく表示される.
+    balance_sheet = balance_sheet_from_dataset()
+    equity_lines = {line.code: line for section in balance_sheet.equity for line in section.lines}
+    assert equity_lines["3110"].balance == Decimal("3200000")  # 元入金
+    assert equity_lines["3120"].balance == Decimal("100000")  # 事業主借
+    # 事業主貸 (家事按分) sits in 流動資産 for a 個人事業 B/S, not 純資産.
+    asset_codes = {line.code for section in balance_sheet.assets for line in section.lines}
+    assert "1290" in asset_codes
+
+
+def test_balance_sheet_omits_zero_balance_accounts() -> None:
+    # 買掛金 (2120) nets to zero (全額決済済) and so has no standing balance to report.
+    balance_sheet = balance_sheet_from_dataset()
+    all_codes = {
+        line.code
+        for side in (balance_sheet.assets, balance_sheet.liabilities, balance_sheet.equity)
+        for section in side
+        for line in section.lines
+    }
+    assert "2120" not in all_codes
 
 
 def test_golden_updates_only_via_explicit_flag(

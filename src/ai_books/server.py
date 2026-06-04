@@ -51,6 +51,7 @@ from ai_books.models import (
     AccountBalance,
     AccountLedger,
     AccountType,
+    BalanceSheet,
     EntryStatus,
     GeneralLedger,
     ImportSummary,
@@ -75,9 +76,9 @@ mcp: FastMCP = FastMCP(
         "search_accounts) and the journals, balances, and general ledger (総勘定元帳) — "
         "list_journal_entries / get_journal_entry / get_account_balance / "
         "get_account_ledger. Aggregation tools (trial_balance / monthly_trend / worksheet) "
-        "return the 合計残高試算表, 月次推移, and 精算表, and profit_and_loss returns the 損益計算書 "
-        "(P/L) staged into the 青色申告決算書 layout. Amounts are exact decimals returned as "
-        "strings."
+        "return the 合計残高試算表, 月次推移, and 精算表; profit_and_loss returns the 損益計算書 "
+        "(P/L) staged into the 青色申告決算書 layout and balance_sheet returns the 貸借対照表 "
+        "(B/S). Amounts are exact decimals returned as strings."
     ),
 )
 
@@ -376,6 +377,29 @@ def profit_and_loss(fiscal_year: str, status: str | None = None) -> ProfitAndLos
             fiscal_year=year.name,
             start=year.start_date,
             end=year.end_date,
+            status=_parse_status(status),
+        )
+
+
+# --- 決算書: 貸借対照表 (Issue #21) --------------------------------------------
+
+
+@mcp.tool
+def balance_sheet(
+    as_of: str | None = None,
+    status: str | None = None,
+) -> BalanceSheet:
+    """Return the 貸借対照表 (B/S) as of ``as_of`` (ISO date, inclusive; default 全期間).
+
+    Every touched B/S account's 期末残高 is rolled up into its 表示区分 — 流動資産 / 固定資産,
+    流動負債 / 固定負債, and 純資産 (元入金・事業主借) — each side carrying per-区分 subtotals.
+    ``net_income`` is the 当期純利益 (青色申告特別控除前所得), the signed sum of every P/L account,
+    folded into 純資産合計 so 資産合計 = 負債合計 + 純資産合計 holds (貸借一致). Pass
+    ``status='posted'`` for the 記帳確定 books; the default includes drafts but never 取消 entries.
+    """
+    with db.connect() as conn:
+        return LedgerRepository(conn).balance_sheet(
+            as_of=_parse_date(as_of, "as_of"),
             status=_parse_status(status),
         )
 

@@ -20,6 +20,7 @@
 | `golden/journal_book.json`    | 仕訳帳のゴールデン (#19, committed)                             |
 | `golden/general_ledger.json`  | 総勘定元帳のゴールデン (#19, committed)                         |
 | `golden/profit_and_loss.json` | 損益計算書のゴールデン (#20, committed)                         |
+| `golden/balance_sheet.json`   | 貸借対照表のゴールデン (#21, committed)                         |
 | `golden/worksheet.json`       | 精算表のゴールデン (#22, committed)                             |
 
 純粋計算 (`trial_balance_from_dataset`) とゴールデン生成は **DB 不要**。pytest ハーネスは
@@ -137,3 +138,11 @@ uv run pytest -q tests/test_seed_fy.py tests/test_seed_fy_db.py
 
 当期純利益 −580,500 は試算表の Σ収益 (1,650,500) − Σ費用 (2,231,000) と一致する
 (`test_profit_and_loss_stages_reconcile_with_trial_balance` が検証)。
+
+## 貸借対照表 (B/S, #21) の貸借一致
+
+資産合計 = 流動資産1,939,500 + 固定資産1,380,000 = **3,319,500**。負債合計 = **600,000**
+(長期借入金。買掛金は全額決済済で残高0)。純資産合計 = 元入金3,200,000 + 事業主借100,000 +
+当期純利益(−580,500) = **2,719,500**。よって 資産合計 3,319,500 = 負債600,000 +
+純資産2,719,500 が成立する。当期純利益 −580,500 は損益計算書 (#20) の当期純利益と一致する
+(`test_balance_sheet_balances` / `test_balance_sheet_net_income_matches_trial_balance` が検証)。
