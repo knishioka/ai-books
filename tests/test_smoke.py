@@ -17,6 +17,12 @@ async def test_profit_and_loss_tool_registered() -> None:
     assert "profit_and_loss" in tools
 
 
+async def test_balance_sheet_tool_registered() -> None:
+    # Issue #21: the 貸借対照表 generation tool is exposed over MCP.
+    tools = {tool.name for tool in await server.mcp.list_tools()}
+    assert "balance_sheet" in tools
+
+
 def test_package_has_version() -> None:
     assert isinstance(ai_books.__version__, str)
     assert ai_books.__version__

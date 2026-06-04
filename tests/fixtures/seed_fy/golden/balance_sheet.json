@@ -1,0 +1,94 @@
+{
+  "report": "balance_sheet",
+  "as_of": null,
+  "status": "posted",
+  "assets": [
+    {
+      "category": "current_assets",
+      "lines": [
+        {
+          "code": "1110",
+          "name": "現金",
+          "balance": "300000.00"
+        },
+        {
+          "code": "1141",
+          "name": "普通預金",
+          "balance": "169500.00"
+        },
+        {
+          "code": "1160",
+          "name": "売掛金",
+          "balance": "880000.00"
+        },
+        {
+          "code": "1180",
+          "name": "商品",
+          "balance": "350000.00"
+        },
+        {
+          "code": "1290",
+          "name": "事業主貸",
+          "balance": "240000.00"
+        }
+      ],
+      "subtotal": "1939500.00"
+    },
+    {
+      "category": "fixed_assets",
+      "lines": [
+        {
+          "code": "1530",
+          "name": "機械装置",
+          "balance": "960000.00"
+        },
+        {
+          "code": "1550",
+          "name": "工具器具備品",
+          "balance": "420000.00"
+        }
+      ],
+      "subtotal": "1380000.00"
+    }
+  ],
+  "liabilities": [
+    {
+      "category": "current_liabilities",
+      "lines": [],
+      "subtotal": "0.00"
+    },
+    {
+      "category": "fixed_liabilities",
+      "lines": [
+        {
+          "code": "2510",
+          "name": "長期借入金",
+          "balance": "600000.00"
+        }
+      ],
+      "subtotal": "600000.00"
+    }
+  ],
+  "equity": [
+    {
+      "category": "equity",
+      "lines": [
+        {
+          "code": "3110",
+          "name": "元入金",
+          "balance": "3200000.00"
+        },
+        {
+          "code": "3120",
+          "name": "事業主借",
+          "balance": "100000.00"
+        }
+      ],
+      "subtotal": "3300000.00"
+    }
+  ],
+  "net_income": "-580500.00",
+  "total_assets": "3319500.00",
+  "total_liabilities": "600000.00",
+  "total_equity": "2719500.00"
+}
