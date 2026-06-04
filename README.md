@@ -46,6 +46,40 @@ To run them across the whole repo:
 uv run pre-commit run --all-files
 ```
 
+## Local Postgres (Supabase)
+
+Storage is **Supabase (Postgres)** (see [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md)).
+For local development, the [Supabase CLI](https://supabase.com/docs/guides/local-development)
+runs Postgres + Studio on Docker — so local and production share the same engine
+(no "SQLite locally, Postgres in prod" drift).
+
+Requires Docker and the Supabase CLI (`brew install supabase/tap/supabase`).
+
+```bash
+supabase start                     # boots Postgres + Studio on Docker
+```
+
+`supabase start` prints connection details. Copy the **DB URL** into your `.env`
+(create it from [.env.example](./.env.example) — `.env` is gitignored):
+
+```bash
+cp .env.example .env
+# Set AI_BOOKS_DB_URL to the "DB URL" from `supabase start`. The CLI default is:
+#   AI_BOOKS_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+# Also set SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY from the
+# `API URL` / `anon key` / `service_role key` lines of the same output.
+```
+
+Connectivity smoke test (`SELECT 1`):
+
+```bash
+uv run python -c "from ai_books import db; print(db.ping())"   # -> 1
+```
+
+`supabase stop` tears the stack down. The smoke test in `tests/test_db.py` runs
+only when `AI_BOOKS_DB_URL` is set, so `./scripts/verify.sh` stays green even
+without a running database; CI runs it against a Postgres service container.
+
 ## Use with Claude Desktop
 
 A reference `claude-desktop-config.json` lands in Issue #5. The shape will be:
