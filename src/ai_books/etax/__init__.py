@@ -24,10 +24,12 @@ from .export import (
     build_etax_export,
     etax_export_snapshot,
     export_etax,
+    koa210_layout,
     parse_etax_format,
     render_etax,
     render_etax_csv,
     render_etax_xml,
+    render_etax_xtx,
 )
 from .spec import (
     ETAX_FORMAT_SPECS,
@@ -55,8 +57,10 @@ __all__ = [
     "etax_export_snapshot",
     "export_etax",
     "get_format_spec",
+    "koa210_layout",
     "parse_etax_format",
     "render_etax",
     "render_etax_csv",
     "render_etax_xml",
+    "render_etax_xtx",
 ]

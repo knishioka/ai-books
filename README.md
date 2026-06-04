@@ -130,6 +130,7 @@ two together cover every CI job:
 | Web unit layer + coverage gate                              | `web`                     |
 | Viewer golden cross-check (direct DB)                       | `web-golden`              |
 | Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
+| e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
 | `./scripts/verify.sh` (lint/format/typecheck) + secret scan | `pre-commit` / `gitleaks` |
 
 `--pooler` stands a pgbouncer (transaction mode) in front of Postgres — mirroring Supabase's

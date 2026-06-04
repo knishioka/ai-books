@@ -25,6 +25,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "xmlschema" },
 ]
 
 [package.metadata]
@@ -43,6 +44,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.5" },
+    { name = "xmlschema", specifier = ">=3.0" },
 ]
 
 [[package]]
@@ -453,6 +455,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e0/4d/f332313098c1de1b2d2ff91cf2674415cc7cddab2ca1b01ae29774bd5fdf/docstring_parser-0.18.0.tar.gz", hash = "sha256:292510982205c12b1248696f44959db3cdd1740237a968ea1e2e7a900eeb2015", size = 29341, upload-time = "2026-04-14T04:09:19.867Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/5f/ed01f9a3cdffbd5a008556fc7b2a08ddb1cc6ace7effa7340604b1d16699/docstring_parser-0.18.0-py3-none-any.whl", hash = "sha256:b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b", size = 22484, upload-time = "2026-04-14T04:09:18.638Z" },
+]
+
+[[package]]
+name = "elementpath"
+version = "5.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/95/eeb61a2a917bf506d1402748e71c62399d8dcdd8cdccd64c81962832c260/elementpath-5.1.1.tar.gz", hash = "sha256:c4d1bd6aed987258354d0ea004d965eb0a6818213326bd4fd9bde5dacdb20277", size = 375378, upload-time = "2026-01-20T21:42:27.175Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/5a/4ddfd9aeecdc75a78b5d85d882abc2b822115caae2c00a4d0eb23cc101fc/elementpath-5.1.1-py3-none-any.whl", hash = "sha256:57637359065e60654422d8474c1749b09bb21348012b7197f868027e3c09c9b9", size = 259962, upload-time = "2026-01-20T21:42:24.127Z" },
 ]
 
 [[package]]
@@ -1795,4 +1806,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/b6/b9afed2afadddaf5ebb2afa801abf4b0868f42f8539bfe4b071b5266c9fe/websockets-16.0-cp314-cp314t-win32.whl", hash = "sha256:5a4b4cc550cb665dd8a47f868c8d04c8230f857363ad3c9caf7a0c3bf8c61ca6", size = 178085, upload-time = "2026-01-10T09:23:33.816Z" },
     { url = "https://files.pythonhosted.org/packages/9f/3e/28135a24e384493fa804216b79a6a6759a38cc4ff59118787b9fb693df93/websockets-16.0-cp314-cp314t-win_amd64.whl", hash = "sha256:b14dc141ed6d2dde437cddb216004bcac6a1df0935d79656387bd41632ba0bbd", size = 178531, upload-time = "2026-01-10T09:23:35.016Z" },
     { url = "https://files.pythonhosted.org/packages/6f/28/258ebab549c2bf3e64d2b0217b973467394a9cea8c42f70418ca2c5d0d2e/websockets-16.0-py3-none-any.whl", hash = "sha256:1637db62fad1dc833276dded54215f2c7fa46912301a24bd94d45d46a011ceec", size = 171598, upload-time = "2026-01-10T09:23:45.395Z" },
+]
+
+[[package]]
+name = "xmlschema"
+version = "4.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "elementpath" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/c4/ef78a231be72349fd6677b989ff80e276ef62e28054c36c4fea3b4db9611/xmlschema-4.3.1.tar.gz", hash = "sha256:853effdfaf127849d4724368c17bd669e7f1486e15a0376404ad7954ec31a338", size = 646611, upload-time = "2026-01-17T23:01:04.422Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/7b/3471405875d0b5fac642e9a879b2c7db63642370799b2e9eea8297ffbad0/xmlschema-4.3.1-py3-none-any.whl", hash = "sha256:9560314d70ae87be0aecb8712cfebed636f867707ccf9758d4b0645d607f64b9", size = 469891, upload-time = "2026-01-17T23:01:00.39Z" },
 ]

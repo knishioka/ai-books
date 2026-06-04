@@ -54,16 +54,44 @@
 ## 再現手順
 
 ```bash
-# 1. 仕様 CAB を取得 → SHA256 検証 → 対象 .xlsx/.xsd を解凍 (cabextract/7z 不要)
+# 1. 仕様 CAB を取得 → SHA256 検証 → 対象 .xlsx/.xsd を解凍 (cabextract/7z 不要)。
+#    .xsd 検証ツリー (.cache/etax/schema/, shotoku+general+wrapper) も併せて用意される (#79)。
 uv run python scripts/etax/fetch_etax_spec.py --out .cache/etax
 
 # 2. 解凍済ワークブックからフィールドカタログを再生成 (committed JSON と一致するはず)
 uv run python scripts/etax/build_field_catalog.py \
     --spec-dir .cache/etax/extracted --out docs/etax/field_catalog.json
+
+# 3. .xsd から KOA210 レイアウト (.xtx renderer 用) を再生成 (committed と一致するはず, #79)
+uv run python scripts/etax/build_koa210_layout.py \
+    --xsd .cache/etax/extracted/KOA210-011.xsd --out src/ai_books/etax/koa210_layout.json
 ```
 
 `.cache/` は生成物 (国税庁 著作物を含む) であり commit しないこと。SHA256 不一致時はスクリプトが
 失敗する(国税庁の再公開時は `manifest.json` の sha256/日付を更新する → 年度追従 #78 のフック)。
+
+## .xtx (実 e-Tax 交換ファイル) 出力と XSD 検証 (#79)
+
+`ai_books.etax.export.render_etax_xtx`(MCP は `export_etax(format="xtx")`)は 決算書 を実様式
+**KOA210 青色申告決算書(一般用) の XML ツリー**(.xtx)として描画する。項目コードの**入れ子・順序・
+繰返し**は、上記 step 3 で .xsd から導出した committed な派生物 `src/ai_books/etax/koa210_layout.json`
+が定義する(コードに様式をハードコードしない — 様式改定はレイアウト再生成だけで追従)。ルート
+`<KOA210>` は `VR`(様式バージョン)と `gen:FormAttribute`(softNM/sakuseiNM/sakuseiDay)を持ち、
+名前空間は `http://xml.e-tax.nta.go.jp/XSD/shotoku`。
+
+**形式妥当性 (.xsd) の機械検証**: `tests/test_etax_xtx.py` が生成 .xtx を国税庁の
+`KOA210-011.xsd`(+ 共通 `General.xsd` クロージャ)で検証し、名前空間/必須属性/桁あふれ等の形式不正を
+機械検出する(検証は純Python の `xmlschema`、外部バイナリ非依存)。.xsd は 著作物のため非同梱なので、
+**取得済みのとき(`.cache/etax/schema/`)のみ検証が走り**、未取得なら skip する(DB 連携テストが
+`AI_BOOKS_DB_URL` 未設定で skip するのと同じ作法)。CI の **`etax-xsd` ジョブ**が毎 PR で取得→検証する
+ため、形式ゲートは CI で常時 live。ローカルは step 1 を一度実行すれば `./scripts/test.sh -k etax` で
+検証込みになる。スキーマの場所は `AI_BOOKS_ETAX_SCHEMA_DIR` で上書き可。
+
+> 注: KOA210 は `KOA210-11-0group` 内の **局所要素**(実 手続 電文がこのグループを参照する)で、文書
+> ルートとして直接は検証できない。取得スクリプトが薄い検証用ラッパ `koa210_doc.xsd`(group を大域
+> 要素 `KOA210SET` として公開)を併せて書き出し、検証時に生成 `<KOA210>` を `<KOA210SET>` で包む。
+> 完全な送信用 .xtx 電文(共通部・識別情報・手続)への封入と e-Taxソフト WEB版での実取込確認は **#80**
+> (人間)で行う。本 Issue (#79) は **様式データの形式妥当性**を機械保証する最終ゲート。
 
 ## フィールドカタログ概要 (スポット確認用)
 

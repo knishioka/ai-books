@@ -25,10 +25,13 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import re
 import xml.etree.ElementTree as ET
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
+from functools import lru_cache
+from importlib.resources import files
 from typing import Any
 
 from ai_books.errors import EtaxValidationError
@@ -54,10 +57,16 @@ _MONTH_RE = re.compile(r"\d{4}-\d{2}")
 
 
 class EtaxFormat(StrEnum):
-    """The concrete file formats e-Tax 取込データ can be rendered to."""
+    """The concrete file formats e-Tax 取込データ can be rendered to.
+
+    ``CSV`` / ``XML`` are the 補助 (debug / 人間確認) serializations — a flat row/record per cell.
+    ``XTX`` is the **real e-Tax 交換ファイル形式** (#79): the 決算書 rendered as the official KOA210
+    青色申告決算書(一般用) XML tree, validatable against 国税庁の .xsd. 実申告に渡すのは ``XTX``。
+    """
 
     CSV = "csv"
     XML = "xml"
+    XTX = "xtx"
 
 
 def parse_etax_format(value: str) -> EtaxFormat:
@@ -372,10 +381,24 @@ def _emit_overflow(
             continue
         name = line.get("name")
         code = line.get("code")
+        label = name if isinstance(name, str) and name else section.overflow_label
+        # 科目名 タグ (e.g. AMF00060 beside AMF00360) so the .xtx 追加科目 carries its 名称 (#79).
+        if section.overflow_name_code is not None:
+            records.append(
+                EtaxRecord(
+                    form=section.form,
+                    item_code=section.overflow_name_code,
+                    label="追加科目名",
+                    kind=EtaxValueKind.TEXT,
+                    value=label,
+                    row=slot,
+                    account_code=code if isinstance(code, str) else None,
+                )
+            )
         _emit_fixed_value(
             section,
             section.overflow_code,
-            name if isinstance(name, str) and name else section.overflow_label,
+            label,
             amount,
             records,
             problems,
@@ -504,10 +527,158 @@ def etax_export_snapshot(export: EtaxExport) -> dict[str, Any]:
     }
 
 
+# ── EtaxExport → .xtx (実 e-Tax 交換ファイル形式, KOA210) ───────────────────────────
+#
+# The .xtx is the official e-Tax 申告データ XML — a *nested* element tree (pages → groups → leaves),
+# not a flat record list. Each 項目コード sits at an exact spot in the 様式; emit it out of order or
+# in the wrong namespace and 国税庁の .xsd rejects the file. The nesting/order/repeat are read from
+# the committed, XSD-derived layout (``koa210_layout.json``, #76/#79) rather than hard-coded, so a
+# 様式 update is a layout regeneration — not a code change. .xtx 形式妥当性は #79 の XSD 検証で機械保証。
+
+
+@lru_cache(maxsize=1)
+def koa210_layout() -> dict[str, Any]:
+    """The XSD-derived KOA210 element-tree layout (pages → groups → leaves), loaded once.
+
+    Shipped as package data (``ai_books/etax/koa210_layout.json``), generated from the official
+    ``KOA210-011.xsd`` by ``scripts/etax/build_koa210_layout.py``. Each node is a leaf
+    (``{"tag", "amount"}``, no children) or a group (``{"tag", "children", "repeat"?}``).
+    """
+    text = (files("ai_books.etax") / "koa210_layout.json").read_text(encoding="utf-8")
+    loaded: dict[str, Any] = json.loads(text)
+    return loaded
+
+
+#: Software identity stamped onto the .xtx root's required ``gen:FormAttribute`` (softNM/sakuseiNM).
+_XTX_SOFTWARE_NAME = "ai-books"
+
+
+def _layout_codes(nodes: list[dict[str, Any]], out: set[str]) -> None:
+    """Collect every 項目コード (leaf *and* group tag) appearing in the layout into ``out``."""
+    for node in nodes:
+        out.add(node["tag"])
+        if "children" in node:
+            _layout_codes(node["children"], out)
+
+
+def _descendant_leaf_codes(node: dict[str, Any]) -> set[str]:
+    """Every leaf 項目コード beneath ``node`` — the codes that can fill its repeating occurrences."""
+    codes: set[str] = set()
+    if "children" in node:
+        for child in node["children"]:
+            if "children" in child:
+                codes |= _descendant_leaf_codes(child)
+            else:
+                codes.add(child["tag"])
+    return codes
+
+
+def _emit_layout_children(
+    children: list[dict[str, Any]],
+    scalar: dict[str, str],
+    repeating: dict[str, dict[int, str]],
+    row: int | None,
+    ns: str,
+) -> list[ET.Element]:
+    """Build the XML children for one layout level, in XSD sequence order, skipping empties.
+
+    A **leaf** is emitted only when it has a value (scalar 項目 by ``row=None``; a 繰返し cell by its
+    occurrence ``row``) — every 項目 is ``minOccurs=0``, so absent ones are simply omitted. A
+    **plain group** is emitted only when it has emitted descendants (so empty 様式区分 don't appear).
+    A **repeating group** emits one occurrence per ``row`` present among its descendant leaves.
+    """
+    out: list[ET.Element] = []
+    for node in children:
+        tag = node["tag"]
+        if "children" not in node:  # leaf
+            value = scalar.get(tag) if row is None else repeating.get(tag, {}).get(row)
+            if value is not None:
+                element = ET.Element(f"{{{ns}}}{tag}")
+                element.text = value
+                out.append(element)
+            continue
+        if node.get("repeat"):  # repeating 繰返しブロック
+            occupied = sorted(
+                {r for code in _descendant_leaf_codes(node) for r in repeating.get(code, {})}
+            )
+            for occurrence_row in occupied:
+                inner = _emit_layout_children(
+                    node["children"], scalar, repeating, occurrence_row, ns
+                )
+                if inner:
+                    wrapper = ET.Element(f"{{{ns}}}{tag}")
+                    wrapper.extend(inner)
+                    out.append(wrapper)
+            continue
+        inner = _emit_layout_children(node["children"], scalar, repeating, row, ns)  # plain group
+        if inner:
+            wrapper = ET.Element(f"{{{ns}}}{tag}")
+            wrapper.extend(inner)
+            out.append(wrapper)
+    return out
+
+
+def render_etax_xtx(export: EtaxExport) -> str:
+    """Render the e-Tax 取込データ as the real ``.xtx`` (official KOA210 青色申告決算書 XML, #79).
+
+    Places every record's 値 at its 項目コード's spot in the KOA210 element tree (read from the
+    XSD-derived :func:`koa210_layout`), in 様式 (XSD sequence) order, under the
+    ``http://xml.e-tax.nta.go.jp/XSD/shotoku`` 名前空間. The root ``<KOA210>`` carries the required
+    ``VR`` (様式バージョン) and ``gen:FormAttribute`` (softNM / sakuseiNM / sakuseiDay) so the file is
+    schema-valid; ``sakuseiDay`` is the 期末日 (deterministic, not "今日" — golden 安定のため).
+
+    Only the real 様式 (``version="2025"`` → KOA210) renders to .xtx: a record whose 項目コード is not
+    in the KOA210 layout (e.g. the synthetic 様式's ``PL010``) raises ``ValueError`` rather than being
+    silently dropped (fail loud). 出力は決定的 (records → 固定木 → 2-space indent)。
+    """
+    layout = koa210_layout()
+    namespace = layout["namespace"]
+
+    known: set[str] = set()
+    for page in layout["pages"]:
+        _layout_codes(page["children"], known)
+    unknown = sorted({r.item_code for r in export.records} - known)
+    if unknown:
+        raise ValueError(
+            "cannot render .xtx: 項目コード not in the KOA210 layout "
+            f"({', '.join(unknown)}); .xtx requires the 2025 KOA210 様式 "
+            "(synthetic/旧様式 outputs CSV/XML only)"
+        )
+
+    scalar: dict[str, str] = {}
+    repeating: dict[str, dict[int, str]] = {}
+    for record in export.records:
+        if record.row is None:
+            scalar[record.item_code] = record.value
+        else:
+            repeating.setdefault(record.item_code, {})[record.row] = record.value
+
+    ET.register_namespace("", namespace)
+    root = ET.Element(
+        f"{{{namespace}}}KOA210",
+        {
+            "VR": layout["version"],
+            "softNM": _XTX_SOFTWARE_NAME,
+            "sakuseiNM": _XTX_SOFTWARE_NAME,
+            "sakuseiDay": export.end_date.isoformat(),
+        },
+    )
+    for page in layout["pages"]:
+        page_children = _emit_layout_children(page["children"], scalar, repeating, None, namespace)
+        if page_children:
+            page_element = ET.SubElement(root, f"{{{namespace}}}{page['tag']}")
+            page_element.extend(page_children)
+    ET.indent(root, space="  ")
+    body = ET.tostring(root, encoding="unicode")
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + body + "\n"
+
+
 def render_etax(export: EtaxExport, fmt: EtaxFormat) -> str:
     """Render an :class:`~ai_books.models.EtaxExport` to the requested concrete format."""
     if fmt is EtaxFormat.CSV:
         return render_etax_csv(export)
+    if fmt is EtaxFormat.XTX:
+        return render_etax_xtx(export)
     return render_etax_xml(export)
 
 
