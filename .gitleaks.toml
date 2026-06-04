@@ -103,6 +103,7 @@ description = "ai-books global allowlist"
 paths = [
   '''\.gitleaks\.toml$''',
   '''(^|/)uv\.lock$''',
+  '''(^|/)package-lock\.json$''',
   '''(^|/)tests/.*fixtures/.*''',
 ]
 regexes = [
