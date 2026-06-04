@@ -144,6 +144,101 @@ jobs:
         run: npm run verify:golden
         working-directory: web
 
+  pooler:
+    name: Supabase pooler (pgbouncer) safety
+    runs-on: ubuntu-latest
+    # Reproduce Supabase's production pooler (pgbouncer, transaction mode) in front of
+    # Postgres and run the migrate + seed write path, the Python pooler safety suite
+    # (tests/test_pooler_db.py) and the viewer golden cross-check THROUGH it. This makes
+    # "全クエリが pooler 越しに成功 / golden が pooler 経由でも一致" (#52) a hard gate, and a
+    # regression that re-enables prepared statements fails here. Postgres major version
+    # kept in sync with the other jobs / supabase config.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ai_books_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # Everything talks to pgbouncer (host port 6432), never the direct Postgres (5432).
+      AI_BOOKS_DB_URL: postgresql://postgres:postgres@127.0.0.1:6432/ai_books_test
+      AI_BOOKS_POOLER_URL: postgresql://postgres:postgres@127.0.0.1:6432/ai_books_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start pgbouncer (transaction pooler) in front of Postgres
+        run: |
+          set -euo pipefail
+          # The job runs on the host, so the `postgres` service is reachable at
+          # localhost:5432; from inside the pgbouncer container that host is
+          # host.docker.internal (host-gateway). pgbouncer listens on its in-container
+          # 5432, published to the host as 6432 so it sits beside the direct Postgres.
+          # Pin the version and disable prepared statements (+ DISCARD ALL on release)
+          # so the "no prepared statements across transactions" restriction is explicit.
+          docker run -d --name pgbouncer \
+            --add-host=host.docker.internal:host-gateway \
+            -p 6432:5432 \
+            -e DB_HOST=host.docker.internal -e DB_PORT=5432 \
+            -e DB_USER=postgres -e DB_PASSWORD=postgres -e DB_NAME=ai_books_test \
+            -e POOL_MODE=transaction -e AUTH_TYPE=scram-sha-256 \
+            -e MAX_PREPARED_STATEMENTS=0 \
+            -e SERVER_RESET_QUERY="DISCARD ALL" -e SERVER_RESET_QUERY_ALWAYS=1 \
+            edoburu/pgbouncer:v1.25.1-p0
+          for _ in $(seq 1 30); do
+            if docker exec pgbouncer pg_isready -h 127.0.0.1 -p 5432 -U postgres > /dev/null 2>&1; then
+              echo "pgbouncer ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "error: pgbouncer did not become ready" >&2
+          docker logs pgbouncer || true
+          exit 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      # Migrate + seed the FY2025 fixture through the pooler (exercises the production
+      # write path over pgbouncer; PYTHONPATH=. so the tests.fixtures seed loader imports
+      # from the repo root).
+      - name: Migrate + seed FY2025 fixture (through pooler)
+        run: PYTHONPATH=. uv run python scripts/seed_verify_db.py
+
+      - name: Python pooler safety suite (through pooler)
+        run: uv run pytest -q tests/test_pooler_db.py
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Golden cross-check (through pooler)
+        run: npm run verify:golden
+        working-directory: web
+
   pre-commit:
     runs-on: ubuntu-latest
     steps:

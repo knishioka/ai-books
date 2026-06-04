@@ -26,7 +26,7 @@ from typing import Any, cast
 
 import psycopg
 
-from ai_books.db import get_db_url
+from ai_books.db import _PREPARE_THRESHOLD, get_db_url
 
 #: Env var to override the migrations directory (mainly for tests / CI).
 MIGRATIONS_DIR_ENV = "AI_BOOKS_MIGRATIONS_DIR"
@@ -106,7 +106,10 @@ def run(*, db_url: str | None = None, migrations_dir: Path | None = None) -> lis
     """Open a connection and apply pending migrations; return the versions run."""
     url = db_url or get_db_url()
     target = migrations_dir or default_migrations_dir()
-    with psycopg.connect(url) as conn:
+    # prepare_threshold=None keeps migration runs pooler-safe (the repeated
+    # schema_migrations INSERT would otherwise become a prepared statement that a
+    # transaction-pooling proxy cannot honour); see ai_books.db (#52).
+    with psycopg.connect(url, prepare_threshold=_PREPARE_THRESHOLD) as conn:
         return apply_pending(conn, target)
 
 

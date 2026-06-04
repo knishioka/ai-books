@@ -35,12 +35,21 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 ```bash
 ./scripts/test.sh          # postgres:17-alpine を起動し全テスト実行 (DB 連携含む)
 ./scripts/test.sh --web    # + Vercel viewer の golden 数値一致クロスチェック
+./scripts/test.sh --pooler # pgbouncer(transaction mode)経由で pooler 安全性を検証 (#52)
 ./scripts/test.sh --down   # テスト用コンテナを停止
 ```
 
 コンテナ定義は [compose.yaml](./compose.yaml)。CI も同等の postgres:17 サービスで
 DB 連携テストと web golden を実行する。`AI_BOOKS_DB_URL` を自前で指定した場合は
 それを尊重しコンテナは起動しない。
+
+`--pooler` は本番の Supabase pooler (pgbouncer, transaction mode) を再現する追加サービス
+([compose.yaml](./compose.yaml) の `pgbouncer`) を `db` の前段に立て、migrate / seed の
+書込経路・主要レポート・viewer golden をすべて pooler 越しに実行する。pooler は各
+トランザクションを別バックエンドに振り分け prepared statement を保持しないため、viewer の
+`prepare: false` ([web/lib/db.ts](./web/lib/db.ts)) と prepared-statement を無効化した Python
+クライアント ([src/ai_books/db/\_\_init\_\_.py](./src/ai_books/db/__init__.py)) が前提。これを
+再有効化する退行は `tests/test_pooler_db.py` が検出し、CI の `pooler` ジョブで毎 PR 検証する。
 
 ## PR conventions
 

@@ -23,6 +23,17 @@ from psycopg.rows import DictRow, dict_row
 
 DB_URL_ENV = "AI_BOOKS_DB_URL"
 
+# Disable client-side prepared statements on every connection so the whole stack is
+# safe behind a transaction-pooling proxy (Supabase's pooler / pgbouncer in transaction
+# mode). Such a pooler routes each transaction to a possibly-different backend and so
+# cannot honour a prepared statement created on an earlier one. This mirrors the viewer's
+# ``prepare: false`` (web/lib/db.ts) — production reaches Postgres through the same pooler,
+# so the Python side must be pooler-safe too (#52). On a direct connection the only cost is
+# forgoing psycopg's prepared-statement plan cache; query results are identical.
+# ``tests/test_pooler_db.py`` guards the contract: it fails if a connection that re-enables
+# prepared statements is used over the pooler.
+_PREPARE_THRESHOLD = None
+
 
 def get_db_url() -> str:
     """Return the configured Postgres connection string.
@@ -45,7 +56,10 @@ def ping() -> int:
     A minimal connectivity smoke test. Returns ``1`` on success; propagates the
     underlying ``psycopg`` error if the database is unreachable.
     """
-    with psycopg.connect(get_db_url()) as conn, conn.cursor() as cur:
+    with (
+        psycopg.connect(get_db_url(), prepare_threshold=_PREPARE_THRESHOLD) as conn,
+        conn.cursor() as cur,
+    ):
         cur.execute("SELECT 1")
         row = cur.fetchone()
         if row is None:
@@ -60,7 +74,9 @@ def connect(db_url: str | None = None) -> psycopg.Connection[DictRow]:
     ``Model.model_validate(row)`` without positional unpacking. The caller owns the
     connection's lifetime (use it as a context manager, or :func:`transaction`).
     """
-    return psycopg.connect(db_url or get_db_url(), row_factory=dict_row)
+    return psycopg.connect(
+        db_url or get_db_url(), row_factory=dict_row, prepare_threshold=_PREPARE_THRESHOLD
+    )
 
 
 @contextmanager

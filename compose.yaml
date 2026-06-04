@@ -25,3 +25,51 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  # pgbouncer in *transaction* mode in front of `db`, reproducing Supabase's
+  # production pooler (pgbouncer/Supavisor, transaction mode) locally. The pooler
+  # routes each transaction to a possibly-different backend, so prepared statements
+  # created on an earlier transaction are gone — `max_prepared_statements: 0` makes
+  # that restriction explicit and version-independent. Run the suite through this
+  # service (`./scripts/test.sh --pooler`, profile `pooler`) to prove the viewer's
+  # `prepare: false` path and the prepared-statement-free Python client (#52) stay
+  # pooler-safe; a regression that re-enables prepared statements fails here.
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.25.1-p0
+    container_name: ai-books-test-pgbouncer
+    profiles: ["pooler"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ai_books_test
+      POOL_MODE: transaction
+      # scram-sha-256 matches Supabase and postgres:17's default password_encryption.
+      # The image then keeps the password as plaintext in userlist.txt, which is what
+      # lets pgbouncer negotiate SCRAM with the upstream `db` (an md5 hash could not).
+      AUTH_TYPE: scram-sha-256
+      MAX_PREPARED_STATEMENTS: "0"
+      MAX_CLIENT_CONN: "100"
+      DEFAULT_POOL_SIZE: "20"
+      # Run DISCARD ALL whenever a server connection returns to the pool — even in
+      # transaction mode (server_reset_query is session-mode-only by default). This
+      # makes "the pooler does not preserve prepared statements across transactions"
+      # deterministic: a prepare-disabled client is unaffected, but a client that
+      # re-enables prepared statements hits "prepared statement does not exist" on its
+      # next transaction. tests/test_pooler_db.py asserts exactly that contrast.
+      SERVER_RESET_QUERY: DISCARD ALL
+      SERVER_RESET_QUERY_ALWAYS: "1"
+    ports:
+      # pgbouncer listens on 5432 inside the container; expose it on a distinct host
+      # port so it lives alongside the direct `db` port (54329).
+      - "${AI_BOOKS_POOLER_PORT:-54330}:5432"
+    healthcheck:
+      # `pg_isready` ships in the image; point it at pgbouncer's own admin port.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
