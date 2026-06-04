@@ -13,6 +13,7 @@
  * validation error rather than being silently rounded.
  */
 
+import { formatMoney, parseMoney, type Money } from "../money";
 import type { FinancialStatementsSnapshot } from "../reports/financial-statements";
 import {
   getFormatSpec,
@@ -20,6 +21,7 @@ import {
   MISSING,
   resolveList,
   resolveScalar,
+  type EtaxFixedSection,
   type EtaxScalarField,
   type EtaxSectionField,
   type EtaxValueKind,
@@ -158,20 +160,23 @@ export function buildEtaxExport(
   const records: EtaxRecord[] = [];
   const problems: EtaxProblem[] = [];
 
-  for (const scalarField of spec.scalars) {
-    emitScalar(scalarField, financialStatements, records, problems);
-  }
-  for (const section of spec.sections) {
-    resolveList(financialStatements, section.source).forEach((row, index) => {
-      emitSectionRow(
-        section.form,
-        section.fields,
-        row,
-        index + 1,
-        records,
-        problems,
-      );
-    });
+  for (const item of spec.items) {
+    if (item.descriptor === "scalar") {
+      emitScalar(item, financialStatements, records, problems);
+    } else if (item.descriptor === "section") {
+      resolveList(financialStatements, item.source).forEach((row, index) => {
+        emitSectionRow(
+          item.form,
+          item.fields,
+          row,
+          index + 1,
+          records,
+          problems,
+        );
+      });
+    } else {
+      emitFixedSection(item, financialStatements, records, problems);
+    }
   }
 
   if (problems.length > 0) throw new EtaxValidationError(problems);
@@ -262,6 +267,203 @@ function rowAccountCode(
     }
   }
   return null;
+}
+
+// ── 実 様式 固定勘定科目行 (EtaxFixedSection) — route snapshot lines by コード (#78) ──
+
+/** Parse a snapshot amount into sen and apply `sign` (`as_is` / `abs` / `neg`); `null` if NaN. */
+function signedAmount(
+  value: unknown,
+  sign: "as_is" | "abs" | "neg",
+): Money | null {
+  if (value === null || value === undefined) return null;
+  let sen: Money;
+  try {
+    sen = parseMoney(value as string | number);
+  } catch {
+    return null;
+  }
+  if (sign === "abs") return sen < 0n ? -sen : sen;
+  if (sign === "neg") return -sen;
+  return sen;
+}
+
+/** Route a 固定勘定科目行 section: lines → fixed 項目コード (summed), spillover → 追加科目枠. */
+function emitFixedSection(
+  section: EtaxFixedSection,
+  snapshot: FinancialStatementsSnapshot,
+  records: EtaxRecord[],
+  problems: EtaxProblem[],
+): void {
+  const codeToRow = new Map<string, (typeof section.rows)[number]>();
+  for (const row of section.rows) {
+    for (const code of row.accountCodes) codeToRow.set(code, row);
+  }
+  const sums = new Map<string, Money>();
+  const soleCode = new Map<string, string | null>();
+  const overflow: Record<string, unknown>[] = [];
+
+  const lines = section.sources.flatMap((source) =>
+    resolveList(snapshot, source),
+  );
+  for (const line of lines) {
+    const code = line.code;
+    if (typeof code === "string" && !ACCOUNT_CODE_RE.test(code)) {
+      problems.push({
+        itemCode: section.sectionCode,
+        row: "",
+        message: `invalid 勘定科目コード ${JSON.stringify(code)} (expected 3-4 digits)`,
+      });
+      continue;
+    }
+    const fixed = typeof code === "string" ? codeToRow.get(code) : undefined;
+    if (!fixed) {
+      overflow.push(line);
+      continue;
+    }
+    const amount = signedAmount(line[section.valueField], fixed.sign);
+    if (amount === null) {
+      problems.push({
+        itemCode: fixed.itemCode,
+        row: "",
+        message: `invalid amount ${JSON.stringify(line[section.valueField])} (not a number)`,
+      });
+      continue;
+    }
+    const first = !sums.has(fixed.itemCode);
+    sums.set(fixed.itemCode, (sums.get(fixed.itemCode) ?? 0n) + amount);
+    // account_code が辿れるのは その行に寄与した 科目が1つだけのとき (合算行は null).
+    soleCode.set(
+      fixed.itemCode,
+      first ? (typeof code === "string" ? code : null) : null,
+    );
+  }
+
+  for (const row of section.rows) {
+    const sum = sums.get(row.itemCode);
+    if (sum !== undefined) {
+      emitFixedValue(section, row.itemCode, row.label, sum, records, problems, {
+        accountCode: soleCode.get(row.itemCode) ?? null,
+      });
+    }
+  }
+
+  emitOverflow(section, overflow, records, problems);
+}
+
+/** Emit the section's 追加科目枠 (accumulate into one cell, or fill rep-limited slots). */
+function emitOverflow(
+  section: EtaxFixedSection,
+  overflow: Record<string, unknown>[],
+  records: EtaxRecord[],
+  problems: EtaxProblem[],
+): void {
+  if (overflow.length === 0) return;
+  if (section.overflowCode === null) {
+    for (const line of overflow) {
+      problems.push({
+        itemCode: section.sectionCode,
+        row: "",
+        message: `未分類科目 ${JSON.stringify(line.code)} (${JSON.stringify(line.name)}): 対応する固定行も追加科目枠も無い`,
+      });
+    }
+    return;
+  }
+
+  if (section.overflowMode === "accumulate") {
+    let total: Money = 0n;
+    for (const line of overflow) {
+      const amount = signedAmount(line[section.valueField], "as_is");
+      if (amount === null) {
+        problems.push({
+          itemCode: section.overflowCode,
+          row: "",
+          message: `invalid amount ${JSON.stringify(line[section.valueField])} (not a number)`,
+        });
+        continue;
+      }
+      total += amount;
+    }
+    emitFixedValue(
+      section,
+      section.overflowCode,
+      section.overflowLabel,
+      total,
+      records,
+      problems,
+      {},
+    );
+    return;
+  }
+
+  // slots mode — each 未分類科目 takes the next 追加科目枠 slot; overflow ⇒ 未分類エラー.
+  overflow.forEach((line, index) => {
+    const slot = index + 1;
+    const overflowCode = section.overflowCode as string;
+    if (slot > section.overflowMax) {
+      problems.push({
+        itemCode: overflowCode,
+        row: String(slot),
+        message: `追加科目枠 (${section.overflowMax}) 超過: 未分類科目 ${JSON.stringify(line.code)} (${JSON.stringify(line.name)})`,
+      });
+      return;
+    }
+    const amount = signedAmount(line[section.valueField], "as_is");
+    if (amount === null) {
+      problems.push({
+        itemCode: overflowCode,
+        row: String(slot),
+        message: `invalid amount ${JSON.stringify(line[section.valueField])} (not a number)`,
+      });
+      return;
+    }
+    const name = line.name;
+    const code = line.code;
+    emitFixedValue(
+      section,
+      overflowCode,
+      typeof name === "string" && name ? name : section.overflowLabel,
+      amount,
+      records,
+      problems,
+      { row: slot, accountCode: typeof code === "string" ? code : null },
+    );
+  });
+}
+
+/** Validate a summed 固定行 amount and append its record, or record a problem. */
+function emitFixedValue(
+  section: EtaxFixedSection,
+  itemCode: string,
+  label: string,
+  amount: Money,
+  records: EtaxRecord[],
+  problems: EtaxProblem[],
+  options: { row?: number; accountCode?: string | null },
+): void {
+  const [rendered, problem] = validateValue(
+    formatMoney(amount),
+    section.kind,
+    true,
+    section.maxIntDigits,
+  );
+  if (problem !== null) {
+    problems.push({
+      itemCode,
+      row: options.row ? String(options.row) : "",
+      message: problem,
+    });
+    return;
+  }
+  records.push({
+    form: section.form,
+    itemCode,
+    label,
+    kind: section.kind,
+    value: rendered,
+    row: options.row ?? null,
+    accountCode: options.accountCode ?? null,
+  });
 }
 
 // ── EtaxExport → CSV / XML / snapshot ─────────────────────────────────────────────

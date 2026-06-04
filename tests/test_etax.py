@@ -42,14 +42,23 @@ def test_build_export_carries_version_and_orders_records() -> None:
     assert export.format_version == "2025"
     assert export.form_id == "青色申告決算書(一般用)"
     assert export.fiscal_year == "FY2025"
-    # The 段階利益 scalars lead (PL 面 first, in spec order).
-    leading = [(r.item_code, r.value) for r in export.records[:4]]
+    # KOA210(一般用) 損益計算書 leads: 売上 → 売上原価 (期首/期末/仕入) → 差引原価 → 差引金額1.
+    leading = [(r.item_code, r.value) for r in export.records[:6]]
     assert leading == [
-        ("PL010", "1650000"),  # 売上(収入)金額
-        ("PL020", "1490000"),  # 売上原価
-        ("PL030", "160000"),  # 売上総利益
-        ("PL040", "720000"),  # 経費
+        ("AMF00100", "1650000"),  # 売上(収入)金額
+        ("AMF00120", "300000"),  # 期首商品(製品)棚卸高
+        ("AMF00150", "350000"),  # 期末商品(製品)棚卸高 (snapshot は contra; 様式は正値)
+        ("AMF00130", "1540000"),  # 仕入金額(製品製造原価) = 商品仕入 + 製造原価内訳
+        ("AMF00160", "1490000"),  # 差引原価 = 期首 + 仕入 - 期末
+        ("AMF00170", "160000"),  # 差引金額１
     ]
+
+
+def test_cost_of_goods_fixed_calc_balances() -> None:
+    # 実 様式は 期首 + 仕入 - 期末 = 差引原価 の固定計算 (差引原価 = COGS subtotal).
+    export = etax_export_from_dataset()
+    by_code = {r.item_code: int(r.value) for r in export.records if r.kind.value == "amount"}
+    assert by_code["AMF00120"] + by_code["AMF00130"] - by_code["AMF00150"] == by_code["AMF00160"]
 
 
 def test_amounts_are_whole_yen_no_decimal_point() -> None:
@@ -58,23 +67,59 @@ def test_amounts_are_whole_yen_no_decimal_point() -> None:
     amounts = [r.value for r in export.records if r.kind.value == "amount"]
     assert amounts, "expected some amount records"
     assert all("." not in value for value in amounts)
-    # A loss figure keeps its sign.
-    net_income = next(r for r in export.records if r.item_code == "PL090")
+    # A loss figure keeps its sign (青色申告特別控除前の所得金額).
+    net_income = next(r for r in export.records if r.item_code == "AMF00500")
     assert net_income.value == "-580500"
 
 
-def test_section_rows_tile_and_carry_account_codes() -> None:
+def test_monthly_rows_map_to_fixed_per_month_codes() -> None:
+    # 実 様式は月ごとに固定タグ (1月 AMF00600 … 12月 AMF00930); not a repeating block.
     export = etax_export_from_dataset()
-    months = [r for r in export.records if r.item_code == "MN010"]
-    assert [r.value for r in months] == [f"2025-{m:02d}" for m in range(1, 13)]  # 12 行
-    # 資産の部 内訳 flattens 流動資産 + 固定資産 (5 + 2 = 7 lines), each carrying its 勘定科目コード.
-    asset_codes = [r.account_code for r in export.records if r.item_code == "BS010"]
-    assert asset_codes == ["1110", "1141", "1160", "1180", "1290", "1530", "1550"]
-    cash_balance = next(
-        r for r in export.records if r.item_code == "BS012" and r.account_code == "1110"
-    )
-    assert cash_balance.value == "300000"
-    assert cash_balance.row == 1
+    sales_codes = [f"AMF{600 + (m - 1) * 30:05d}" for m in range(1, 13)]
+    months = {r.item_code: r.value for r in export.records if r.item_code in sales_codes}
+    assert len(months) == 12
+    assert months["AMF00840"] == "880000"  # 9月 売上
+    total = next(r for r in export.records if r.item_code == "AMF00980")  # 月別売上 計
+    assert total.value == "1650000"
+
+
+def test_fixed_account_rows_carry_their_account_code() -> None:
+    # 資産の部 固定行: 各 勘定科目コード が単独で寄与した行は account_code を辿れる.
+    export = etax_export_from_dataset()
+    asset_codes = [
+        r.account_code for r in export.records if r.form == "BS" and r.account_code is not None
+    ]
+    # 現金(1110)/普通預金(1141)/売掛金(1160)/商品(1180)/機械装置(1530)/工具器具備品(1550)/事業主貸(1290)
+    assert asset_codes[:7] == ["1110", "1141", "1160", "1180", "1530", "1550", "1290"]
+    cash = next(r for r in export.records if r.item_code == "AMG00260" and r.account_code == "1110")
+    assert cash.value == "300000"
+    assert cash.row is None  # 固定行 は スカラ扱い (繰返し row ではない)
+
+
+def test_balance_sheet_liability_equity_side_balances() -> None:
+    # 負債・資本の部 固定行 + 所得(AMG00750) の合計 = 部 合計(AMG00760) = 資産合計(AMG00440).
+    export = etax_export_from_dataset()
+    by_code = {r.item_code: int(r.value) for r in export.records if r.kind.value == "amount"}
+    assert by_code["AMG00440"] == by_code["AMG00760"]  # 貸借一致
+    assert by_code["AMG00660"] == 600000  # 借入金 = 短期 + 長期 を合算
+
+
+def test_unclassified_account_overflows_then_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    # AC: 未分類項目を検出. 固定行にも追加科目枠にも収まらない 科目は fail-fast.
+    from ai_books.reports import financial_statements_snapshot
+
+    fs = financial_statements_from_dataset()
+    snapshot = financial_statements_snapshot(fs)
+    # 経費に 固定行に無いコードを 追加科目枠(6) を超える数だけ注入する.
+    extra = [
+        {"code": f"79{i:02d}", "name": f"未分類経費{i}", "amount": "1000", "category": "x"}
+        for i in range(7)
+    ]
+    snapshot["profit_and_loss"]["selling_admin_expenses"]["lines"].extend(extra)
+    monkeypatch.setattr("ai_books.etax.export.financial_statements_snapshot", lambda _: snapshot)
+    with pytest.raises(EtaxValidationError) as excinfo:
+        build_etax_export(fs)
+    assert any("追加科目枠" in p["message"] for p in excinfo.value.problems)
 
 
 # --- CSV / XML rendering --------------------------------------------------------
@@ -85,14 +130,14 @@ def test_csv_has_header_and_one_row_per_record() -> None:
     rows = list(csv.reader(io.StringIO(render_etax_csv(export))))
     assert rows[0] == _CSV_HEADER
     assert len(rows) == len(export.records) + 1  # + header
-    # A scalar 項目 leaves 行 / 勘定科目コード blank; a 内訳 row fills both.
-    pl010 = next(r for r in rows if r[1] == "PL010")
-    assert pl010[3] == ""  # 行
-    assert pl010[4] == ""  # 勘定科目コード
-    assert pl010[5] == "1650000"  # 値
-    bs012 = next(r for r in rows if r[1] == "BS012" and r[4] == "1110")
-    assert bs012[3] == "1"  # 行
-    assert bs012[5] == "300000"  # 値
+    # A scalar 項目 leaves 行 / 勘定科目コード blank; a 固定勘定科目行 fills 勘定科目コード.
+    sales = next(r for r in rows if r[1] == "AMF00100")
+    assert sales[3] == ""  # 行
+    assert sales[4] == ""  # 勘定科目コード
+    assert sales[5] == "1650000"  # 値
+    cash = next(r for r in rows if r[1] == "AMG00260" and r[4] == "1110")
+    assert cash[3] == ""  # 固定行 は row 無し
+    assert cash[5] == "300000"  # 値
 
 
 def test_xml_is_wellformed_and_round_trips_record_count() -> None:
@@ -105,15 +150,15 @@ def test_xml_is_wellformed_and_round_trips_record_count() -> None:
     assert root.attrib["fiscalYear"] == "FY2025"
     records = root.findall("record")
     assert len(records) == len(export.records)
-    pl010 = next(e for e in records if e.attrib["itemCode"] == "PL010")
-    assert pl010.text == "1650000"
-    assert "row" not in pl010.attrib  # scalar carries no row
-    bs010 = next(
+    sales = next(e for e in records if e.attrib["itemCode"] == "AMF00100")
+    assert sales.text == "1650000"
+    assert "row" not in sales.attrib  # scalar carries no row
+    cash = next(
         e
         for e in records
-        if e.attrib["itemCode"] == "BS010" and e.attrib.get("accountCode") == "1110"
+        if e.attrib["itemCode"] == "AMG00260" and e.attrib.get("accountCode") == "1110"
     )
-    assert bs010.attrib["row"] == "1"
+    assert "row" not in cash.attrib  # 固定勘定科目行 carries 勘定科目コード but no 繰返し row
 
 
 def test_export_etax_dispatches_on_format() -> None:
@@ -141,9 +186,8 @@ def test_invalid_account_code_is_rejected() -> None:
         build_etax_export(fs)
     problems = excinfo.value.problems
     assert any("勘定科目コード" in p["message"] for p in problems)
-    # The payload is machine-readable and points at the offending 行.
+    # The payload is machine-readable.
     assert excinfo.value.to_dict()["error"] == "etax_validation_error"
-    assert any(p["row"] == "1" for p in problems)
 
 
 def test_fractional_yen_is_rejected() -> None:
@@ -171,6 +215,17 @@ def test_unknown_version_raises() -> None:
         build_etax_export(financial_statements_from_dataset(), version="1999")
     with pytest.raises(ValueError, match="unknown e-Tax format version"):
         get_format_spec("1999")
+
+
+def test_synthetic_spec_is_isolated_off_the_year_axis() -> None:
+    # 合成様式は撤去せず "synthetic" キーで年度軸外に隔離 (#78); 実様式 "2025" と取り違えない.
+    assert LATEST_ETAX_VERSION == "2025"
+    synthetic = get_format_spec("synthetic")
+    assert synthetic.form_id == "青色申告決算書(一般用・合成)"
+    # data-driven 機構は実様式と独立に回り続ける: 合成様式でも build できる.
+    export = build_etax_export(financial_statements_from_dataset(), version="synthetic")
+    assert export.format_version == "synthetic"
+    assert any(r.item_code == "PL010" for r in export.records)  # 合成様式の項目コード
 
 
 def test_parse_format_rejects_unknown() -> None:

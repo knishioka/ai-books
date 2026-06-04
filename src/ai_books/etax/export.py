@@ -38,7 +38,9 @@ from ai_books.reports import financial_statements_snapshot
 from .spec import (
     LATEST_ETAX_VERSION,
     MISSING,
+    EtaxFixedSection,
     EtaxScalarField,
+    EtaxSection,
     EtaxSectionField,
     get_format_spec,
     resolve_list,
@@ -131,11 +133,14 @@ def build_etax_export(
     records: list[EtaxRecord] = []
     problems: list[dict[str, str]] = []
 
-    for field in spec.scalars:
-        _emit_scalar(field, snapshot, records, problems)
-    for section in spec.sections:
-        for row_index, row in enumerate(resolve_list(snapshot, section.source), start=1):
-            _emit_section_row(section.form, section.fields, row, row_index, records, problems)
+    for item in spec.items:
+        if isinstance(item, EtaxScalarField):
+            _emit_scalar(item, snapshot, records, problems)
+        elif isinstance(item, EtaxSection):
+            for row_index, row in enumerate(resolve_list(snapshot, item.source), start=1):
+                _emit_section_row(item.form, item.fields, row, row_index, records, problems)
+        else:  # EtaxFixedSection
+            _emit_fixed_section(item, snapshot, records, problems)
 
     if problems:
         raise EtaxValidationError(problems)
@@ -221,6 +226,194 @@ def _row_account_code(fields: tuple[EtaxSectionField, ...], row: dict[str, Any])
             value = row.get(field.source)
             return value if isinstance(value, str) else None
     return None
+
+
+# ── 実 様式 固定勘定科目行 (EtaxFixedSection) — route snapshot lines by コード (#78) ──
+
+
+def _signed_amount(value: Any, sign: str) -> Decimal | None:
+    """Parse a snapshot amount and apply ``sign`` (``as_is`` / ``abs`` / ``neg``); ``None`` if NaN."""
+    try:
+        amount = Decimal(str(value))
+    except InvalidOperation:
+        return None
+    if sign == "abs":
+        return abs(amount)
+    if sign == "neg":
+        return -amount
+    return amount
+
+
+def _emit_fixed_section(
+    section: EtaxFixedSection,
+    snapshot: dict[str, Any],
+    records: list[EtaxRecord],
+    problems: list[dict[str, str]],
+) -> None:
+    """Route a 固定勘定科目行 section: lines → fixed 項目コード (summed), spillover → 追加科目枠.
+
+    Each line is matched to the :class:`~ai_books.etax.spec.EtaxFixedRow` whose ``account_codes``
+    contain the line's ``code`` (amounts for the same target row are summed, with the row's
+    ``sign``). A line whose ``code`` is malformed is rejected (不正コード検出); a line matching no
+    fixed row spills into the 追加科目枠 — ``accumulate`` mode sums them into one ``overflow_code``,
+    ``slots`` mode fills ``overflow_max`` repeating slots and **errors on overflow** (未分類検出).
+    """
+    code_to_row = {code: row for row in section.rows for code in row.account_codes}
+    sums: dict[str, Decimal] = {}
+    sole_code: dict[str, str | None] = {}
+    overflow: list[dict[str, Any]] = []
+
+    lines = [row for source in section.sources for row in resolve_list(snapshot, source)]
+    for line in lines:
+        code = line.get("code")
+        if isinstance(code, str) and not _ACCOUNT_CODE_RE.fullmatch(code):
+            problems.append(
+                {
+                    "item_code": section.section_code,
+                    "row": "",
+                    "message": f"invalid 勘定科目コード {code!r} (expected 3-4 digits)",
+                }
+            )
+            continue
+        fixed = code_to_row.get(code) if isinstance(code, str) else None
+        if fixed is None:
+            overflow.append(line)
+            continue
+        amount = _signed_amount(line.get(section.value_field), fixed.sign)
+        if amount is None:
+            problems.append(
+                {
+                    "item_code": fixed.item_code,
+                    "row": "",
+                    "message": f"invalid amount {line.get(section.value_field)!r} (not a number)",
+                }
+            )
+            continue
+        first_contribution = fixed.item_code not in sums
+        sums[fixed.item_code] = sums.get(fixed.item_code, Decimal(0)) + amount
+        # account_code が辿れるのは その行に寄与した 科目が1つだけのとき (合算行は None).
+        sole_code[fixed.item_code] = code if first_contribution else None
+
+    for row in section.rows:
+        if row.item_code in sums:
+            _emit_fixed_value(
+                section,
+                row.item_code,
+                row.label,
+                sums[row.item_code],
+                records,
+                problems,
+                account_code=sole_code.get(row.item_code),
+            )
+
+    _emit_overflow(section, overflow, records, problems)
+
+
+def _emit_overflow(
+    section: EtaxFixedSection,
+    overflow: list[dict[str, Any]],
+    records: list[EtaxRecord],
+    problems: list[dict[str, str]],
+) -> None:
+    """Emit the section's 追加科目枠 (accumulate into one cell, or fill rep-limited slots)."""
+    if not overflow or section.overflow_code is None:
+        if overflow:
+            for line in overflow:
+                problems.append(
+                    {
+                        "item_code": section.section_code,
+                        "row": "",
+                        "message": f"未分類科目 {line.get('code')!r} ({line.get('name')!r}): "
+                        "対応する固定行も追加科目枠も無い",
+                    }
+                )
+        return
+
+    if section.overflow_mode == "accumulate":
+        total = Decimal(0)
+        for line in overflow:
+            amount = _signed_amount(line.get(section.value_field), "as_is")
+            if amount is None:
+                problems.append(
+                    {
+                        "item_code": section.overflow_code,
+                        "row": "",
+                        "message": f"invalid amount {line.get(section.value_field)!r} (not a number)",
+                    }
+                )
+                continue
+            total += amount
+        _emit_fixed_value(
+            section, section.overflow_code, section.overflow_label, total, records, problems
+        )
+        return
+
+    # slots mode — each 未分類科目 takes the next 追加科目枠 slot; overflow ⇒ 未分類エラー.
+    for slot, line in enumerate(overflow, start=1):
+        if slot > section.overflow_max:
+            problems.append(
+                {
+                    "item_code": section.overflow_code,
+                    "row": str(slot),
+                    "message": f"追加科目枠 ({section.overflow_max}) 超過: 未分類科目 "
+                    f"{line.get('code')!r} ({line.get('name')!r})",
+                }
+            )
+            continue
+        amount = _signed_amount(line.get(section.value_field), "as_is")
+        if amount is None:
+            problems.append(
+                {
+                    "item_code": section.overflow_code,
+                    "row": str(slot),
+                    "message": f"invalid amount {line.get(section.value_field)!r} (not a number)",
+                }
+            )
+            continue
+        name = line.get("name")
+        code = line.get("code")
+        _emit_fixed_value(
+            section,
+            section.overflow_code,
+            name if isinstance(name, str) and name else section.overflow_label,
+            amount,
+            records,
+            problems,
+            row=slot,
+            account_code=code if isinstance(code, str) else None,
+        )
+
+
+def _emit_fixed_value(
+    section: EtaxFixedSection,
+    item_code: str,
+    label: str,
+    amount: Decimal,
+    records: list[EtaxRecord],
+    problems: list[dict[str, str]],
+    *,
+    row: int | None = None,
+    account_code: str | None = None,
+) -> None:
+    """Validate a summed 固定行 amount and append its record, or record a problem."""
+    rendered, problem = _validate_value(
+        amount, section.kind, required=True, max_int_digits=section.max_int_digits
+    )
+    if problem is not None:
+        problems.append({"item_code": item_code, "row": str(row or ""), "message": problem})
+        return
+    assert rendered is not None
+    records.append(
+        EtaxRecord(
+            form=section.form,
+            item_code=item_code,
+            label=label,
+            kind=section.kind,
+            value=rendered,
+            row=row,
+            account_code=account_code,
+        )
+    )
 
 
 # ── EtaxExport → CSV / XML / snapshot ─────────────────────────────────────────────

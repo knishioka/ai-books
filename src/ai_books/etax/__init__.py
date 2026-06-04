@@ -32,6 +32,8 @@ from .export import (
 from .spec import (
     ETAX_FORMAT_SPECS,
     LATEST_ETAX_VERSION,
+    EtaxFixedRow,
+    EtaxFixedSection,
     EtaxFormatSpec,
     EtaxScalarField,
     EtaxSection,
@@ -42,6 +44,8 @@ from .spec import (
 __all__ = [
     "ETAX_FORMAT_SPECS",
     "LATEST_ETAX_VERSION",
+    "EtaxFixedRow",
+    "EtaxFixedSection",
     "EtaxFormat",
     "EtaxFormatSpec",
     "EtaxScalarField",

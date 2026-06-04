@@ -61,7 +61,6 @@ function validSnapshot(): FinancialStatementsSnapshot {
       liabilities: [],
       equity: [],
     },
-
   } as any;
 }
 
@@ -77,21 +76,22 @@ describe("buildEtaxExport — happy path", () => {
 
   it("renders amounts as whole yen (端数なし整数円)", () => {
     const exported = buildEtaxExport(validSnapshot());
-    const sales = exported.records.find((r) => r.itemCode === "PL010");
+    const sales = exported.records.find((r) => r.itemCode === "AMF00100");
     expect(sales?.value).toBe("420000"); // "420000.00" → integer string
   });
 
-  it("attaches the account code to section rows", () => {
+  it("attaches the account code to a 固定勘定科目行", () => {
     const exported = buildEtaxExport(validSnapshot());
-    const cogsName = exported.records.find((r) => r.itemCode === "PL111");
-    expect(cogsName?.row).toBe(1);
-    expect(cogsName?.accountCode).toBe("5110");
+    const cash = exported.records.find((r) => r.itemCode === "AMG00260"); // 現金 ← 1110
+    expect(cash?.row).toBeNull(); // 固定行 は スカラ扱い
+    expect(cash?.accountCode).toBe("1110");
+    expect(cash?.value).toBe("500000");
   });
 
-  it("emits the month value verbatim", () => {
+  it("maps a month's sales to its fixed per-month code", () => {
     const exported = buildEtaxExport(validSnapshot());
-    const month = exported.records.find((r) => r.itemCode === "MN010");
-    expect(month?.value).toBe("2025-01");
+    const jan = exported.records.find((r) => r.itemCode === "AMF00600"); // 1月 売上
+    expect(jan?.value).toBe("420000");
   });
 });
 
@@ -112,7 +112,7 @@ describe("buildEtaxExport — validation", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(EtaxValidationError);
       const problems = (err as EtaxValidationError).problems;
-      expect(problems.some((p) => p.itemCode === "BS900")).toBe(true);
+      expect(problems.some((p) => p.itemCode === "AMG00440")).toBe(true);
     }
   });
 
@@ -128,9 +128,9 @@ describe("buildEtaxExport — validation", () => {
     } catch (err) {
       const problems = (err as EtaxValidationError).problems;
       const codes = problems.map((p) => p.itemCode);
-      expect(codes).toContain("PL010");
-      expect(codes).toContain("MN900");
-      expect(codes).toContain("BS010");
+      expect(codes).toContain("AMF00100"); // 売上 端数
+      expect(codes).toContain("AMF00980"); // 月別売上 計 欠落
+      expect(codes).toContain("BS_ASSETS"); // 資産 固定行 section の不正コード
       expect(problems.length).toBeGreaterThanOrEqual(3);
     }
   });
@@ -149,10 +149,13 @@ describe("buildEtaxExport — validation", () => {
     );
   });
 
-  it("rejects a malformed month", () => {
+  it("rejects a malformed month (synthetic 月別 section emits a MONTH cell)", () => {
+    // 実様式は月別を固定スカラで持つため、MONTH 種別の検証は合成様式の繰返し節で確かめる.
     const snap = validSnapshot();
     snap.monthly.rows[0].month = "2025/01";
-    expect(() => buildEtaxExport(snap)).toThrowError(/invalid month/);
+    expect(() => buildEtaxExport(snap, "synthetic")).toThrowError(
+      /invalid month/,
+    );
   });
 
   it("error message names every problem", () => {

@@ -84,8 +84,13 @@ describe("getFormatSpec", () => {
     const spec = getFormatSpec(LATEST_ETAX_VERSION);
     expect(spec.version).toBe("2025");
     expect(spec.formId).toBe("青色申告決算書(一般用)");
-    expect(spec.scalars.length).toBeGreaterThan(0);
-    expect(spec.sections.length).toBeGreaterThan(0);
+    expect(spec.items.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the synthetic spec registered off the year axis (#78)", () => {
+    expect(LATEST_ETAX_VERSION).toBe("2025");
+    const synthetic = getFormatSpec("synthetic");
+    expect(synthetic.formId).toBe("青色申告決算書(一般用・合成)");
   });
 
   it("LATEST_ETAX_VERSION points at a registered spec", () => {
