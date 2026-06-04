@@ -56,6 +56,7 @@ def _raw(line_no: int, side: EntrySide, amount: str) -> RawLedgerLine:
         entry_id=line_no,
         line_no=line_no,
         entry_date=date(2026, 4, line_no),
+        voucher_no=f"V{line_no:07d}",
         description=None,
         line_description=None,
         counter_accounts=[],

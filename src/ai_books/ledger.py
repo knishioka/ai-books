@@ -27,6 +27,7 @@ class RawLedgerLine(TypedDict):
     entry_id: int
     line_no: int
     entry_date: date
+    voucher_no: str | None
     description: str | None
     line_description: str | None
     counter_accounts: list[str]
@@ -80,6 +81,7 @@ def build_ledger_rows(
                 entry_id=line["entry_id"],
                 line_no=line["line_no"],
                 entry_date=line["entry_date"],
+                voucher_no=line["voucher_no"],
                 description=line["description"],
                 line_description=line["line_description"],
                 counter_accounts=line["counter_accounts"],

@@ -32,6 +32,14 @@ from .enums import (
 from .journal import JournalEntry, JournalEntryInput, JournalLine, JournalLineInput
 from .period import FiscalYear, Period
 from .query import AccountBalance, AccountLedger, JournalEntryPage, LedgerRow
+from .report import (
+    GeneralLedger,
+    GeneralLedgerAccount,
+    GeneralLedgerRow,
+    JournalBook,
+    JournalBookEntry,
+    JournalBookLine,
+)
 
 __all__ = [
     "CREDIT_NORMAL_TYPES",
@@ -46,6 +54,12 @@ __all__ = [
     "EntrySide",
     "EntryStatus",
     "FiscalYear",
+    "GeneralLedger",
+    "GeneralLedgerAccount",
+    "GeneralLedgerRow",
+    "JournalBook",
+    "JournalBookEntry",
+    "JournalBookLine",
     "JournalEntry",
     "JournalEntryInput",
     "JournalEntryPage",

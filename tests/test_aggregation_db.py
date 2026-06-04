@@ -30,7 +30,6 @@ from ai_books.models import EntryStatus
 from tests.fixtures.seed_fy import (
     FY_END,
     MONTHLY_TREND_ACCOUNTS,
-    diff_monthly_trend,
     diff_snapshots,
     load_fiscal_year,
     load_golden,
@@ -114,7 +113,7 @@ def test_monthly_trend_matches_golden(migrated_conn: psycopg.Connection[Any]) ->
     # AC: 集計値が #17 の golden と一致 — production 月次推移 equals the frozen snapshot.
     load_fiscal_year(migrated_conn)
     trends = [monthly_trend_from_db(migrated_conn, code) for code in MONTHLY_TREND_ACCOUNTS]
-    problems = diff_monthly_trend(load_golden("monthly_trend"), monthly_trend_snapshot(trends))
+    problems = diff_snapshots(load_golden("monthly_trend"), monthly_trend_snapshot(trends))
     assert problems == [], "monthly trend diverged from golden:\n  - " + "\n  - ".join(problems)
 
 
@@ -178,7 +177,7 @@ def _bulk_insert_balanced_entries(
         """
         WITH new_entries AS (
             INSERT INTO journal_entries (entry_date, description, source, status)
-            SELECT DATE '2025-01-01' + ((g - 1) % 365), 'perf', 'perf', 'posted'::entry_status
+            SELECT DATE '2025-01-01' + ((g - 1) %% 365), 'perf', 'perf', 'posted'::entry_status
             FROM generate_series(1, %(n)s) AS g
             RETURNING id
         )
