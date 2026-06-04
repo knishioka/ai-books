@@ -132,8 +132,11 @@ cp .env.example .env.local         # set AI_BOOKS_DB_URL (the `DB URL` from supa
 npm run dev                        # http://localhost:3000
 ```
 
-Full local + Vercel deployment instructions (including the recommended read-only
-DB role for production) are in [web/README.md](./web/README.md).
+Full local + Vercel deployment instructions are in [web/README.md](./web/README.md).
+For Production, point `AI_BOOKS_DB_URL` at the SELECT-only `viewer_ro` role from the
+committed [`supabase/roles/viewer_readonly.sql`](./supabase/roles/viewer_readonly.sql):
+`tests/test_readonly_db.py` enforces that the role runs every viewer read (golden
+match included) yet is denied every write (`./scripts/test.sh -k readonly`).
 
 ## Schema & migrations
 
