@@ -113,17 +113,23 @@ catches it.
 ### Use a read-only database role (recommended for Production)
 
 The viewer only ever runs `SELECT`s, but for defence in depth point
-`AI_BOOKS_DB_URL` at a Postgres role that _cannot_ write. Example:
+`AI_BOOKS_DB_URL` at a Postgres role that _cannot_ write. The committed,
+idempotent grant script [`supabase/roles/viewer_readonly.sql`](../supabase/roles/viewer_readonly.sql)
+creates `viewer_ro` with `SELECT` on every current **and future** table and
+nothing else (no `INSERT`/`UPDATE`/`DELETE`/`TRUNCATE`):
 
-```sql
-CREATE ROLE viewer_ro LOGIN PASSWORD '...';
-GRANT CONNECT ON DATABASE postgres TO viewer_ro;
-GRANT USAGE ON SCHEMA public TO viewer_ro;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO viewer_ro;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO viewer_ro;
+```bash
+# apply with an admin connection, then give the role a login + password
+psql "$ADMIN_DB_URL" -v ON_ERROR_STOP=1 -f supabase/roles/viewer_readonly.sql
+psql "$ADMIN_DB_URL" -c "ALTER ROLE viewer_ro WITH LOGIN PASSWORD '<strong-password>';"
 ```
 
-Then set `AI_BOOKS_DB_URL` to that role's connection string in Vercel.
+Then set `AI_BOOKS_DB_URL` to `viewer_ro`'s connection string in Vercel. The
+grant set is generated from `tests/fixtures/readonly.py` and enforced
+mechanically: `tests/test_readonly_db.py` proves the role can run every viewer
+read (golden match included) but is denied every write, and
+`tests/test_readonly_role.py` guards the script against drift. Run them with
+`./scripts/test.sh -k readonly`.
 
 ## Security notes
 
