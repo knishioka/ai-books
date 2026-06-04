@@ -55,7 +55,7 @@ jobs:
         run: bash scripts/verify.sh
 
   web:
-    name: Web viewer (lint / typecheck / build)
+    name: Web viewer (lint / typecheck / unit / build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -79,6 +79,12 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # Fast DB-free unit layer (#55): pins lib/reports, lib/etax and money/format
+      # 符号則・境界・端数・検証 edge cases in milliseconds, complementing the heavier
+      # golden cross-check (web-golden) which stays the source of truth for end-to-end numbers.
+      - name: Unit tests (vitest)
+        run: npm run test
 
       - name: Build
         run: npm run build
