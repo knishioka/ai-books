@@ -75,6 +75,7 @@ class LedgerRow(DomainModel):
     entry_id: int
     line_no: int
     entry_date: date  # 取引日
+    voucher_no: str | None = None  # 伝票番号 (帳簿からの遡及用)
     description: str | None = None  # 伝票摘要
     line_description: str | None = None  # 明細摘要
     counter_accounts: list[str] = Field(default_factory=list)  # 相手科目コード

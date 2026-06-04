@@ -42,6 +42,10 @@ from .loader import LoadResult, load_fiscal_year
 from .reports import (
     TrialBalance,
     TrialBalanceRow,
+    general_ledger_from_dataset,
+    general_ledger_from_db,
+    journal_book_from_dataset,
+    journal_book_from_db,
     trial_balance_from_dataset,
     trial_balance_from_db,
 )
@@ -58,7 +62,11 @@ __all__ = [
     "TrialBalance",
     "TrialBalanceRow",
     "diff_snapshots",
+    "general_ledger_from_dataset",
+    "general_ledger_from_db",
     "golden_path",
+    "journal_book_from_dataset",
+    "journal_book_from_db",
     "load_fiscal_year",
     "load_golden",
     "referenced_codes",

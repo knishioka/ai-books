@@ -31,6 +31,12 @@ from ai_books.models import (
     AccountType,
     EntrySide,
     EntryStatus,
+    GeneralLedger,
+    GeneralLedgerAccount,
+    GeneralLedgerRow,
+    JournalBook,
+    JournalBookEntry,
+    JournalBookLine,
     JournalEntry,
     JournalEntryPage,
     JournalLine,
@@ -449,6 +455,101 @@ class JournalRepository(BaseRepository[JournalEntry]):
             for h in headers
         ]
 
+    # The journal book (仕訳帳) is the chronological 保存義務帳簿: every 伝票 in
+    # 取引日 → 伝票番号 order. Unlike list_entries it is *not* paged (a 帳簿 is read
+    # whole, bounded only by the period) and is ordered oldest-first. The status
+    # rule matches _ENTRY_FILTER: default excludes 取消 (voided), an explicit status
+    # selects exactly that status — so passing ``voided`` pulls the 取消 entries on
+    # their own for an audit, and they otherwise never perturb the listed totals.
+    def journal_book(
+        self,
+        *,
+        start_date: date | None = None,
+        end_date: date | None = None,
+        status: EntryStatus | None = None,
+    ) -> JournalBook:
+        """Return the 仕訳帳 over ``[start_date, end_date]`` (ISO, inclusive), oldest first.
+
+        Each entry carries its 勘定科目 named inline and (for a 取消) its 取消理由, so the
+        book is a self-contained, traceable record. ``total_debit`` / ``total_credit`` foot
+        the listed lines.
+        """
+        params = {
+            "start": start_date,
+            "end": end_date,
+            "status": status.value if status is not None else None,
+        }
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT je.id, je.entry_date, je.voucher_no, je.description,
+                       je.status, je.void_reason
+                FROM journal_entries je
+                WHERE (%(start)s::date IS NULL OR je.entry_date >= %(start)s::date)
+                  AND (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                ORDER BY je.entry_date, je.id
+                """,
+                params,
+            )
+            header_rows = cur.fetchall()
+
+            entry_ids = [int(row["id"]) for row in header_rows]
+            lines_by_entry: dict[int, list[JournalBookLine]] = {}
+            if entry_ids:
+                cur.execute(
+                    """
+                    SELECT jl.entry_id, a.code, a.name, jl.side, jl.amount,
+                           jl.line_description
+                    FROM journal_lines jl
+                    JOIN accounts a ON a.id = jl.account_id
+                    WHERE jl.entry_id = ANY(%s)
+                    ORDER BY jl.entry_id, jl.line_no
+                    """,
+                    (entry_ids,),
+                )
+                for row in cur.fetchall():
+                    lines_by_entry.setdefault(int(row["entry_id"]), []).append(
+                        JournalBookLine(
+                            account_code=row["code"],
+                            account_name=row["name"],
+                            side=EntrySide(row["side"]),
+                            amount=row["amount"],
+                            line_description=row["line_description"],
+                        )
+                    )
+
+        entries: list[JournalBookEntry] = []
+        total_debit = Decimal(0)
+        total_credit = Decimal(0)
+        for row in header_rows:
+            lines = lines_by_entry.get(int(row["id"]), [])
+            for line in lines:
+                if line.side is EntrySide.DEBIT:
+                    total_debit += line.amount
+                else:
+                    total_credit += line.amount
+            entries.append(
+                JournalBookEntry(
+                    entry_date=row["entry_date"],
+                    voucher_no=row["voucher_no"],
+                    description=row["description"],
+                    status=EntryStatus(row["status"]),
+                    void_reason=row["void_reason"],
+                    lines=lines,
+                )
+            )
+        return JournalBook(
+            start_date=start_date,
+            end_date=end_date,
+            status=status,
+            entries=entries,
+            total_debit=total_debit,
+            total_credit=total_credit,
+        )
+
 
 class LedgerRepository:
     """Read-only balance / 総勘定元帳 access derived from ``journal_lines``.
@@ -522,7 +623,7 @@ class LedgerRepository:
         with self._conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT je.id AS entry_id, jl.line_no, je.entry_date,
+                SELECT je.id AS entry_id, jl.line_no, je.entry_date, je.voucher_no,
                        je.description, jl.line_description, jl.side, jl.amount
                 FROM journal_lines jl
                 JOIN journal_entries je ON je.id = jl.entry_id
@@ -550,6 +651,7 @@ class LedgerRepository:
                 entry_id=int(row["entry_id"]),
                 line_no=int(row["line_no"]),
                 entry_date=row["entry_date"],
+                voucher_no=row["voucher_no"],
                 description=row["description"],
                 line_description=row["line_description"],
                 counter_accounts=counter_map.get(int(row["entry_id"]), []),
@@ -572,6 +674,80 @@ class LedgerRepository:
             closing_balance=closing_balance,
             rows=rows,
         )
+
+    def general_ledger(
+        self,
+        *,
+        account_id: int | None = None,
+        start: date | None = None,
+        end: date | None = None,
+        status: EntryStatus | None = None,
+    ) -> GeneralLedger:
+        """Return the 総勘定元帳 over ``[start, end]``, the whole book or one account.
+
+        With ``account_id`` omitted, every "active" account is included (科目コード順) — an
+        account is active when it has any line dated on or before ``end`` under the status
+        filter, so an account touched only before ``start`` still appears with its 繰越
+        balance (and no in-window rows). With ``account_id`` given, only that account is
+        returned (raising :class:`RecordNotFoundError` if it does not exist). Each account's
+        detail is computed by :meth:`account_ledger`, so the per-row running balance and
+        相手科目 are identical to the single-account read tool — this is just the whole book
+        at once.
+        """
+        if account_id is not None:
+            account_ids = [account_id]
+        else:
+            account_ids = self._active_account_ids(end=end, status=status)
+        accounts = [
+            self._to_general_ledger_account(
+                self.account_ledger(account_id, start=start, end=end, status=status)
+            )
+            for account_id in account_ids
+        ]
+        return GeneralLedger(start_date=start, end_date=end, status=status, accounts=accounts)
+
+    @staticmethod
+    def _to_general_ledger_account(ledger_view: AccountLedger) -> GeneralLedgerAccount:
+        """Reshape a single-account :class:`AccountLedger` into the report's account block."""
+        return GeneralLedgerAccount(
+            code=ledger_view.code,
+            name=ledger_view.name,
+            normal_balance=ledger_view.normal_balance,
+            opening_balance=ledger_view.opening_balance,
+            closing_balance=ledger_view.closing_balance,
+            rows=[
+                GeneralLedgerRow(
+                    entry_date=row.entry_date,
+                    voucher_no=row.voucher_no,
+                    description=row.description,
+                    line_description=row.line_description,
+                    counter_accounts=row.counter_accounts,
+                    side=row.side,
+                    amount=row.amount,
+                    running_balance=row.running_balance,
+                )
+                for row in ledger_view.rows
+            ],
+        )
+
+    def _active_account_ids(self, *, end: date | None, status: EntryStatus | None) -> list[int]:
+        """Account ids (科目コード順) with any line dated on/before ``end`` under ``status``."""
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT jl.account_id, a.code
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                ORDER BY a.code
+                """,
+                {"end": end, "status": status.value if status is not None else None},
+            )
+            return [int(row["account_id"]) for row in cur.fetchall()]
 
     def _account_or_raise(self, account_id: int) -> Account:
         account = AccountRepository(self._conn).get(account_id)

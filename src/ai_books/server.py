@@ -46,6 +46,8 @@ from ai_books.models import (
     AccountLedger,
     AccountType,
     EntryStatus,
+    GeneralLedger,
+    JournalBook,
     JournalEntry,
     JournalEntryInput,
     JournalEntryPage,
@@ -255,6 +257,55 @@ def get_account_ledger(
         account_id = _resolve_account_id(conn, account_code)
         return LedgerRepository(conn).account_ledger(
             account_id,
+            start=_parse_date(start_date, "start_date"),
+            end=_parse_date(end_date, "end_date"),
+            status=_parse_status(status),
+        )
+
+
+# --- ledger reports: 仕訳帳 / 総勘定元帳 (Issue #19) ----------------------------
+
+
+@mcp.tool
+def journal_book(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: str | None = None,
+) -> JournalBook:
+    """Return the 仕訳帳 (journal book) over ``[start_date, end_date]`` (ISO, inclusive).
+
+    Every 伝票 in 取引日 → 伝票番号 order, each line naming its 勘定科目 inline, with the
+    借方/貸方 column footings. This is a 青色申告 保存義務帳簿. ``status`` defaults to all but
+    取消 (voided); pass ``'posted'`` for the 記帳確定 books, or ``'voided'`` to pull the 取消
+    entries alone for an audit (each carries its 取消理由).
+    """
+    with db.connect() as conn:
+        return JournalRepository(conn).journal_book(
+            start_date=_parse_date(start_date, "start_date"),
+            end_date=_parse_date(end_date, "end_date"),
+            status=_parse_status(status),
+        )
+
+
+@mcp.tool
+def general_ledger(
+    account_code: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    status: str | None = None,
+) -> GeneralLedger:
+    """Return the 総勘定元帳 (general ledger) over ``[start_date, end_date]`` (ISO, inclusive).
+
+    Each account is shown 科目別 with its 繰越 (opening) and 期末残高 (closing) and a running
+    balance per line; every row carries its 伝票番号 and 相手科目 for traceability. Omit
+    ``account_code`` for the whole book (every active account, 科目コード順) or pass one to
+    get a single account. ``status`` defaults to all but 取消; pass ``'posted'`` for the
+    記帳確定 books.
+    """
+    with db.connect() as conn:
+        account_id = _resolve_account_id(conn, account_code) if account_code else None
+        return LedgerRepository(conn).general_ledger(
+            account_id=account_id,
             start=_parse_date(start_date, "start_date"),
             end=_parse_date(end_date, "end_date"),
             status=_parse_status(status),

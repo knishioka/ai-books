@@ -19,9 +19,12 @@ import pytest
 from ai_books import db
 from ai_books.db.repository import AccountRepository, JournalRepository, LedgerRepository
 from ai_books.models import EntryStatus
+from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
     diff_snapshots,
+    general_ledger_from_db,
+    journal_book_from_db,
     load_fiscal_year,
     load_golden,
     trial_balance_from_db,
@@ -128,3 +131,67 @@ def test_read_api_balances_match_golden(migrated_conn: psycopg.Connection[Any]) 
         assert balance.balance == Decimal(golden_rows[code]["balance"])
         assert balance.debit_total == Decimal(golden_rows[code]["debit_total"])
         assert balance.credit_total == Decimal(golden_rows[code]["credit_total"])
+
+
+# --- 帳簿レポート: 仕訳帳 / 総勘定元帳 (Issue #19) ------------------------------
+
+
+def _entry_id(conn: psycopg.Connection[Any], voucher_no: str) -> int:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM journal_entries WHERE voucher_no = %s", (voucher_no,))
+        row = cur.fetchone()
+        assert row is not None
+        return int(row["id"])
+
+
+def test_db_journal_book_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#19): the DB-read 仕訳帳 equals the frozen golden (storage round-trip is faithful).
+    load_fiscal_year(migrated_conn)
+    actual = journal_book_snapshot(journal_book_from_db(migrated_conn))
+    expected = load_golden("journal_book")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB journal book diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_general_ledger_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#19): the DB-read 総勘定元帳 (running balances, 相手科目) equals the frozen golden.
+    load_fiscal_year(migrated_conn)
+    actual = general_ledger_snapshot(general_ledger_from_db(migrated_conn))
+    expected = load_golden("general_ledger")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB general ledger diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_journal_book_traces_voided_entries(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#19): 取消/訂正仕訳が履歴として追える — a 取消 伝票 leaves the active books but stays
+    # auditable via status='voided', carrying its 取消理由.
+    load_fiscal_year(migrated_conn)
+    repo = JournalRepository(migrated_conn)
+    repo.mark_voided(_entry_id(migrated_conn, "FY2025-004"), "重複計上のため取消")
+
+    active = repo.journal_book(status=EntryStatus.POSTED)
+    assert all(e.voucher_no != "FY2025-004" for e in active.entries)
+    # Default (no status) also excludes 取消 so cancelled entries never silently count.
+    assert all(e.voucher_no != "FY2025-004" for e in repo.journal_book().entries)
+
+    voided = [e for e in repo.journal_book(status=EntryStatus.VOIDED).entries]
+    assert [e.voucher_no for e in voided] == ["FY2025-004"]
+    assert voided[0].status is EntryStatus.VOIDED
+    assert voided[0].void_reason == "重複計上のため取消"
+
+
+def test_general_ledger_drops_voided_from_balances(migrated_conn: psycopg.Connection[Any]) -> None:
+    # A 取消 伝票 must no longer move the 総勘定元帳 running balance.
+    load_fiscal_year(migrated_conn)
+    repo = LedgerRepository(migrated_conn)
+
+    def cash_closing() -> Decimal:
+        book = repo.general_ledger(status=EntryStatus.POSTED)
+        return next(a for a in book.accounts if a.code == "1110").closing_balance
+
+    before = cash_closing()
+    # FY2025-004 is the 現金 sale (+220,000); voiding it drops that from 現金.
+    JournalRepository(migrated_conn).mark_voided(
+        _entry_id(migrated_conn, "FY2025-004"), "取消テスト"
+    )
+    assert cash_closing() == before - Decimal("220000")

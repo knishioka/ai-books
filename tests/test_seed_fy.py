@@ -15,11 +15,14 @@ from typing import Any
 import pytest
 
 from ai_books.models import EntrySide
+from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
     SeedEntry,
     SeedLine,
     diff_snapshots,
+    general_ledger_from_dataset,
+    journal_book_from_dataset,
     load_golden,
     trial_balance_from_dataset,
     trial_balance_snapshot,
@@ -105,6 +108,48 @@ def test_diff_snapshots_pinpoints_the_changed_account() -> None:
     code = mutated["rows"][0]["code"]
     problems = diff_snapshots(base, mutated)
     assert any(code in problem and "balance" in problem for problem in problems)
+
+
+def test_committed_journal_book_golden_is_up_to_date() -> None:
+    # AC (#19): 仕訳帳 output matches the frozen golden, generated from the dataset.
+    fresh = journal_book_snapshot(journal_book_from_dataset())
+    problems = diff_snapshots(load_golden("journal_book"), fresh)
+    assert problems == [], "golden/journal_book.json is stale:\n  - " + "\n  - ".join(problems)
+
+
+def test_committed_general_ledger_golden_is_up_to_date() -> None:
+    # AC (#19): 総勘定元帳 output matches the frozen golden, generated from the dataset.
+    fresh = general_ledger_snapshot(general_ledger_from_dataset())
+    problems = diff_snapshots(load_golden("general_ledger"), fresh)
+    assert problems == [], "golden/general_ledger.json is stale:\n  - " + "\n  - ".join(problems)
+
+
+def test_journal_book_is_chronological_and_complete() -> None:
+    # AC (#19): 仕訳帳が日付順・伝票番号順で全件出力される.
+    book = journal_book_from_dataset()
+    keys = [(e.entry_date, e.voucher_no) for e in book.entries]
+    assert keys == sorted(keys)  # 取引日 → 伝票番号 order
+    assert len(book.entries) == len(FY_ENTRIES)  # 全件
+    assert book.is_balanced
+    assert book.total_debit == book.total_credit == Decimal("10791500")
+
+
+def test_general_ledger_running_balance_is_hand_traceable() -> None:
+    # AC (#19): 総勘定元帳が科目別に累計残高付きで出力される.
+    ledger = general_ledger_from_dataset()
+    cash = next(a for a in ledger.accounts if a.code == "1110")
+    # 現金: 期首200,000 → +売上220,000 → -旅費80,000 → -消耗品40,000.
+    assert [r.running_balance for r in cash.rows] == [
+        Decimal("200000"),
+        Decimal("420000"),
+        Decimal("340000"),
+        Decimal("300000"),
+    ]
+    assert cash.opening_balance == Decimal("0")
+    assert cash.closing_balance == Decimal("300000")
+    # 諸口: the opening 期首残高 伝票 has several counter accounts on the cash row.
+    assert cash.rows[0].counter_accounts == ["1141", "1180", "1530", "2510", "3110"]
+    assert cash.rows[0].voucher_no == "FY2025-000"
 
 
 def test_golden_updates_only_via_explicit_flag(

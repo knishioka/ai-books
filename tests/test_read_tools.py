@@ -306,3 +306,42 @@ def test_tool_get_journal_entry_roundtrip(patched_connect: None, seed: _Seed) ->
 def test_tool_bad_date_raises(patched_connect: None, seed: _Seed) -> None:
     with pytest.raises(ValueError, match="ISO date"):
         server.get_account_balance(account_code="1110", as_of="not-a-date")
+
+
+# --- journal_book / general_ledger (Issue #19) --------------------------------
+
+
+def test_tool_journal_book(patched_connect: None, seed: _Seed) -> None:
+    book = server.journal_book()
+    # Three seeded entries, oldest first, booking balanced.
+    assert [e.entry_date for e in book.entries] == [
+        date(2026, 4, 1),
+        date(2026, 4, 10),
+        date(2026, 5, 1),
+    ]
+    assert book.total_debit == book.total_credit == Decimal("1800.00")
+    # Lines name their 勘定科目 inline; amounts serialise as strings at the boundary.
+    assert book.entries[0].lines[0].account_code in {"1110", "4000"}
+    assert book.model_dump(mode="json")["total_debit"] == "1800.00"
+
+
+def test_tool_general_ledger_whole_book(patched_connect: None, seed: _Seed) -> None:
+    ledger = server.general_ledger()
+    assert [a.code for a in ledger.accounts] == ["1110", "4000", "5000"]
+    cash = next(a for a in ledger.accounts if a.code == "1110")
+    assert cash.closing_balance == Decimal("1200.00")
+    assert [r.running_balance for r in cash.rows] == [
+        Decimal("1000.00"),
+        Decimal("1500.00"),
+        Decimal("1200.00"),
+    ]
+
+
+def test_tool_general_ledger_single_account(patched_connect: None, seed: _Seed) -> None:
+    ledger = server.general_ledger(account_code="5000")
+    assert [a.code for a in ledger.accounts] == ["5000"]
+    # 消耗品費(5000): one debit of 300 against 現金(1110).
+    rows = ledger.accounts[0].rows
+    assert len(rows) == 1
+    assert rows[0].counter_accounts == ["1110"]
+    assert rows[0].running_balance == Decimal("300.00")

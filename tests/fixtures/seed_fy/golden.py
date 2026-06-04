@@ -27,8 +27,15 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from ai_books.reports import general_ledger_snapshot, journal_book_snapshot
+
 from .dataset import FISCAL_YEAR
-from .reports import TrialBalance, trial_balance_from_dataset
+from .reports import (
+    TrialBalance,
+    general_ledger_from_dataset,
+    journal_book_from_dataset,
+    trial_balance_from_dataset,
+)
 
 #: Directory holding the committed golden JSON files (one per report).
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden"
@@ -76,6 +83,14 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
         "trial_balance.json",
         lambda: trial_balance_snapshot(trial_balance_from_dataset()),
     ),
+    "journal_book": (
+        "journal_book.json",
+        lambda: journal_book_snapshot(journal_book_from_dataset()),
+    ),
+    "general_ledger": (
+        "general_ledger.json",
+        lambda: general_ledger_snapshot(general_ledger_from_dataset()),
+    ),
 }
 
 
@@ -100,35 +115,78 @@ def load_golden(report: str) -> dict[str, Any]:
     return loaded
 
 
-def diff_snapshots(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
-    """Return human-readable differences between two snapshots (empty ⇒ identical).
+#: Fields a list of objects can be matched on, in preference order. When every item in
+#: both lists is a dict carrying one of these with *unique* values, the diff matches by
+#: that natural key (so a message names the 科目コード / 伝票番号 it concerns) rather than by
+#: positional index — far more readable, and stable under reordering.
+_LIST_KEYS = ("code", "voucher_no")
 
-    Rows are matched by ``code`` so a diff points at the offending account ("7250 地代家賃:
-    balance 360000.00 != 350000.00") rather than dumping the whole structure.
+
+def diff_snapshots(expected: Any, actual: Any) -> list[str]:
+    """Return human-readable, path-tagged differences between two snapshots (empty ⇒ same).
+
+    Walks the two JSON-shaped structures recursively. Lists of objects are matched by a
+    natural key when available (``code`` for trial-balance/ledger accounts, ``voucher_no``
+    for journal entries) so a diff points at the offending row ("rows[code=7250].balance:
+    '360000.00' != '350000.00'") instead of dumping the whole structure; otherwise items
+    are compared by index. Report-agnostic, so every report reuses it as-is.
     """
     problems: list[str] = []
-
-    for key in ("report", "fiscal_year", "total_debit", "total_credit"):
-        if expected.get(key) != actual.get(key):
-            problems.append(f"{key}: {expected.get(key)!r} != {actual.get(key)!r}")
-
-    expected_rows = {row["code"]: row for row in expected.get("rows", [])}
-    actual_rows = {row["code"]: row for row in actual.get("rows", [])}
-
-    for code in sorted(expected_rows.keys() - actual_rows.keys()):
-        problems.append(f"{code} {expected_rows[code].get('name', '')}: missing from actual")
-    for code in sorted(actual_rows.keys() - expected_rows.keys()):
-        problems.append(f"{code} {actual_rows[code].get('name', '')}: unexpected in actual")
-
-    for code in sorted(expected_rows.keys() & actual_rows.keys()):
-        exp, act = expected_rows[code], actual_rows[code]
-        for field in ("name", "debit_total", "credit_total", "balance"):
-            if exp.get(field) != act.get(field):
-                problems.append(
-                    f"{code} {exp.get('name', '')}: {field} "
-                    f"{exp.get(field)!r} != {act.get(field)!r}"
-                )
+    _diff(expected, actual, "", problems)
     return problems
+
+
+def _diff(expected: Any, actual: Any, path: str, problems: list[str]) -> None:
+    if isinstance(expected, dict) and isinstance(actual, dict):
+        for key in sorted(set(expected) | set(actual)):
+            child = f"{path}.{key}" if path else key
+            if key not in expected:
+                problems.append(f"{child}: unexpected (= {actual[key]!r})")
+            elif key not in actual:
+                problems.append(f"{child}: missing (expected {expected[key]!r})")
+            else:
+                _diff(expected[key], actual[key], child, problems)
+    elif isinstance(expected, list) and isinstance(actual, list):
+        _diff_lists(expected, actual, path, problems)
+    elif expected != actual:
+        problems.append(f"{path or '(root)'}: {expected!r} != {actual!r}")
+
+
+def _diff_lists(expected: list[Any], actual: list[Any], path: str, problems: list[str]) -> None:
+    key = _list_key(expected, actual)
+    if key is None:
+        for index in range(max(len(expected), len(actual))):
+            child = f"{path}[{index}]"
+            if index >= len(expected):
+                problems.append(f"{child}: unexpected (= {actual[index]!r})")
+            elif index >= len(actual):
+                problems.append(f"{child}: missing (expected {expected[index]!r})")
+            else:
+                _diff(expected[index], actual[index], child, problems)
+        return
+
+    expected_by = {item[key]: item for item in expected}
+    actual_by = {item[key]: item for item in actual}
+    for missing in sorted(expected_by.keys() - actual_by.keys()):
+        problems.append(f"{path}[{key}={missing}]: missing from actual")
+    for unexpected in sorted(actual_by.keys() - expected_by.keys()):
+        problems.append(f"{path}[{key}={unexpected}]: unexpected in actual")
+    for shared in sorted(expected_by.keys() & actual_by.keys()):
+        _diff(expected_by[shared], actual_by[shared], f"{path}[{key}={shared}]", problems)
+
+
+def _list_key(expected: list[Any], actual: list[Any]) -> str | None:
+    """The natural key to match two lists on, or ``None`` to fall back to index matching."""
+    for key in _LIST_KEYS:
+        items = expected + actual
+        if items and all(isinstance(item, dict) and key in item for item in items):
+            expected_values = [item[key] for item in expected]
+            actual_values = [item[key] for item in actual]
+            if len(set(expected_values)) == len(expected_values) and len(set(actual_values)) == len(
+                actual_values
+            ):
+                return key
+    return None
 
 
 def _serialize(snapshot: dict[str, Any]) -> str:
