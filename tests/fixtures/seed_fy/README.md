@@ -10,13 +10,15 @@
 
 ## 構成
 
-| ファイル                    | 役割                                                            |
-| --------------------------- | --------------------------------------------------------------- |
-| `dataset.py`                | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`  |
-| `loader.py`                 | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件) |
-| `reports.py`                | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装     |
-| `golden.py`                 | スナップショットの直列化・比較 (diff)・更新。レポート非依存     |
-| `golden/trial_balance.json` | 試算表のゴールデン (committed)                                  |
+| ファイル                     | 役割                                                            |
+| ---------------------------- | --------------------------------------------------------------- |
+| `dataset.py`                 | 合成仕訳 `FY_ENTRIES` (科目コードベース) と `validate_dataset`  |
+| `loader.py`                  | Postgres への冪等ロード (`voucher_no` 一意で再投入してもゼロ件) |
+| `reports.py`                 | 試算表 (trial balance) の純粋計算 + DB 集計 (SQL) の 2 実装     |
+| `golden.py`                  | スナップショットの直列化・比較 (diff)・更新。レポート非依存     |
+| `golden/trial_balance.json`  | 試算表のゴールデン (committed)                                  |
+| `golden/journal_book.json`   | 仕訳帳のゴールデン (#19, committed)                             |
+| `golden/general_ledger.json` | 総勘定元帳のゴールデン (#19, committed)                         |
 
 純粋計算 (`trial_balance_from_dataset`) とゴールデン生成は **DB 不要**。pytest ハーネスは
 DB にロードした結果を SQL で集計 (`trial_balance_from_db`) し、ゴールデンと比較する。2 つの
