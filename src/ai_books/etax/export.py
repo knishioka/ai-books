@@ -41,6 +41,7 @@ from ai_books.reports import financial_statements_snapshot
 from .spec import (
     LATEST_ETAX_VERSION,
     MISSING,
+    EtaxComputedField,
     EtaxFixedSection,
     EtaxScalarField,
     EtaxSection,
@@ -141,15 +142,19 @@ def build_etax_export(
     snapshot = financial_statements_snapshot(financial_statements)
     records: list[EtaxRecord] = []
     problems: list[dict[str, str]] = []
+    #: section_code → its routed total (Σ emitted 金額); fed to later EtaxComputedField items.
+    section_totals: dict[str, Decimal] = {}
 
     for item in spec.items:
         if isinstance(item, EtaxScalarField):
             _emit_scalar(item, snapshot, records, problems)
+        elif isinstance(item, EtaxComputedField):
+            _emit_computed(item, snapshot, section_totals, records, problems)
         elif isinstance(item, EtaxSection):
             for row_index, row in enumerate(resolve_list(snapshot, item.source), start=1):
                 _emit_section_row(item.form, item.fields, row, row_index, records, problems)
         else:  # EtaxFixedSection
-            _emit_fixed_section(item, snapshot, records, problems)
+            _emit_fixed_section(item, snapshot, records, problems, section_totals)
 
     if problems:
         raise EtaxValidationError(problems)
@@ -174,6 +179,62 @@ def _emit_scalar(
     raw = resolve_scalar(snapshot, field.source)
     rendered, problem = _validate_value(
         raw, field.kind, required=field.required, max_int_digits=field.max_int_digits
+    )
+    if problem is not None:
+        problems.append({"item_code": field.item_code, "row": "", "message": problem})
+        return
+    assert rendered is not None
+    records.append(
+        EtaxRecord(
+            form=field.form,
+            item_code=field.item_code,
+            label=field.label,
+            kind=field.kind,
+            value=rendered,
+        )
+    )
+
+
+def _emit_computed(
+    field: EtaxComputedField,
+    snapshot: dict[str, Any],
+    section_totals: dict[str, Decimal],
+    records: list[EtaxRecord],
+    problems: list[dict[str, str]],
+) -> None:
+    """Emit a computed scalar: a base 金額 ± earlier sections' routed totals (#83 営業外橋渡し).
+
+    The base is read from ``base_source`` like a scalar 金額; each ``add_sections`` / ``sub_sections``
+    ``section_code`` contributes the total an earlier :class:`EtaxFixedSection` routed (0 if absent).
+    """
+    raw = resolve_scalar(snapshot, field.base_source)
+    if raw is MISSING or raw is None or (isinstance(raw, str) and raw.strip() == ""):
+        if field.required:
+            problems.append(
+                {
+                    "item_code": field.item_code,
+                    "row": "",
+                    "message": "required value is missing or empty",
+                }
+            )
+        return
+    try:
+        amount = Decimal(str(raw).strip())
+    except InvalidOperation:
+        problems.append(
+            {
+                "item_code": field.item_code,
+                "row": "",
+                "message": f"invalid amount {raw!r} (not a number)",
+            }
+        )
+        return
+    for code in field.add_sections:
+        amount += section_totals.get(code, Decimal(0))
+    for code in field.sub_sections:
+        amount -= section_totals.get(code, Decimal(0))
+    rendered, problem = _validate_value(
+        amount, field.kind, required=field.required, max_int_digits=field.max_int_digits
     )
     if problem is not None:
         problems.append({"item_code": field.item_code, "row": "", "message": problem})
@@ -258,6 +319,7 @@ def _emit_fixed_section(
     snapshot: dict[str, Any],
     records: list[EtaxRecord],
     problems: list[dict[str, str]],
+    section_totals: dict[str, Decimal] | None = None,
 ) -> None:
     """Route a 固定勘定科目行 section: lines → fixed 項目コード (summed), spillover → 追加科目枠.
 
@@ -265,7 +327,9 @@ def _emit_fixed_section(
     contain the line's ``code`` (amounts for the same target row are summed, with the row's
     ``sign``). A line whose ``code`` is malformed is rejected (不正コード検出); a line matching no
     fixed row spills into the 追加科目枠 — ``accumulate`` mode sums them into one ``overflow_code``,
-    ``slots`` mode fills ``overflow_max`` repeating slots and **errors on overflow** (未分類検出).
+    ``slots`` mode fills ``overflow_max`` repeating slots and **errors on overflow** (未分類検出),
+    ``drop`` mode discards them silently (#83 営業外橋渡し). The section's routed total (Σ fixed-row +
+    追加科目枠 金額) is recorded into ``section_totals[section_code]`` for later EtaxComputedField items.
     """
     code_to_row = {code: row for row in section.rows for code in row.account_codes}
     sums: dict[str, Decimal] = {}
@@ -315,7 +379,9 @@ def _emit_fixed_section(
                 account_code=sole_code.get(row.item_code),
             )
 
-    _emit_overflow(section, overflow, records, problems)
+    overflow_total = _emit_overflow(section, overflow, records, problems)
+    if section_totals is not None:
+        section_totals[section.section_code] = sum(sums.values(), Decimal(0)) + overflow_total
 
 
 def _emit_overflow(
@@ -323,8 +389,17 @@ def _emit_overflow(
     overflow: list[dict[str, Any]],
     records: list[EtaxRecord],
     problems: list[dict[str, str]],
-) -> None:
-    """Emit the section's 追加科目枠 (accumulate into one cell, or fill rep-limited slots)."""
+) -> Decimal:
+    """Emit the section's 追加科目枠 and return the total 金額 it emitted (0 if none / dropped).
+
+    ``accumulate`` sums into one cell, ``slots`` fills rep-limited slots, ``drop`` discards 未分類
+    silently (#83 — 帳簿上は分類済みだが当該様式に枠が無い 科目)。``drop`` 以外で 居場所が無い 科目は
+    未分類エラー (fail-loud, AC #24)。
+    """
+    # drop モード: 様式に居場所の無い 科目 を意図的に捨てる (橋渡し用)。total には寄与しない。
+    if section.overflow_mode == "drop":
+        return Decimal(0)
+
     if not overflow or section.overflow_code is None:
         if overflow:
             for line in overflow:
@@ -336,7 +411,7 @@ def _emit_overflow(
                         "対応する固定行も追加科目枠も無い",
                     }
                 )
-        return
+        return Decimal(0)
 
     if section.overflow_mode == "accumulate":
         total = Decimal(0)
@@ -355,9 +430,10 @@ def _emit_overflow(
         _emit_fixed_value(
             section, section.overflow_code, section.overflow_label, total, records, problems
         )
-        return
+        return total
 
     # slots mode — each 未分類科目 takes the next 追加科目枠 slot; overflow ⇒ 未分類エラー.
+    slots_total = Decimal(0)
     for slot, line in enumerate(overflow, start=1):
         if slot > section.overflow_max:
             problems.append(
@@ -405,6 +481,8 @@ def _emit_overflow(
             row=slot,
             account_code=code if isinstance(code, str) else None,
         )
+        slots_total += amount
+    return slots_total
 
 
 def _emit_fixed_value(
