@@ -6,6 +6,9 @@
 
 Architecture in one line: **MCP = the write/validation interface · Supabase (Postgres) = storage · Vercel = read-only viewer.** See [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md) for the rationale.
 
+> 📚 **All docs are indexed in the [documentation hub](./docs/README.md)** — human-facing
+> vs AI/developer-facing split, plus the SSOT map (what is the source of truth for each domain).
+
 ## Why
 
 Most accounting software puts a heavy web UI front and center, with the API as an afterthought. `ai-books` inverts this — the MCP is the primary interface. AI agents (Claude, ChatGPT, Codex, …) can:
