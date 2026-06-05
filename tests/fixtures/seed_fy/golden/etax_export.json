@@ -116,12 +116,21 @@
     },
     {
       "form": "PL",
+      "item_code": "AMF00330",
+      "label": "利子割引料",
+      "kind": "amount",
+      "row": null,
+      "account_code": "8210",
+      "value": "21000"
+    },
+    {
+      "form": "PL",
       "item_code": "AMF00380",
       "label": "経費 計",
       "kind": "amount",
       "row": null,
       "account_code": null,
-      "value": "720000"
+      "value": "741000"
     },
     {
       "form": "PL",
@@ -130,7 +139,7 @@
       "kind": "amount",
       "row": null,
       "account_code": null,
-      "value": "-560000"
+      "value": "-581000"
     },
     {
       "form": "PL",

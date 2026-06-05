@@ -21,6 +21,7 @@ import {
   MISSING,
   resolveList,
   resolveScalar,
+  type EtaxComputedField,
   type EtaxFixedSection,
   type EtaxScalarField,
   type EtaxSectionField,
@@ -159,10 +160,14 @@ export function buildEtaxExport(
   const spec = getFormatSpec(version);
   const records: EtaxRecord[] = [];
   const problems: EtaxProblem[] = [];
+  // sectionCode → its routed total (Σ emitted 金額); fed to later computed fields.
+  const sectionTotals = new Map<string, Money>();
 
   for (const item of spec.items) {
     if (item.descriptor === "scalar") {
       emitScalar(item, financialStatements, records, problems);
+    } else if (item.descriptor === "computed") {
+      emitComputed(item, financialStatements, sectionTotals, records, problems);
     } else if (item.descriptor === "section") {
       resolveList(financialStatements, item.source).forEach((row, index) => {
         emitSectionRow(
@@ -175,7 +180,13 @@ export function buildEtaxExport(
         );
       });
     } else {
-      emitFixedSection(item, financialStatements, records, problems);
+      emitFixedSection(
+        item,
+        financialStatements,
+        records,
+        problems,
+        sectionTotals,
+      );
     }
   }
 
@@ -200,6 +211,65 @@ function emitScalar(
   const raw = resolveScalar(snapshot, fieldSpec.source);
   const [rendered, problem] = validateValue(
     raw,
+    fieldSpec.kind,
+    fieldSpec.required,
+    fieldSpec.maxIntDigits,
+  );
+  if (problem !== null) {
+    problems.push({ itemCode: fieldSpec.itemCode, row: "", message: problem });
+    return;
+  }
+  records.push({
+    form: fieldSpec.form,
+    itemCode: fieldSpec.itemCode,
+    label: fieldSpec.label,
+    kind: fieldSpec.kind,
+    value: rendered,
+    row: null,
+    accountCode: null,
+  });
+}
+
+/** Emit a computed scalar: a base 金額 ± earlier sections' routed totals (#83 営業外橋渡し). */
+function emitComputed(
+  fieldSpec: EtaxComputedField,
+  snapshot: FinancialStatementsSnapshot,
+  sectionTotals: Map<string, Money>,
+  records: EtaxRecord[],
+  problems: EtaxProblem[],
+): void {
+  const raw = resolveScalar(snapshot, fieldSpec.baseSource);
+  if (
+    raw === MISSING ||
+    raw === null ||
+    (typeof raw === "string" && raw.trim() === "")
+  ) {
+    if (fieldSpec.required) {
+      problems.push({
+        itemCode: fieldSpec.itemCode,
+        row: "",
+        message: "required value is missing or empty",
+      });
+    }
+    return;
+  }
+  let amount: Money;
+  try {
+    amount = parseMoney(raw as string | number);
+  } catch {
+    problems.push({
+      itemCode: fieldSpec.itemCode,
+      row: "",
+      message: `invalid amount ${JSON.stringify(raw)} (not a number)`,
+    });
+    return;
+  }
+  for (const code of fieldSpec.addSections)
+    amount += sectionTotals.get(code) ?? 0n;
+  for (const code of fieldSpec.subSections)
+    amount -= sectionTotals.get(code) ?? 0n;
+  const [rendered, problem] = validateValue(
+    formatMoney(amount),
     fieldSpec.kind,
     fieldSpec.required,
     fieldSpec.maxIntDigits,
@@ -288,12 +358,17 @@ function signedAmount(
   return sen;
 }
 
-/** Route a 固定勘定科目行 section: lines → fixed 項目コード (summed), spillover → 追加科目枠. */
+/**
+ * Route a 固定勘定科目行 section: lines → fixed 項目コード (summed), spillover → 追加科目枠.
+ * The section's routed total (Σ fixed-row + 追加科目枠 金額) is recorded into
+ * `sectionTotals[sectionCode]` for later computed fields (#83).
+ */
 function emitFixedSection(
   section: EtaxFixedSection,
   snapshot: FinancialStatementsSnapshot,
   records: EtaxRecord[],
   problems: EtaxProblem[],
+  sectionTotals?: Map<string, Money>,
 ): void {
   const codeToRow = new Map<string, (typeof section.rows)[number]>();
   for (const row of section.rows) {
@@ -339,26 +414,36 @@ function emitFixedSection(
     );
   }
 
+  let rowsTotal: Money = 0n;
   for (const row of section.rows) {
     const sum = sums.get(row.itemCode);
     if (sum !== undefined) {
+      rowsTotal += sum;
       emitFixedValue(section, row.itemCode, row.label, sum, records, problems, {
         accountCode: soleCode.get(row.itemCode) ?? null,
       });
     }
   }
 
-  emitOverflow(section, overflow, records, problems);
+  const overflowTotal = emitOverflow(section, overflow, records, problems);
+  sectionTotals?.set(section.sectionCode, rowsTotal + overflowTotal);
 }
 
-/** Emit the section's 追加科目枠 (accumulate into one cell, or fill rep-limited slots). */
+/**
+ * Emit the section's 追加科目枠 and return the total 金額 it emitted (0 if none / dropped).
+ * `accumulate` sums into one cell, `slots` fills rep-limited slots, `drop` discards 未分類 silently
+ * (#83); `drop` 以外で 居場所が無い 科目 は 未分類エラー (fail-loud).
+ */
 function emitOverflow(
   section: EtaxFixedSection,
   overflow: Record<string, unknown>[],
   records: EtaxRecord[],
   problems: EtaxProblem[],
-): void {
-  if (overflow.length === 0) return;
+): Money {
+  // drop モード: 様式に居場所の無い 科目 を意図的に捨てる (橋渡し用)。total には寄与しない。
+  if (section.overflowMode === "drop") return 0n;
+
+  if (overflow.length === 0) return 0n;
   if (section.overflowCode === null) {
     for (const line of overflow) {
       problems.push({
@@ -367,7 +452,7 @@ function emitOverflow(
         message: `未分類科目 ${JSON.stringify(line.code)} (${JSON.stringify(line.name)}): 対応する固定行も追加科目枠も無い`,
       });
     }
-    return;
+    return 0n;
   }
 
   if (section.overflowMode === "accumulate") {
@@ -393,10 +478,11 @@ function emitOverflow(
       problems,
       {},
     );
-    return;
+    return total;
   }
 
   // slots mode — each 未分類科目 takes the next 追加科目枠 slot; overflow ⇒ 未分類エラー.
+  let slotsTotal: Money = 0n;
   overflow.forEach((line, index) => {
     const slot = index + 1;
     const overflowCode = section.overflowCode as string;
@@ -428,7 +514,9 @@ function emitOverflow(
       problems,
       { row: slot, accountCode: typeof code === "string" ? code : null },
     );
+    slotsTotal += amount;
   });
+  return slotsTotal;
 }
 
 /** Validate a summed 固定行 amount and append its record, or record a problem. */

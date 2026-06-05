@@ -68,7 +68,8 @@ export interface EtaxFixedRow {
  * The real 様式's *fixed 勘定科目行* block (#78) — route snapshot `lines` by コード into a fixed set
  * of 項目コード; 科目 with no fixed row spill into the 追加科目枠 (`overflow`):
  * `slots` fills `overflowMax` rep slots (exhaustion ⇒ 未分類 error), `accumulate` sums all
- * unmatched into one `overflowCode`.
+ * unmatched into one `overflowCode`, `drop` discards them silently (#83 営業外橋渡し — 帳簿上は
+ * 分類済みだが当該様式に枠が無い 科目).
  */
 export interface EtaxFixedSection {
   descriptor: "fixed";
@@ -81,12 +82,36 @@ export interface EtaxFixedSection {
   overflowCode: string | null;
   overflowLabel: string;
   overflowMax: number;
-  overflowMode: "slots" | "accumulate";
+  overflowMode: "slots" | "accumulate" | "drop";
   kind: EtaxValueKind;
   maxIntDigits: number;
 }
 
-export type EtaxItem = EtaxScalarField | EtaxSection | EtaxFixedSection;
+/**
+ * A scalar 項目 whose value is a base snapshot 金額 adjusted by other sections' routed totals (#83).
+ * KOA210 files 利子割引料 under 経費, but our chart classifies it as 営業外費用 — so 経費計(AMF00380)
+ * reads 販管費 小計 *plus* the homed 営業外費用 the bridge {@link EtaxFixedSection} routes into 経費,
+ * and 差引金額２(AMF00390) the same base *minus* it. `addSections` / `subSections` name the
+ * `sectionCode` of **earlier** fixed sections whose routed total is added / subtracted (absent ⇒ 0).
+ */
+export interface EtaxComputedField {
+  descriptor: "computed";
+  form: string;
+  itemCode: string;
+  label: string;
+  baseSource: string;
+  addSections: string[];
+  subSections: string[];
+  kind: EtaxValueKind;
+  required: boolean;
+  maxIntDigits: number;
+}
+
+export type EtaxItem =
+  | EtaxScalarField
+  | EtaxSection
+  | EtaxFixedSection
+  | EtaxComputedField;
 
 export interface EtaxFormatSpec {
   version: string;
@@ -176,6 +201,27 @@ function fixedSection(
     overflowMax: overflow.max ?? 0,
     overflowMode: overflow.mode ?? "slots",
     kind: "amount",
+    maxIntDigits: DEFAULT_MAX_INT_DIGITS,
+  };
+}
+
+function computed(
+  form: string,
+  itemCode: string,
+  label: string,
+  baseSource: string,
+  sections: { add?: string[]; sub?: string[] } = {},
+): EtaxComputedField {
+  return {
+    descriptor: "computed",
+    form,
+    itemCode,
+    label,
+    baseSource,
+    addSections: sections.add ?? [],
+    subSections: sections.sub ?? [],
+    kind: "amount",
+    required: true,
     maxIntDigits: DEFAULT_MAX_INT_DIGITS,
   };
 }
@@ -290,6 +336,15 @@ const EXPENSE_ROWS: EtaxFixedRow[] = [
   fixedRow("AMF00370", "雑費", ["7290"]),
 ];
 
+/**
+ * 営業外費用 のうち 様式に居場所がある 科目 → KOA210 経費 項目コード (#83 営業外マッピング方針)。
+ * 帳簿では 営業外費用 (8xxx) だが KOA210(一般用) は 利子割引料 を 経費 AMF00330 に置く。橋渡しは
+ * `overflowMode="drop"` の fixedSection で行い、ここに無い 営業外 (雑損失 等) は drop。
+ */
+const NON_OPERATING_EXPENSE_ROWS: EtaxFixedRow[] = [
+  fixedRow("AMF00330", "利子割引料", ["8210"]),
+];
+
 /** 資産の部(期末) 固定行 — 勘定科目コード (1xxx) → KOA210 資産 項目コード (AMG00260-00430). */
 const ASSET_ROWS: EtaxFixedRow[] = [
   fixedRow("AMG00260", "現金", ["1110"]),
@@ -376,13 +431,32 @@ const SPEC_2025: EtaxFormatSpec = {
       EXPENSE_ROWS,
       { code: "AMF00360", label: "追加科目の金額", max: 6 },
     ),
-    scalar(
+    // 営業外費用→経費 橋渡し: 利子割引料(8210) を 経費 AMF00330 へ; 居場所の無い 営業外 は drop (#83).
+    fixedSection(
+      "PL",
+      "PL_NON_OP_EXPENSES",
+      "営業外費用(様式上は経費)",
+      ["profit_and_loss.non_operating_expenses.lines"],
+      "amount",
+      NON_OPERATING_EXPENSE_ROWS,
+      { mode: "drop" },
+    ),
+    // 経費計 = 販管費小計 + 橋渡しした 営業外費用 (利子割引料) → 経費行合計と一致.
+    computed(
       "PL",
       "AMF00380",
       "経費 計",
       "profit_and_loss.selling_admin_expenses.subtotal",
+      { add: ["PL_NON_OP_EXPENSES"] },
     ),
-    scalar("PL", "AMF00390", "差引金額２", "profit_and_loss.operating_income"),
+    // 差引金額２ = 営業利益 - 橋渡しした 営業外費用 → 差引金額１ - 経費計 と一致.
+    computed(
+      "PL",
+      "AMF00390",
+      "差引金額２",
+      "profit_and_loss.operating_income",
+      { sub: ["PL_NON_OP_EXPENSES"] },
+    ),
     scalar(
       "PL",
       "AMF00500",
