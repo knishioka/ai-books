@@ -4,6 +4,9 @@
 
 AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP) tools that expose double-entry bookkeeping (chart of accounts, journal entries, trial balance, financial statements). All writes/validation go through MCP. Human UI is read-only: a Vercel-hosted aggregation viewer over Supabase data — no data entry. Goal includes producing 青色申告決算書 + e-Tax 取込データ (tax-amount computation itself stays downstream). See [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md).
 
+本書はこのリポの**開発規約 SSOT**。文書全体の索引と各ドメインの SSOT マップは
+[docs/README.md](./docs/README.md) (ドキュメントハブ) を参照。
+
 ## Stack
 
 - 言語: Python 3.12+
