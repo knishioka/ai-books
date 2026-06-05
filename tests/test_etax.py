@@ -122,6 +122,71 @@ def test_unclassified_account_overflows_then_fails(monkeypatch: pytest.MonkeyPat
     assert any("追加科目枠" in p["message"] for p in excinfo.value.problems)
 
 
+# --- 営業外 マッピング方針 (#83) ------------------------------------------------
+
+
+def test_homed_non_operating_expense_bridges_to_expense_cell() -> None:
+    # 利子割引料 は帳簿上 営業外費用(8210) だが KOA210 では 経費 AMF00330。橋渡しして居場所に置く。
+    export = etax_export_from_dataset()
+    interest = next(r for r in export.records if r.item_code == "AMF00330")
+    assert interest.form == "PL"
+    assert interest.label == "利子割引料"
+    assert interest.account_code == "8210"  # 帳簿の 営業外費用 コードを辿れる
+    assert interest.value == "21000"
+
+
+def test_expense_total_reconciles_with_homed_non_operating() -> None:
+    # 橋渡しした 利子割引料 を 経費計(AMF00380)/差引金額２(AMF00390) に織り込み、様式の内訳整合を保つ。
+    export = etax_export_from_dataset()
+    by_code = {r.item_code: int(r.value) for r in export.records if r.kind.value == "amount"}
+    expense_rows = sum(
+        int(r.value)
+        for r in export.records
+        # 経費 固定行 + 橋渡しした 利子割引料 (追加科目枠/計/差引 は除く)
+        if r.form == "PL"
+        and "AMF00190" <= r.item_code <= "AMF00370"
+        and r.item_code not in {"AMF00360", "AMF00380"}
+    )
+    assert expense_rows == by_code["AMF00380"]  # 経費行合計 = 経費計
+    assert (
+        by_code["AMF00170"] - by_code["AMF00380"] == by_code["AMF00390"]
+    )  # 差引1 - 経費計 = 差引2
+    # 所得(AMF00500) は net_income のまま — 非居場所 営業外 (受取利息) の net が 差引2 との残差。
+    assert by_code["AMF00500"] - by_code["AMF00390"] == 500  # 受取利息(8110)
+
+
+def test_non_operating_without_form_home_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 様式に居場所の無い 営業外 (雑損失 8220) は 意図的に drop — 未分類エラーにも 追加科目枠にもしない。
+    from ai_books.reports import financial_statements_snapshot
+
+    fs = financial_statements_from_dataset()
+    snapshot = financial_statements_snapshot(fs)
+    snapshot["profit_and_loss"]["non_operating_expenses"]["lines"].append(
+        {"code": "8220", "name": "雑損失", "category": "non_operating_expenses", "amount": "9999"}
+    )
+    monkeypatch.setattr("ai_books.etax.export.financial_statements_snapshot", lambda _: snapshot)
+    export = build_etax_export(fs)  # raises if 雑損失 were treated as 未分類
+    codes = {r.account_code for r in export.records}
+    assert "8220" not in codes  # drop されて出力に現れない
+    by_code = {r.item_code: int(r.value) for r in export.records if r.kind.value == "amount"}
+    assert by_code["AMF00380"] == 741000  # 経費計 は 利子割引料 のみ織り込み (雑損失 は寄与しない)
+
+
+def test_computed_field_handles_empty_non_operating(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 営業外費用 が空でも 経費計/差引金額２ は base 値そのまま (section total = 0)。
+    from ai_books.reports import financial_statements_snapshot
+
+    fs = financial_statements_from_dataset()
+    snapshot = financial_statements_snapshot(fs)
+    snapshot["profit_and_loss"]["non_operating_expenses"]["lines"] = []
+    monkeypatch.setattr("ai_books.etax.export.financial_statements_snapshot", lambda _: snapshot)
+    export = build_etax_export(fs)
+    by_code = {r.item_code: int(r.value) for r in export.records if r.kind.value == "amount"}
+    assert by_code["AMF00380"] == 720000  # 販管費小計のみ (利子割引料 抜き)
+    assert by_code["AMF00390"] == -560000  # 営業利益そのまま
+    assert not any(r.item_code == "AMF00330" for r in export.records)  # 利子割引料 行は出ない
+
+
 # --- CSV / XML rendering --------------------------------------------------------
 
 
