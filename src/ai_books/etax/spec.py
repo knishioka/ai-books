@@ -42,10 +42,16 @@ mapping (documented in #76 ``snapshot_mapping.json``) and how this spec resolves
 * **負債と純資産は「負債・資本の部」に統合** — one :class:`EtaxFixedSection` over both
   ``liabilities`` and ``equity`` lines; 青色申告特別控除前所得(AMG00750) carries net_income so
   the 部 合計(AMG00760) balances to 資産合計.
-* **損益に段階表示(営業利益/営業外/経常利益)が無い**: 営業外収益・費用 (snapshot
-  ``non_operating_*``) have no home on KOA210(一般用) and are **intentionally not mapped** — the
-  所得(AMF00500) carries their net effect via net_income. (A future 様式/年度 needing 営業外 is a
-  follow-up, registered as its own spec.)
+* **損益に段階表示(営業利益/営業外/経常利益)が無い**: KOA210(一般用) は 営業外 の段を持たないが、
+  個々の 営業外 科目には 様式上の居場所がある場合とない場合がある。#83 で **営業外の扱いを方針として固定**:
+  - **様式に居場所がある 営業外費用** (利子割引料 8210 → 経費 AMF00330) は :class:`EtaxFixedSection`
+    (``PL_NON_OP_EXPENSES``, ``overflow_mode="drop"``) で 経費 セルへ橋渡しし、その routed total を
+    :class:`EtaxComputedField` で 経費計(AMF00380) に加算・差引金額２(AMF00390) から減算する。これで
+    様式の内訳整合 (経費行合計 = 経費計 / 差引金額１ - 経費計 = 差引金額２) が保たれる。
+  - **様式に居場所がない 営業外** (受取利息 8110・雑収入 8120 等の 営業外収益、雑損失 8220 等) は
+    意図的に未マッピング(drop)。その net 効果は net_income 経由で 所得(AMF00500) が carry する
+    (差引金額２→所得 の残差 = 非居場所 営業外 net。様式上は 各種引当金 欄が埋めるべき差で、本実装は空欄)。
+  営業外の段を独立に持つ 様式/年度 が要るときは、その様式専用の spec を別途登録する。
 * **ヘッダ必須メタ (元号/年分・住所/氏名・提出年月日・業種名…) と BS 期首列** are not in the
   snapshot; this spec focuses on **value mapping** (#78) and leaves those 任意欄 empty. 形式
   (.xsd) 妥当性は #79.
@@ -53,6 +59,16 @@ mapping (documented in #76 ``snapshot_mapping.json``) and how this spec resolves
 The earlier *synthetic* (非公式・教育用) layout is kept off the 年度 axis under the
 ``"synthetic"`` version key so its mapping/validation/golden machinery still runs without being
 mistaken for the real 様式.
+
+## KOA220(不動産所得用) / KOA240(農業所得用) — 未登録 (data-supply 待ち)
+
+項目カタログは取得済み (#76 ``field_catalog.json``: KOA220=226 / KOA240=357 項目) だが、現行の
+:func:`~ai_books.reports.financial_statements_snapshot` は **一般事業 (一般用) のデータのみ**を供給し、
+不動産賃貸料収入・農産物売上等の所得固有データの供給経路を持たない。spec を足すだけでは収入側が空の
+様式しか出ないため、**不動産/農業所得ドメインの data-supply (モデル + 集計 + seed/golden) を伴う
+follow-up** として #83 から分離した。engine は data-driven のままで、:class:`EtaxFixedSection` (#78) /
+:class:`EtaxComputedField` (#83 営業外橋渡し) を再利用して spec を追加できる。詳細は
+``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
 """
 
 from __future__ import annotations
@@ -147,6 +163,11 @@ class EtaxFixedSection(NamedTuple):
       slot also emits a TEXT record so the .xtx 追加科目 (#79) carries its 科目名.
     * ``overflow_mode="accumulate"`` — all unmatched 科目 sum into a single ``overflow_code`` (e.g.
       売上原価's 仕入金額, which absorbs 商品仕入 + 製造原価内訳).
+    * ``overflow_mode="drop"`` — unmatched 科目 are **intentionally discarded** (no record, no error).
+      Used to *bridge* a 区分 the 様式 lacks: the 営業外費用 source feeds its homed 科目 (利子割引料 →
+      経費 AMF00330) into fixed rows while 様式 に居場所が無い 営業外 (雑損失 等) drop out — their効果は
+      net_income 経由で 所得(AMF00500) が carry する (#83 で方針固定)。これは「未分類エラー」とは別物
+      (科目は帳簿上は正しく分類済み・当該様式に枠が無いだけ) なので fail-loud しない。
 
     A line whose ``code`` is present but malformed is rejected (不正コード検出, AC #24).
     """
@@ -160,14 +181,39 @@ class EtaxFixedSection(NamedTuple):
     overflow_code: str | None = None
     overflow_label: str = "追加科目"
     overflow_max: int = 0
-    overflow_mode: str = "slots"  # "slots" | "accumulate"
+    overflow_mode: str = "slots"  # "slots" | "accumulate" | "drop"
     overflow_name_code: str | None = None  # 追加科目枠の 科目名 タグ (slots mode; .xtx #79)
     kind: EtaxValueKind = EtaxValueKind.AMOUNT
     max_int_digits: int = DEFAULT_MAX_INT_DIGITS
 
 
+class EtaxComputedField(NamedTuple):
+    """A scalar 項目 whose 値 is a base snapshot 金額 adjusted by other sections' routed totals.
+
+    Some 様式 cells can't be read straight from one snapshot path because 帳簿 and 様式 draw a 区分 line
+    in different places. KOA210(一般用) files 利子割引料 under **経費**, but our chart classifies it as
+    **営業外費用** — so 経費計(AMF00380) must read 販管費 小計 *plus* the homed 営業外費用 the bridge
+    :class:`EtaxFixedSection` routes into 経費, and 差引金額２(AMF00390) the same base *minus* it (so
+    経費行合計 = 経費計 and 差引金額１ - 経費計 = 差引金額２ both hold on the form). ``base_source`` is the
+    snapshot dot-path for the base 金額; ``add_sections`` / ``sub_sections`` name the ``section_code`` of
+    **earlier** :class:`EtaxFixedSection`s whose *routed total* (Σ emitted 金額) is added / subtracted.
+    Referenced sections must precede this field in ``items`` (the engine fills their totals as it walks);
+    an absent / empty section contributes 0.
+    """
+
+    form: str
+    item_code: str
+    label: str
+    base_source: str
+    add_sections: tuple[str, ...] = ()
+    sub_sections: tuple[str, ...] = ()
+    kind: EtaxValueKind = EtaxValueKind.AMOUNT
+    required: bool = True
+    max_int_digits: int = DEFAULT_MAX_INT_DIGITS
+
+
 #: One spec item is any descriptor; the engine dispatches on type in declared order.
-EtaxItem = EtaxScalarField | EtaxSection | EtaxFixedSection
+EtaxItem = EtaxScalarField | EtaxSection | EtaxFixedSection | EtaxComputedField
 
 
 class EtaxFormatSpec(NamedTuple):
@@ -294,6 +340,14 @@ _EXPENSE_ROWS: tuple[EtaxFixedRow, ...] = (
 )
 
 
+#: 営業外費用 のうち 様式に居場所がある 科目 → KOA210 経費 項目コード (#83 営業外マッピング方針)。
+#: 帳簿では 営業外費用 (8xxx) だが KOA210(一般用) は 利子割引料 を 経費 AMF00330 に置く。橋渡しは
+#: ``overflow_mode="drop"`` の :class:`EtaxFixedSection` で行い、ここに無い 営業外 (雑損失 等) は drop。
+_NON_OPERATING_EXPENSE_ROWS: tuple[EtaxFixedRow, ...] = (
+    EtaxFixedRow("AMF00330", "利子割引料", ("8210",)),
+)
+
+
 #: 資産の部(期末) 固定行 — 勘定科目コード (1xxx) → KOA210 資産 項目コード (AMG00260-00430).
 _ASSET_ROWS: tuple[EtaxFixedRow, ...] = (
     EtaxFixedRow("AMG00260", "現金", ("1110",)),
@@ -379,10 +433,32 @@ _SPEC_2025 = EtaxFormatSpec(
             overflow_max=6,
             overflow_name_code="AMF00060",
         ),
-        EtaxScalarField(
-            "PL", "AMF00380", "経費 計", "profit_and_loss.selling_admin_expenses.subtotal"
+        # 営業外費用→経費 橋渡し: 利子割引料(8210) を 経費 AMF00330 へ; 居場所の無い 営業外 は drop (#83).
+        EtaxFixedSection(
+            "PL",
+            "PL_NON_OP_EXPENSES",
+            "営業外費用(様式上は経費)",
+            ("profit_and_loss.non_operating_expenses.lines",),
+            "amount",
+            _NON_OPERATING_EXPENSE_ROWS,
+            overflow_mode="drop",
         ),
-        EtaxScalarField("PL", "AMF00390", "差引金額２", "profit_and_loss.operating_income"),
+        # 経費計 = 販管費小計 + 橋渡しした 営業外費用 (利子割引料) → 経費行合計と一致.
+        EtaxComputedField(
+            "PL",
+            "AMF00380",
+            "経費 計",
+            "profit_and_loss.selling_admin_expenses.subtotal",
+            add_sections=("PL_NON_OP_EXPENSES",),
+        ),
+        # 差引金額２ = 営業利益 - 橋渡しした 営業外費用 → 差引金額１ - 経費計 と一致.
+        EtaxComputedField(
+            "PL",
+            "AMF00390",
+            "差引金額２",
+            "profit_and_loss.operating_income",
+            sub_sections=("PL_NON_OP_EXPENSES",),
+        ),
         EtaxScalarField(
             "PL", "AMF00500", "青色申告特別控除前の所得金額", "profit_and_loss.net_income"
         ),
