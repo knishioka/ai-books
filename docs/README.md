@@ -36,6 +36,7 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 | [.cursor/rules/ai-books.mdc](../.cursor/rules/ai-books.mdc)                                               | Cursor 向けの薄いポインタ                                                             | エージェント設定   |
 | [.claude/settings.json](../.claude/settings.json)                                                         | AI エージェント権限 (allow/deny) の **SSOT**                                          | 権限設定           |
 | [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./adr/0001-pivot-to-supabase-and-vercel-viewer.md) | Supabase + Vercel viewer への pivot 決定 (ADR)                                        | **意思決定 (ADR)** |
+| [docs/architecture/README.md](./architecture/README.md)                                                   | モジュール地図 / 不変条件マップ / テスト保証インベントリ / 新機能の足し方             | アーキ地図         |
 | [docs/pr-description-standards.md](./pr-description-standards.md)                                         | PR 本文の書き方の **SSOT**                                                            | 貢献規約           |
 | [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md)                                   | PR 本文テンプレ (中身の正は pr-description-standards)                                 | テンプレ           |
 | [docs/etax/README.md](./etax/README.md)                                                                   | e-Tax 所得税関係 XML 仕様の調査スパイク・フィールドカタログ                           | 技術調査           |
@@ -48,17 +49,18 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 各ドメインの**一次情報 (SSOT)** は 1 つに固定し、他は**そこを指す薄いポインタ**に徹する
 (内容を重複させない)。「これはどこに書く/直すのが正か」はこの表で判断する。
 
-| ドメイン                              | 一次情報 (SSOT)                                                                                                                          | これを指すだけのポインタ                                                                                                               |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 製品概要・使い方                      | [README.md](../README.md)                                                                                                                | —                                                                                                                                      |
-| 開発規約・検証・Never touch・不変条件 | [AGENTS.md](../AGENTS.md)                                                                                                                | [CLAUDE.md](../CLAUDE.md) · [copilot-instructions](../.github/copilot-instructions.md) · [Cursor rules](../.cursor/rules/ai-books.mdc) |
-| 検証コマンド                          | [scripts/verify.sh](../scripts/verify.sh) / [scripts/test.sh](../scripts/test.sh) (実体) · 説明は [AGENTS.md#verification](../AGENTS.md) | [.claude/commands/](../.claude/commands) (`/verify` `/test` `/test-all`)                                                               |
-| アーキテクチャ上の意思決定            | [docs/adr/](./adr/) (ADR 連番)                                                                                                           | README / AGENTS.md の該当箇所                                                                                                          |
-| PR 本文ルール                         | [docs/pr-description-standards.md](./pr-description-standards.md)                                                                        | [PULL_REQUEST_TEMPLATE](../.github/PULL_REQUEST_TEMPLATE.md) · [AGENTS.md#pr-conventions](../AGENTS.md)                                |
-| エージェント権限 (allow/deny)         | [.claude/settings.json](../.claude/settings.json)                                                                                        | AGENTS.md / CLAUDE.md の該当箇所                                                                                                       |
-| e-Tax 様式・仕様                      | [docs/etax/](./etax/) (`manifest.json` / `field_catalog.json` ほか) · 実装は [src/ai_books/etax/spec.py](../src/ai_books/etax/spec.py)   | README の e-Tax 節                                                                                                                     |
-| DB スキーマ (システムオブレコード)    | [supabase/migrations/](../supabase/migrations) (forward-only)                                                                            | README の Schema 節                                                                                                                    |
-| テスト用 seed / golden                | [tests/fixtures/seed_fy/](../tests/fixtures/seed_fy/README.md)                                                                           | README の該当箇所                                                                                                                      |
+| ドメイン                               | 一次情報 (SSOT)                                                                                                                          | これを指すだけのポインタ                                                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 製品概要・使い方                       | [README.md](../README.md)                                                                                                                | —                                                                                                                                      |
+| 開発規約・検証・Never touch・不変条件  | [AGENTS.md](../AGENTS.md)                                                                                                                | [CLAUDE.md](../CLAUDE.md) · [copilot-instructions](../.github/copilot-instructions.md) · [Cursor rules](../.cursor/rules/ai-books.mdc) |
+| 検証コマンド                           | [scripts/verify.sh](../scripts/verify.sh) / [scripts/test.sh](../scripts/test.sh) (実体) · 説明は [AGENTS.md#verification](../AGENTS.md) | [.claude/commands/](../.claude/commands) (`/verify` `/test` `/test-all`)                                                               |
+| アーキテクチャ上の意思決定             | [docs/adr/](./adr/) (ADR 連番)                                                                                                           | README / AGENTS.md の該当箇所                                                                                                          |
+| アーキ地図・モジュール構成・テスト保証 | [docs/architecture/README.md](./architecture/README.md)                                                                                  | AGENTS.md の不変条件 (定義は AGENTS.md が正、地図が参照)                                                                               |
+| PR 本文ルール                          | [docs/pr-description-standards.md](./pr-description-standards.md)                                                                        | [PULL_REQUEST_TEMPLATE](../.github/PULL_REQUEST_TEMPLATE.md) · [AGENTS.md#pr-conventions](../AGENTS.md)                                |
+| エージェント権限 (allow/deny)          | [.claude/settings.json](../.claude/settings.json)                                                                                        | AGENTS.md / CLAUDE.md の該当箇所                                                                                                       |
+| e-Tax 様式・仕様                       | [docs/etax/](./etax/) (`manifest.json` / `field_catalog.json` ほか) · 実装は [src/ai_books/etax/spec.py](../src/ai_books/etax/spec.py)   | README の e-Tax 節                                                                                                                     |
+| DB スキーマ (システムオブレコード)     | [supabase/migrations/](../supabase/migrations) (forward-only)                                                                            | README の Schema 節                                                                                                                    |
+| テスト用 seed / golden                 | [tests/fixtures/seed_fy/](../tests/fixtures/seed_fy/README.md)                                                                           | README の該当箇所                                                                                                                      |
 
 **原則:**
 
@@ -75,14 +77,14 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 `docs/` 配下は**用途別**にディレクトリを分ける。新規ドキュメントは以下のどれかに置き、
 本ハブ ([docs/README.md](./README.md)) の索引に登録する (**未登録の孤立文書を作らない**)。
 
-| ディレクトリ         | 用途                                                                                                                          | 状態           |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| `docs/` (直下)       | このハブ ([README.md](./README.md)) と、分類しきれない単独文書 ([pr-description-standards.md](./pr-description-standards.md)) | 運用中         |
-| `docs/adr/`          | Architecture Decision Records。`NNNN-kebab-title.md` の連番。一度確定したら編集せず、覆す決定は新番号で追加                   | 運用中         |
-| `docs/etax/`         | e-Tax 様式の調査成果・フィールドカタログ・マッピング。国税庁の著作物 (CAB/.xlsx/.xsd) は**同梱しない** (派生事実データのみ)   | 運用中         |
-| `docs/usage/`        | 人間向けの使い方ガイド (画面・操作の how-to) を README から切り出すとき                                                       | 予約 (#88–#90) |
-| `docs/architecture/` | アーキテクチャ詳細 (データフロー・モジュール構成) を ADR から派生して厚くするとき                                             | 予約           |
-| `docs/ai/`           | AI 開発効率化の仕組み (エージェント運用・Wave・自動化) の文書                                                                 | 予約 (#91–#93) |
+| ディレクトリ         | 用途                                                                                                                            | 状態           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `docs/` (直下)       | このハブ ([README.md](./README.md)) と、分類しきれない単独文書 ([pr-description-standards.md](./pr-description-standards.md))   | 運用中         |
+| `docs/adr/`          | Architecture Decision Records。`NNNN-kebab-title.md` の連番。一度確定したら編集せず、覆す決定は新番号で追加                     | 運用中         |
+| `docs/etax/`         | e-Tax 様式の調査成果・フィールドカタログ・マッピング。国税庁の著作物 (CAB/.xlsx/.xsd) は**同梱しない** (派生事実データのみ)     | 運用中         |
+| `docs/usage/`        | 人間向けの使い方ガイド (画面・操作の how-to) を README から切り出すとき                                                         | 予約 (#88–#90) |
+| `docs/architecture/` | アーキテクチャ詳細 (モジュール地図・不変条件・テスト保証インベントリ・How to add)。入口は [README.md](./architecture/README.md) | 運用中         |
+| `docs/ai/`           | AI 開発効率化の仕組み (エージェント運用・Wave・自動化) の文書                                                                   | 予約 (#91–#93) |
 
 > **予約**ディレクトリは後続 Issue で実体ができたタイミングで作成する。空ディレクトリは
 > 先行して切らない (本 Issue は「最上流の土台」= ハブ + 分類 + 規約の確定が目的)。
