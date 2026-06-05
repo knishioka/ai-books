@@ -40,7 +40,8 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 | [.claude/commands/](../.claude/commands/) | スラッシュコマンド (`/verify` `/test` `/test-all` · scaffold `/new-migration` `/new-mcp-tool` `/new-report` `/etax-validate`) | 開発の足場 |
 | [docs/ai/hooks-and-guardrails.md](./ai/hooks-and-guardrails.md) | Claude Code hooks (自動整形 / Never touch ガード) の解説・動作確認・回避手順 | 効率化の仕組み |
 | [docs/ai/best-practices-survey.md](./ai/best-practices-survey.md) | Claude Code / Codex 現行機能の調査と本リポ適用方針 (#91) | 技術調査 |
-| [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./adr/0001-pivot-to-supabase-and-vercel-viewer.md) | Supabase + Vercel viewer への pivot 決定 (ADR) | **意思決定 (ADR)** |
+| [docs/adr/README.md](./adr/README.md) | ADR 索引 + 運用プロセス (連番/ステータス/起票基準) + [テンプレ](./adr/template.md) | **意思決定 (ADR)** |
+| [docs/adr/](./adr/) | 個別の Architecture Decision Records (0001 pivot, 0002–0007 retro-ADR) | **意思決定 (ADR)** |
 | [docs/architecture/README.md](./architecture/README.md) | モジュール地図 / 不変条件マップ / テスト保証インベントリ / 新機能の足し方 | アーキ地図 |
 | [docs/pr-description-standards.md](./pr-description-standards.md) | PR 本文の書き方の **SSOT** | 貢献規約 |
 | [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md) | PR 本文テンプレ (中身の正は pr-description-standards) | テンプレ |
