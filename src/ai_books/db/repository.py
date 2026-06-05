@@ -1167,21 +1167,89 @@ class LedgerRepository:
         filter, so an account touched only before ``start`` still appears with its 繰越
         balance (and no in-window rows). With ``account_id`` given, only that account is
         returned (raising :class:`RecordNotFoundError` if it does not exist). Each account's
-        detail is computed by :meth:`account_ledger`, so the per-row running balance and
-        相手科目 are identical to the single-account read tool — this is just the whole book
-        at once.
+        detail matches :meth:`account_ledger`, so the per-row running balance and 相手科目 are
+        identical to the single-account read tool — this is just the whole book at once.
+
+        The single-account path reuses :meth:`account_ledger` directly. The whole-book path
+        does **not** loop it (that was ~3N+1 queries for N accounts); instead it fetches the
+        opening footings, in-window lines, and 相手科目 for every active account in a fixed
+        number of queries and assembles each account block in memory. Output is byte-identical
+        to looping account_ledger — ``test_db_general_ledger_matches_golden`` guards it.
         """
         if account_id is not None:
-            account_ids = [account_id]
+            accounts = [
+                self._to_general_ledger_account(
+                    self.account_ledger(account_id, start=start, end=end, status=status)
+                )
+            ]
         else:
-            account_ids = self._active_account_ids(end=end, status=status)
-        accounts = [
-            self._to_general_ledger_account(
-                self.account_ledger(account_id, start=start, end=end, status=status)
-            )
-            for account_id in account_ids
-        ]
+            accounts = self._whole_book_accounts(start=start, end=end, status=status)
         return GeneralLedger(start_date=start, end_date=end, status=status, accounts=accounts)
+
+    def _whole_book_accounts(
+        self, *, start: date | None, end: date | None, status: EntryStatus | None
+    ) -> list[GeneralLedgerAccount]:
+        """Assemble every active account's 元帳 block in bulk — the N+1-free whole-book path.
+
+        Mirrors :meth:`account_ledger` per account (科目コード順) but reads the 繰越 footings,
+        in-window lines, and 相手科目 for the entire book up front, then builds each block from
+        those in-memory maps. An account active (touched on/before ``end``) but with no
+        in-window line still appears with its 繰越 balance and no rows, exactly as the loop did.
+        """
+        active = self._active_accounts(end=end, status=status)
+        if not active:
+            return []
+        # 繰越 is everything before ``start``; with no start there is no carry-in (opening 0),
+        # so the opening pass is skipped entirely (matching :meth:`account_ledger`).
+        opening = self._opening_footings(start=start, status=status) if start is not None else {}
+        lines_by_account = self._window_lines_by_account(start=start, end=end, status=status)
+        entry_ids = sorted(
+            {int(row["entry_id"]) for rows in lines_by_account.values() for row in rows}
+        )
+        entry_lines = self._entry_lines(entry_ids)
+
+        accounts: list[GeneralLedgerAccount] = []
+        for account in active:
+            account_id = int(account["id"])
+            normal = NormalSide(account["normal_balance"])
+            if start is None:
+                opening_balance = Decimal("0")
+            else:
+                open_debit, open_credit = opening.get(account_id, (Decimal("0"), Decimal("0")))
+                opening_balance = ledger.balance_from_totals(open_debit, open_credit, normal)
+            raw_lines = [
+                ledger.RawLedgerLine(
+                    entry_id=int(row["entry_id"]),
+                    line_no=int(row["line_no"]),
+                    entry_date=row["entry_date"],
+                    voucher_no=row["voucher_no"],
+                    description=row["description"],
+                    line_description=row["line_description"],
+                    counter_accounts=self._counter_for(
+                        entry_lines.get(int(row["entry_id"]), []), account_id
+                    ),
+                    side=EntrySide(row["side"]),
+                    amount=row["amount"],
+                )
+                for row in lines_by_account.get(account_id, [])
+            ]
+            rows, closing_balance = ledger.build_ledger_rows(raw_lines, normal, opening_balance)
+            accounts.append(
+                self._to_general_ledger_account(
+                    AccountLedger(
+                        account_id=account_id,
+                        code=account["code"],
+                        name=account["name"],
+                        normal_balance=normal,
+                        start_date=start,
+                        end_date=end,
+                        opening_balance=opening_balance,
+                        closing_balance=closing_balance,
+                        rows=rows,
+                    )
+                )
+            )
+        return accounts
 
     @staticmethod
     def _to_general_ledger_account(ledger_view: AccountLedger) -> GeneralLedgerAccount:
@@ -1207,24 +1275,138 @@ class LedgerRepository:
             ],
         )
 
-    def _active_account_ids(self, *, end: date | None, status: EntryStatus | None) -> list[int]:
-        """Account ids (科目コード順) with any line dated on/before ``end`` under ``status``."""
+    def _active_accounts(
+        self, *, end: date | None, status: EntryStatus | None
+    ) -> list[dict[str, Any]]:
+        """Active accounts (科目コード順) with id/code/name/normal_balance for the whole book.
+
+        An account is active when it has any line dated on/before ``end`` under ``status``.
+        Returns the chart metadata each block needs so the whole-book assembly never has to
+        re-read an account per id.
+        """
         with self._conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT DISTINCT jl.account_id, a.code
-                FROM journal_lines jl
-                JOIN journal_entries je ON je.id = jl.entry_id
-                JOIN accounts a ON a.id = jl.account_id
-                WHERE (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
-                  AND (CASE WHEN %(status)s::entry_status IS NULL
-                            THEN je.status <> 'voided'::entry_status
-                            ELSE je.status = %(status)s::entry_status END)
+                SELECT a.id, a.code, a.name, a.normal_balance
+                FROM accounts a
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM journal_lines jl
+                    JOIN journal_entries je ON je.id = jl.entry_id
+                    WHERE jl.account_id = a.id
+                      AND (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
+                      AND (CASE WHEN %(status)s::entry_status IS NULL
+                                THEN je.status <> 'voided'::entry_status
+                                ELSE je.status = %(status)s::entry_status END)
+                )
                 ORDER BY a.code
                 """,
                 {"end": end, "status": status.value if status is not None else None},
             )
-            return [int(row["account_id"]) for row in cur.fetchall()]
+            return cur.fetchall()
+
+    def _opening_footings(
+        self, *, start: date, status: EntryStatus | None
+    ) -> dict[int, tuple[Decimal, Decimal]]:
+        """Per-account (借方, 貸方) footings for entries strictly before ``start`` (繰越).
+
+        One GROUP BY replaces the per-account 繰越 query :meth:`account_ledger` runs; accounts
+        with no prior activity are simply absent (callers default them to zero).
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT jl.account_id,
+                  COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)  AS debit_total,
+                  COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0) AS credit_total
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                WHERE je.entry_date < %(start)s::date
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                GROUP BY jl.account_id
+                """,
+                {"start": start, "status": status.value if status is not None else None},
+            )
+            return {
+                int(row["account_id"]): (Decimal(row["debit_total"]), Decimal(row["credit_total"]))
+                for row in cur.fetchall()
+            }
+
+    def _window_lines_by_account(
+        self, *, start: date | None, end: date | None, status: EntryStatus | None
+    ) -> dict[int, list[dict[str, Any]]]:
+        """Every in-window journal line, grouped by account_id in chronological row order.
+
+        The single query that replaces the per-account detail read; the ORDER BY keeps each
+        account's lines in the (取引日, 伝票 id, 行番号) order :func:`ledger.build_ledger_rows`
+        expects, so grouping in memory preserves it.
+        """
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT jl.account_id, je.id AS entry_id, jl.line_no, je.entry_date,
+                       je.voucher_no, je.description, jl.line_description, jl.side, jl.amount
+                FROM journal_lines jl
+                JOIN journal_entries je ON je.id = jl.entry_id
+                WHERE (%(start)s::date IS NULL OR je.entry_date >= %(start)s::date)
+                  AND (%(end)s::date IS NULL OR je.entry_date <= %(end)s::date)
+                  AND (CASE WHEN %(status)s::entry_status IS NULL
+                            THEN je.status <> 'voided'::entry_status
+                            ELSE je.status = %(status)s::entry_status END)
+                ORDER BY jl.account_id, je.entry_date, je.id, jl.line_no
+                """,
+                {
+                    "start": start,
+                    "end": end,
+                    "status": status.value if status is not None else None,
+                },
+            )
+            grouped: dict[int, list[dict[str, Any]]] = {}
+            for row in cur.fetchall():
+                grouped.setdefault(int(row["account_id"]), []).append(row)
+            return grouped
+
+    def _entry_lines(self, entry_ids: list[int]) -> dict[int, list[tuple[int, str]]]:
+        """Map each entry id to its lines' ``(account_id, 科目コード)`` in 行番号 order.
+
+        Bulk replacement for :meth:`_counter_accounts`: fetches the lines of every involved
+        伝票 once, leaving the per-account 相手科目 projection to :meth:`_counter_for` (which is
+        the same dedup-preserving-order rule, just applied in memory).
+        """
+        if not entry_ids:
+            return {}
+        with self._conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT jl.entry_id, jl.account_id, a.code
+                FROM journal_lines jl
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE jl.entry_id = ANY(%s)
+                ORDER BY jl.entry_id, jl.line_no
+                """,
+                (entry_ids,),
+            )
+            result: dict[int, list[tuple[int, str]]] = {}
+            for row in cur.fetchall():
+                result.setdefault(int(row["entry_id"]), []).append(
+                    (int(row["account_id"]), row["code"])
+                )
+            return result
+
+    @staticmethod
+    def _counter_for(entry_lines: list[tuple[int, str]], account_id: int) -> list[str]:
+        """相手科目 codes for ``account_id`` in one 伝票: the other accounts, dups collapsed.
+
+        Mirrors :meth:`_counter_accounts` exactly (other-account codes in 行番号 order, first
+        occurrence wins) so the whole-book path's 相手科目 match the single-account read.
+        """
+        codes: list[str] = []
+        for other_id, code in entry_lines:
+            if other_id != account_id and code not in codes:
+                codes.append(code)
+        return codes
 
     def _account_or_raise(self, account_id: int) -> Account:
         account = AccountRepository(self._conn).get(account_id)
