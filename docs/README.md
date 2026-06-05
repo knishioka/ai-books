@@ -13,12 +13,13 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 
 製品の位置付け・セットアップ・画面で「何ができるか」を知りたいときの入口。
 
-| ドキュメント                                                                | 内容                                                       | 種別            |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------- |
-| [README.md](../README.md)                                                   | プロダクトの位置付け・Why・Quick start・Roadmap・Non-goals | 製品概要 (SSOT) |
-| [web/README.md](../web/README.md)                                           | read-only Vercel ビューアの画面一覧・ローカル/デプロイ手順 | 利用ガイド      |
-| [docs/etax/aoiro-65man-requirements.md](./etax/aoiro-65man-requirements.md) | 65万円控除 / 優良電子帳簿の要件 (令和7年分)                | ドメイン要件    |
-| [docs/etax/handoff-runbook.md](./etax/handoff-runbook.md)                   | e-Tax 引き継ぎ runbook・手動取込の受け入れ手順 (WEB版)     | 運用手順        |
+| ドキュメント                                                                | 内容                                                                       | 種別              |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------- |
+| [README.md](../README.md)                                                   | プロダクトの位置付け・Why・Quick start・Roadmap・Non-goals                 | 製品概要 (SSOT)   |
+| [docs/usage/capabilities.md](./usage/capabilities.md)                       | 能力マップ (何ができるか) + 使い方 (MCP ツール/接続/viewer/手順) を 1 本に | 利用ガイド (SSOT) |
+| [web/README.md](../web/README.md)                                           | read-only Vercel ビューアの画面一覧・ローカル/デプロイ手順                 | 利用ガイド        |
+| [docs/etax/aoiro-65man-requirements.md](./etax/aoiro-65man-requirements.md) | 65万円控除 / 優良電子帳簿の要件 (令和7年分)                                | ドメイン要件      |
+| [docs/etax/handoff-runbook.md](./etax/handoff-runbook.md)                   | e-Tax 引き継ぎ runbook・手動取込の受け入れ手順 (WEB版)                     | 運用手順          |
 
 > 製品ゴールは **青色申告決算書 + e-Tax 取込データの出力** まで。税額計算・申告そのものは
 > 下流ツールの担当 (README の Non-goals 参照)。
@@ -50,7 +51,8 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 
 | ドメイン                              | 一次情報 (SSOT)                                                                                                                          | これを指すだけのポインタ                                                                                                               |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 製品概要・使い方                      | [README.md](../README.md)                                                                                                                | —                                                                                                                                      |
+| 製品概要                              | [README.md](../README.md)                                                                                                                | —                                                                                                                                      |
+| 使い方 (能力マップ・操作手順)         | [docs/usage/capabilities.md](./usage/capabilities.md)                                                                                    | README の Quick start / Web viewer 節                                                                                                  |
 | 開発規約・検証・Never touch・不変条件 | [AGENTS.md](../AGENTS.md)                                                                                                                | [CLAUDE.md](../CLAUDE.md) · [copilot-instructions](../.github/copilot-instructions.md) · [Cursor rules](../.cursor/rules/ai-books.mdc) |
 | 検証コマンド                          | [scripts/verify.sh](../scripts/verify.sh) / [scripts/test.sh](../scripts/test.sh) (実体) · 説明は [AGENTS.md#verification](../AGENTS.md) | [.claude/commands/](../.claude/commands) (`/verify` `/test` `/test-all`)                                                               |
 | アーキテクチャ上の意思決定            | [docs/adr/](./adr/) (ADR 連番)                                                                                                           | README / AGENTS.md の該当箇所                                                                                                          |
@@ -80,7 +82,7 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 | `docs/` (直下)       | このハブ ([README.md](./README.md)) と、分類しきれない単独文書 ([pr-description-standards.md](./pr-description-standards.md)) | 運用中         |
 | `docs/adr/`          | Architecture Decision Records。`NNNN-kebab-title.md` の連番。一度確定したら編集せず、覆す決定は新番号で追加                   | 運用中         |
 | `docs/etax/`         | e-Tax 様式の調査成果・フィールドカタログ・マッピング。国税庁の著作物 (CAB/.xlsx/.xsd) は**同梱しない** (派生事実データのみ)   | 運用中         |
-| `docs/usage/`        | 人間向けの使い方ガイド (画面・操作の how-to) を README から切り出すとき                                                       | 予約 (#88–#90) |
+| `docs/usage/`        | 人間向けの使い方ガイド (能力マップ・画面・操作の how-to)。[capabilities.md](./usage/capabilities.md) を起点に追加していく     | 運用中 (#88–)  |
 | `docs/architecture/` | アーキテクチャ詳細 (データフロー・モジュール構成) を ADR から派生して厚くするとき                                             | 予約           |
 | `docs/ai/`           | AI 開発効率化の仕組み (エージェント運用・Wave・自動化) の文書                                                                 | 予約 (#91–#93) |
 
