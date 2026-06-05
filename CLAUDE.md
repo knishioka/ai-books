@@ -44,6 +44,19 @@ seed / 主要レポート / viewer golden を pooler 越しに通す。prepared 
 AI エージェントは `.claude/commands/` のスラッシュコマンド **`/verify`**・**`/test`**・
 **`/test-all`** (上記スクリプトの薄いラッパ) を使う。
 
+## 開発の足場 (scaffold)
+
+繰り返す開発作業はプロジェクト固有のサブエージェント / スラッシュコマンドで型化済み。索引は
+[.claude/agents/README.md](./.claude/agents/README.md) と
+[docs/README.md](./docs/README.md) の「開発の足場」節を参照。
+
+- `/new-migration <name>` — forward-only migration + 適用/冪等テスト + schema golden
+- `/new-mcp-tool <name>` — `@mcp.tool` + 入口 Pydantic 検証 + protocol/contract テスト
+- `/new-report <name>` — 集計/レポート + seed_fy golden + DB↔Web golden 整合
+- `/etax-validate [--fetch]` — e-Tax `.xtx` を公式 `.xsd` で検証 (単体起動)
+
+不変条件・手順の正は [AGENTS.md](./AGENTS.md)。各 scaffold はそこへ誘導する薄いラッパ。
+
 ## ローカル開発フロー
 
 ```bash

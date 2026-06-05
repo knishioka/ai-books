@@ -46,13 +46,13 @@
       "snapshot": "profit_and_loss.non_operating_income.subtotal",
       "synthetic_code": "PL060",
       "etax_code": null,
-      "note": "実様式(一般用)に営業外収益の段は無い。各種引当金・準備金等(繰戻額) AMF00440 が構造的に近いが意味が異なる。#78 で要再設計。"
+      "note": "実様式(一般用)に営業外収益の段は無い。#83 で方針確定: 受取利息(8110)・雑収入(8120)等は様式に居場所が無く意図的に未マッピング(drop)、その net 効果は net_income 経由で所得(AMF00500)が carry する。"
     },
     {
-      "snapshot": "profit_and_loss.non_operating_expenses.subtotal",
+      "snapshot": "profit_and_loss.non_operating_expenses.lines[code=8210]",
       "synthetic_code": "PL070",
-      "etax_code": null,
-      "note": "実様式に営業外費用の段は無い。各種引当金・準備金等(繰入額) AMF00490 が構造的に近いが意味が異なる。"
+      "etax_code": "AMF00330",
+      "note": "#83 で方針確定: 利子割引料(8210)は帳簿上は営業外費用だが KOA210 では経費 AMF00330 に居場所がある → EtaxFixedSection(overflow_mode=drop)で橋渡しし、EtaxComputedField で経費計(AMF00380)に加算・差引金額２(AMF00390)から減算して内訳整合を保つ。居場所の無い営業外費用(雑損失 8220 等)は drop、net_income 経由。"
     },
     {
       "snapshot": "profit_and_loss.ordinary_income",

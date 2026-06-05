@@ -8,6 +8,10 @@ Architecture in one line: **MCP = the write/validation interface · Supabase (Po
 
 > 📚 **All docs are indexed in the [documentation hub](./docs/README.md)** — human-facing
 > vs AI/developer-facing split, plus the SSOT map (what is the source of truth for each domain).
+>
+> 🧭 **New here? Read the [能力マップ & 使い方ガイド](./docs/usage/capabilities.md)** — what
+> ai-books can do today (capabilities map) and how to use it (MCP tools, connecting a client,
+> the read-only viewer, end-to-end walkthroughs, and honest scope boundaries) in one page.
 
 ## Why
 
