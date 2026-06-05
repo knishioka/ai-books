@@ -120,9 +120,15 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 - 過去 migration: applied 済 migration は編集せず、新規ファイルで forward-only に変更 (Supabase/Postgres)
 - Supabase / Vercel の接続情報・サービスキー — 環境変数経由のみ。コード/コミットに含めない
 
+> この「Never touch」は **Claude Code hooks で仕組み化**されている。applied migration /
+> `.env` / `*.xsd` / `uv.lock` / `~/.ai-books/` の編集は PreToolUse ガードが自動でブロックし、
+> 編集後は PostToolUse が `ruff format` を自動適用する。詳細・回避手順は
+> [docs/ai/hooks-and-guardrails.md](./docs/ai/hooks-and-guardrails.md)。
+
 ## Agent permissions
 
 - AI エージェント (Claude Code 等) の権限 (allow/deny) は **`.claude/settings.json` が SSOT**。ルーチン安全コマンドは allow、破壊的操作 (`rm -rf` / force push / volumes 削除 / 本番 DB 破壊 / `~/.ai-books` 書込 等) は deny。個人差分は gitignore 済の `.claude/settings.local.json` に置き、共有しない。
+- **hooks** も同 `.claude/settings.json` が SSOT。PreToolUse ガード (Never touch の機械化) と PostToolUse 自動整形を登録する。実体は [.claude/hooks/](./.claude/hooks/)、解説は [docs/ai/hooks-and-guardrails.md](./docs/ai/hooks-and-guardrails.md)。
 
 ## Architectural invariants
 
@@ -156,3 +162,28 @@ uv run pre-commit run gitleaks --all-files
 ```
 
 誤検知が出たら `.gitleaks.toml` の `[allowlist]` に該当パス / regex を追加し、PR でレビューする。**個別行の `# gitleaks:allow` は使わない** (差分レビューで埋もれるため)。
+
+## Review guidelines
+
+PR コードレビューの観点 SSOT。**Claude Code (`/code-review`) と Codex (`@codex review` / 自動レビュー)
+の双方がこのセクションに従う** ([Codex は変更ファイルに最も近い AGENTS.md の `## Review guidelines`
+を参照する](https://developers.openai.com/codex/integrations/github))。下記は本リポの不変条件
+(上記 Architectural invariants / Never touch) をレビュー時のチェックリストに落としたもの。
+多くは Claude Code hooks ([docs/ai/hooks-and-guardrails.md](./docs/ai/hooks-and-guardrails.md)) で
+編集時にも機械的にブロックされるが、レビューは**最終確認**として同じ観点で見る。
+
+優先度は P0 (マージブロッカー) / P1 (要修正) で示す。
+
+- **P0 — forward-only migration**: `supabase/migrations/` の既存 (適用済) ファイルを編集していないか。
+  スキーマ変更は新規ファイルで前進し、`tests/fixtures/schema/schema.sql` golden を更新したか (invariant #3)。
+- **P0 — 秘匿物の非コミット**: `.env` / 接続情報 / サービスキー / `~/.ai-books/` 実データ / 公式 `.xsd` を
+  コミットに含めていないか。設定は環境変数経由か (Never touch / Secret scanning)。
+- **P0 — server-side validation**: 書込/検証は MCP tool 入口の Pydantic schema を通るか。借方貸方バランス・
+  Decimal 精度・account FK 検証をクライアント信頼で省いていないか (invariant #2)。
+- **P0 — read-only viewer**: web 側に書込/データ入力経路 (HTML フォーム・mutation) を追加していないか。
+  閲覧は read-only 集計ビューに限るか (invariant #1)。
+- **P1 — audit log append-only**: `audit_logs` の既存行を削除/上書きするコードを足していないか (invariant #5)。
+- **P1 — no ORM / 生 SQL**: 正当な理由なく ORM (Drizzle / SQLAlchemy 等) を導入していないか (invariant #4)。
+- **P1 — 検証の通過**: `./scripts/verify.sh` (lint/format/typecheck/test) が green か。DB 連携を含む変更は
+  `./scripts/test.sh --all` で確認したか。カバレッジ目標 (line 80 / branch 70) を割っていないか。
+- **P1 — uv.lock の整合**: 依存変更が `uv sync` 経由で、`uv.lock` の手動編集でないか。
