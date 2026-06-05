@@ -95,6 +95,62 @@ describe("buildEtaxExport — happy path", () => {
   });
 });
 
+describe("buildEtaxExport — 営業外 mapping policy (#83)", () => {
+  function withNonOperating(
+    lines: Array<{ code: string; name: string; amount: string }>,
+  ): FinancialStatementsSnapshot {
+    const snap = validSnapshot();
+    // selling_admin に 経費 を1つ置き、橋渡しと合算する形をつくる.
+    snap.profit_and_loss.selling_admin_expenses = {
+      subtotal: "20000.00",
+      lines: [{ code: "7250", name: "地代家賃", amount: "20000.00" }],
+    } as never;
+    (
+      snap.profit_and_loss.non_operating_expenses as {
+        subtotal: string;
+        lines?: unknown[];
+      }
+    ).lines = lines;
+    return snap;
+  }
+
+  it("bridges 利子割引料 (営業外費用 8210) into 経費 AMF00330", () => {
+    const exported = buildEtaxExport(
+      withNonOperating([
+        { code: "8210", name: "利子割引料", amount: "21000.00" },
+      ]),
+    );
+    const interest = exported.records.find((r) => r.itemCode === "AMF00330");
+    expect(interest?.accountCode).toBe("8210");
+    expect(interest?.value).toBe("21000");
+  });
+
+  it("folds the homed 営業外費用 into 経費計 / 差引金額２", () => {
+    const exported = buildEtaxExport(
+      withNonOperating([
+        { code: "8210", name: "利子割引料", amount: "21000.00" },
+      ]),
+    );
+    const byCode = Object.fromEntries(
+      exported.records.map((r) => [r.itemCode, Number(r.value)]),
+    );
+    expect(byCode.AMF00380).toBe(41000); // 20000 (地代家賃) + 21000 (利子割引料)
+    expect(byCode.AMF00390).toBe(300000 - 21000); // 営業利益 - 利子割引料
+  });
+
+  it("drops 営業外 with no home on 一般用 (雑損失 8220) without error", () => {
+    const exported = buildEtaxExport(
+      withNonOperating([
+        { code: "8210", name: "利子割引料", amount: "21000.00" },
+        { code: "8220", name: "雑損失", amount: "9999.00" },
+      ]),
+    );
+    expect(exported.records.some((r) => r.accountCode === "8220")).toBe(false);
+    const total = exported.records.find((r) => r.itemCode === "AMF00380");
+    expect(Number(total?.value)).toBe(41000); // 雑損失 は寄与しない
+  });
+});
+
 describe("buildEtaxExport — validation", () => {
   it("rejects a 端数 amount as not whole yen", () => {
     const snap = validSnapshot();
