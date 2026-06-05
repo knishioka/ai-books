@@ -2,7 +2,9 @@
 
 ## Mission
 
-AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP) tools that expose double-entry bookkeeping (chart of accounts, journal entries, trial balance, financial statements). All writes/validation go through MCP. Human UI is read-only: a Vercel-hosted aggregation viewer over Supabase data — no data entry. Goal includes producing 青色申告決算書 + e-Tax 取込データ (tax-amount computation itself stays downstream). See [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md).
+AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP) tools that expose double-entry bookkeeping (chart of accounts, journal entries, trial balance, financial statements). All writes/validation go through MCP. Human UI is read-only: a Vercel-hosted aggregation viewer over Supabase data — no data entry. Goal includes producing 青色申告決算書 + e-Tax 取込データ (tax-amount computation itself stays downstream). アーキテクチャ上の意思決定は ADR に記録する —
+索引・運用プロセス (連番/ステータス/起票基準) は [docs/adr/README.md](./docs/adr/README.md)、
+最初の決定は [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md)。
 
 本書はこのリポの**開発規約 SSOT**。文書全体の索引と各ドメインの SSOT マップは
 [docs/README.md](./docs/README.md) (ドキュメントハブ) を参照。
@@ -126,7 +128,7 @@ PR 本文は **日本語**、ブランチ名 / コミット / PR タイトルは
 
 1. **Read-only viewer only, no data-entry UI**. データ入力/編集は MCP tool / CLI のみ。閲覧は **Vercel 上の read-only 集計ビュー**に限り許可 (trial balance / P/L / B/S / 青色申告決算書 等の render のみ)。書込 UI・HTML 入力フォームは導入しない。本番では viewer を SELECT 専用ロール (`viewer_ro`, [supabase/roles/viewer_readonly.sql](./supabase/roles/viewer_readonly.sql)) に向け、書込不能を DB レベルで強制する。read 全成功 / write 全拒否 (将来テーブル含む) は `tests/test_readonly_db.py`、grant 集合のドリフトは `tests/test_readonly_role.py` が検出する (`./scripts/test.sh -k readonly`)
 2. **Server-side validation absolute**: 借方貸方バランス、Decimal 精度、account FK 検証は MCP tool 入口の Pydantic schema で実施。クライアント信頼ゼロ (read-only ビュー追加後も書込経路は MCP のみ)
-3. **Supabase (Postgres) storage, forward-only migration**: システムオブレコードは Supabase (Postgres)。applied 済 migration は編集せず新規ファイルで前進のみ。multi-tenant / RLS / 水平スケールは持たない (single-user 前提は不変)。全 migration 適用後の確定スキーマは `tests/fixtures/schema/schema.sql` を golden としてドリフト検出する (`tests/test_schema_snapshot.py`)。意図的な DDL 変更時のみ `uv run python -m ai_books.db.schema_snapshot --update` で golden を更新する
+3. **Supabase (Postgres) storage, forward-only migration**: システムオブレコードは Supabase (Postgres)。applied 済 migration は編集せず新規ファイルで前進のみ。multi-tenant / RLS / 水平スケールは持たない (single-user 前提は不変)。全 migration 適用後の確定スキーマは `tests/fixtures/schema/schema.sql` を golden としてドリフト検出する (`tests/test_schema_snapshot.py`)。意図的な DDL 変更時のみ `uv run python -m ai_books.db.schema_snapshot --update` で golden を更新する。この forward-only 規律 (過去の決定は書き換えず前進で覆す) は ADR にも適用される ([docs/adr/README.md](./docs/adr/README.md): 確定 ADR は編集せず新番号で Supersede)
 4. **No ORM until justified**: 生 SQL + Postgres ドライバ (例: `psycopg`)。Drizzle / SQLAlchemy 等は別 Issue で必要性を立証してから
 5. **Audit log は append-only**: `audit_logs` テーブルから既存行を削除/上書きするコードを書かない
 

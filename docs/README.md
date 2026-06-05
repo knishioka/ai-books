@@ -29,21 +29,22 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 開発に参加する人/エージェント (Claude Code / Codex / Copilot / Cursor) の入口。
 **規約・検証・触ってはいけない領域の SSOT は [AGENTS.md](../AGENTS.md)**。
 
-| ドキュメント                                                                                              | 内容                                                                                                                          | 種別               |
-| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| [AGENTS.md](../AGENTS.md)                                                                                 | Mission / Stack / Verification / Never touch / Architectural invariants / Quality bar                                         | **開発規約 SSOT**  |
-| [CLAUDE.md](../CLAUDE.md)                                                                                 | Claude Code 向けの入口 (中身は AGENTS.md を指す薄いポインタ)                                                                  | エージェント設定   |
-| [.github/copilot-instructions.md](../.github/copilot-instructions.md)                                     | GitHub Copilot 向けの薄いポインタ                                                                                             | エージェント設定   |
-| [.cursor/rules/ai-books.mdc](../.cursor/rules/ai-books.mdc)                                               | Cursor 向けの薄いポインタ                                                                                                     | エージェント設定   |
-| [.claude/settings.json](../.claude/settings.json)                                                         | AI エージェント権限 (allow/deny) の **SSOT**                                                                                  | 権限設定           |
-| [.claude/agents/](../.claude/agents/)                                                                     | プロジェクト固有サブエージェント (migration / mcp-tool / report / etax 様式 の型)                                             | 開発の足場         |
-| [.claude/commands/](../.claude/commands/)                                                                 | スラッシュコマンド (`/verify` `/test` `/test-all` · scaffold `/new-migration` `/new-mcp-tool` `/new-report` `/etax-validate`) | 開発の足場         |
-| [docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md](./adr/0001-pivot-to-supabase-and-vercel-viewer.md) | Supabase + Vercel viewer への pivot 決定 (ADR)                                                                                | **意思決定 (ADR)** |
-| [docs/architecture/README.md](./architecture/README.md)                                                   | モジュール地図 / 不変条件マップ / テスト保証インベントリ / 新機能の足し方                                                     | アーキ地図         |
-| [docs/pr-description-standards.md](./pr-description-standards.md)                                         | PR 本文の書き方の **SSOT**                                                                                                    | 貢献規約           |
-| [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md)                                   | PR 本文テンプレ (中身の正は pr-description-standards)                                                                         | テンプレ           |
-| [docs/etax/README.md](./etax/README.md)                                                                   | e-Tax 所得税関係 XML 仕様の調査スパイク・フィールドカタログ                                                                   | 技術調査           |
-| [tests/fixtures/seed_fy/README.md](../tests/fixtures/seed_fy/README.md)                                   | 合成仕訳 seed とゴールデンスナップショットの設計意図                                                                          | テスト基盤         |
+| ドキュメント                                                            | 内容                                                                                                                          | 種別               |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| [AGENTS.md](../AGENTS.md)                                               | Mission / Stack / Verification / Never touch / Architectural invariants / Quality bar                                         | **開発規約 SSOT**  |
+| [CLAUDE.md](../CLAUDE.md)                                               | Claude Code 向けの入口 (中身は AGENTS.md を指す薄いポインタ)                                                                  | エージェント設定   |
+| [.github/copilot-instructions.md](../.github/copilot-instructions.md)   | GitHub Copilot 向けの薄いポインタ                                                                                             | エージェント設定   |
+| [.cursor/rules/ai-books.mdc](../.cursor/rules/ai-books.mdc)             | Cursor 向けの薄いポインタ                                                                                                     | エージェント設定   |
+| [.claude/settings.json](../.claude/settings.json)                       | AI エージェント権限 (allow/deny) の **SSOT**                                                                                  | 権限設定           |
+| [.claude/agents/](../.claude/agents/)                                   | プロジェクト固有サブエージェント (migration / mcp-tool / report / etax 様式 の型)                                             | 開発の足場         |
+| [.claude/commands/](../.claude/commands/)                               | スラッシュコマンド (`/verify` `/test` `/test-all` · scaffold `/new-migration` `/new-mcp-tool` `/new-report` `/etax-validate`) | 開発の足場         |
+| [docs/adr/README.md](./adr/README.md)                                   | ADR 索引 + 運用プロセス (連番/ステータス/起票基準) + [テンプレ](./adr/template.md)                                            | **意思決定 (ADR)** |
+| [docs/adr/](./adr/)                                                     | 個別の Architecture Decision Records (0001 pivot, 0002–0007 retro-ADR)                                                        | **意思決定 (ADR)** |
+| [docs/architecture/README.md](./architecture/README.md)                 | モジュール地図 / 不変条件マップ / テスト保証インベントリ / 新機能の足し方                                                     | アーキ地図         |
+| [docs/pr-description-standards.md](./pr-description-standards.md)       | PR 本文の書き方の **SSOT**                                                                                                    | 貢献規約           |
+| [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md) | PR 本文テンプレ (中身の正は pr-description-standards)                                                                         | テンプレ           |
+| [docs/etax/README.md](./etax/README.md)                                 | e-Tax 所得税関係 XML 仕様の調査スパイク・フィールドカタログ                                                                   | 技術調査           |
+| [tests/fixtures/seed_fy/README.md](../tests/fixtures/seed_fy/README.md) | 合成仕訳 seed とゴールデンスナップショットの設計意図                                                                          | テスト基盤         |
 
 ---
 
