@@ -11,7 +11,7 @@
 
 `ai-books` ships the MCP server over **stdio** only — a local process a single
 Claude Desktop / CLI client launches and talks to on the same machine
-(`src/ai_books/server.py:613`, `run_stdio` → `mcp.run()`, FastMCP's default
+(`src/ai_books/server.py`, `run_stdio` → `mcp.run()`, FastMCP's default
 transport). There is no network listener, so "who may call the tools" has so far
 been answered implicitly by OS process boundaries: if you can spawn the process,
 you are the (sole) user.
@@ -32,7 +32,7 @@ the boundary:
 - **Invariant #3 — single-user, no multi-tenant / RLS / horizontal scale.**
   Adding network auth must **not** be read as a license to become multi-tenant.
   The natural-but-wrong inference — "we added login, so now we serve many
-  isolated tenants" — is exactly the論点 a future reader would re-litigate. We
+  isolated tenants" — is exactly the point a future reader would re-litigate. We
   pin it: **authentication ≠ multi-tenancy.**
 - **Invariant #2 — server-side validation absolute.** Auth gates _who_ may call;
   it does not touch _what_ is validated. Debit/credit balance, Decimal precision,
