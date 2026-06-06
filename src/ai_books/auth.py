@@ -80,7 +80,10 @@ class AllowlistTokenVerifier(TokenVerifier):
         if access is None:
             return None  # invalid / expired / wrong issuer — already denied upstream
         claims = access.claims or {}
-        identity = {claims.get("sub"), claims.get("email")} - {None}
+        # Only string claims are valid identifiers. A malformed token whose ``sub`` /
+        # ``email`` is an unexpected type (list / dict — unhashable) must be *denied*,
+        # not crash the set build with TypeError; non-str values simply never match.
+        identity = {val for val in (claims.get("sub"), claims.get("email")) if isinstance(val, str)}
         if identity & self._allowlist:
             return access
         # Authenticated but not the owner: deny without echoing the identity.
@@ -137,6 +140,12 @@ def build_auth_provider(env: Mapping[str, str] | None = None) -> AuthProvider | 
         )
     assert project_url is not None  # narrowed by the `missing` check above
     assert base_url is not None  # narrowed by the `missing` check above
+
+    # Fail fast on a scheme-less URL (e.g. SUPABASE_URL=my-project.supabase.co) so the
+    # operator gets a clear startup error rather than a JWKS fetch that fails later.
+    for name, url in ((PROJECT_URL_ENV, project_url), (BASE_URL_ENV, base_url)):
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise RuntimeError(f"{name} must start with http:// or https://; got {url!r}.")
 
     allowlist = parse_allowlist(allowlist_raw)
     if not allowlist:

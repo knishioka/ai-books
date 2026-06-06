@@ -88,6 +88,13 @@ def test_build_rejects_unknown_algorithm() -> None:
         auth.build_auth_provider(_full_env(**{auth.ALGORITHM_ENV: "HS256"}))
 
 
+@pytest.mark.parametrize("var", [auth.PROJECT_URL_ENV, auth.BASE_URL_ENV])
+def test_build_rejects_url_without_scheme(var: str) -> None:
+    """A scheme-less URL fails fast at startup with a clear error, not later at fetch."""
+    with pytest.raises(RuntimeError, match="http"):
+        auth.build_auth_provider(_full_env(**{var: "proj.supabase.co"}))
+
+
 @pytest.mark.parametrize("algorithm", ["RS256", "ES256"])
 def test_build_accepts_supported_algorithms(algorithm: str) -> None:
     provider = auth.build_auth_provider(_full_env(**{auth.ALGORITHM_ENV: algorithm}))
@@ -146,6 +153,18 @@ async def test_token_without_identity_claims_is_denied() -> None:
     assert await gate.verify_token("anything") is None
 
 
+async def test_token_with_nonstring_claims_is_denied() -> None:
+    """A malformed token (unhashable list/dict sub/email) is denied, never crashes."""
+    token = AccessToken(
+        token="jwt",
+        client_id="client",
+        scopes=[],
+        claims={"sub": ["not", "a", "string"], "email": {"weird": "obj"}},
+    )
+    gate = _gate(token, {"owner@example.com"})
+    assert await gate.verify_token("anything") is None
+
+
 # --- audit actor resolution (server._resolve_actor) ---------------------------
 
 
@@ -156,6 +175,10 @@ def test_resolve_actor_falls_back_to_default_without_token(
     monkeypatch.setattr(server, "get_access_token", lambda: None)
     assert server._resolve_actor() == server._DEFAULT_ACTOR
     assert server._resolve_actor("local-cli") == "local-cli"
+    # An explicit empty / None actor (e.g. a client passing actor="") falls back to
+    # the default so the audit row never names an empty actor.
+    assert server._resolve_actor("") == server._DEFAULT_ACTOR
+    assert server._resolve_actor(None) == server._DEFAULT_ACTOR
 
 
 def test_resolve_actor_prefers_email_then_sub(monkeypatch: pytest.MonkeyPatch) -> None:

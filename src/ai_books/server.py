@@ -520,15 +520,16 @@ def _tool_error(exc: AiBooksError) -> ToolError:
     return ToolError(json.dumps(exc.to_dict(), ensure_ascii=False))
 
 
-def _resolve_actor(provided: str = _DEFAULT_ACTOR) -> str:
+def _resolve_actor(provided: str | None = _DEFAULT_ACTOR) -> str:
     """Resolve the audit actor for a write.
 
     Over the authenticated HTTP transport the actor is the authenticated user
     (the token's ``email`` then ``sub``); the authenticated identity always wins
     over ``provided`` so a caller cannot spoof the audit subject on a channel
     that already proved who they are (invariant #5 — the trail names the real
-    actor). Over stdio (no token) it falls back to ``provided`` / the default
-    actor, preserving local behaviour.
+    actor). Over stdio (no token) it falls back to ``provided``, and an empty /
+    ``None`` ``provided`` (e.g. a client passing ``actor=""``) falls back to the
+    default actor so the audit row always names a non-empty actor.
     """
     token = get_access_token()
     if token is not None:
@@ -536,7 +537,7 @@ def _resolve_actor(provided: str = _DEFAULT_ACTOR) -> str:
         identity = claims.get("email") or claims.get("sub")
         if identity:
             return str(identity)
-    return provided
+    return provided or _DEFAULT_ACTOR
 
 
 @mcp.tool
