@@ -24,6 +24,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -132,36 +133,44 @@ def http_server() -> Iterator[str]:
         server.HOST_ENV: "127.0.0.1",
         server.PORT_ENV: str(port),
     }
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "ai_books.server"],
-        cwd=str(_REPO_ROOT),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
-    url = f"http://127.0.0.1:{port}/mcp"
-    try:
-        # Wait for the listener to accept connections (cold import under CI can be slow).
-        deadline = time.monotonic() + _TIMEOUT_S
-        while time.monotonic() < deadline:
-            if proc.poll() is not None:
-                out = proc.stdout.read().decode() if proc.stdout else ""
-                raise RuntimeError(f"server exited early (code {proc.returncode}):\n{out}")
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                sock.settimeout(0.5)
-                if sock.connect_ex(("127.0.0.1", port)) == 0:
-                    break
-            time.sleep(0.1)
-        else:
-            raise RuntimeError("server did not start listening within timeout")
-        yield url
-    finally:
-        proc.terminate()
+    # Redirect output to a temp file, NOT subprocess.PIPE: FastMCP's startup banner +
+    # uvicorn request logs are written continuously, and a PIPE nobody drains would fill
+    # the ~64KB OS pipe buffer and deadlock the child mid-run, hanging the test until
+    # timeout. A file never blocks the writer, and we can still read it back on failure.
+    # The outer ``with`` owns the file; the inner ``finally`` reaps the process first, so
+    # the writer is gone before the file closes.
+    with tempfile.TemporaryFile() as log_file:
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "ai_books.server"],
+            cwd=str(_REPO_ROOT),
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+        )
+        url = f"http://127.0.0.1:{port}/mcp"
         try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=10)
+            # Wait for the listener to accept connections (cold import under CI can be slow).
+            deadline = time.monotonic() + _TIMEOUT_S
+            while time.monotonic() < deadline:
+                if proc.poll() is not None:
+                    log_file.seek(0)
+                    out = log_file.read().decode(errors="replace")
+                    raise RuntimeError(f"server exited early (code {proc.returncode}):\n{out}")
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                    sock.settimeout(0.5)
+                    if sock.connect_ex(("127.0.0.1", port)) == 0:
+                        break
+                time.sleep(0.1)
+            else:
+                raise RuntimeError("server did not start listening within timeout")
+            yield url
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=10)
 
 
 def _http_client(url: str) -> Client[StreamableHttpTransport]:
