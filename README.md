@@ -58,6 +58,51 @@ To run them across the whole repo:
 uv run pre-commit run --all-files
 ```
 
+### MCP transport: stdio (default) / Streamable HTTP
+
+The server speaks **stdio by default** — a local Claude Desktop / CLI client
+launches the process and talks over stdio (above). To expose the same tools over
+the network, opt in to **Streamable HTTP** with environment variables (a deliberate
+operator choice — never enabled implicitly; see
+[ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md)):
+
+```bash
+AI_BOOKS_MCP_TRANSPORT=http \
+  AI_BOOKS_MCP_HOST=127.0.0.1 \
+  AI_BOOKS_MCP_PORT=8000 \
+  uv run python -m ai_books.server   # serves MCP at http://127.0.0.1:8000/mcp
+```
+
+`AI_BOOKS_MCP_HOST` / `AI_BOOKS_MCP_PORT` default to `127.0.0.1` / `8000`. The host
+defaults to **loopback** so an http launch never opens a public listener by accident.
+
+> ⚠️ **The HTTP endpoint is not authenticated yet.** Auth (Supabase JWT +
+> single-user allowlist, fail-closed) lands in a later issue per
+> [ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md). Until then keep the
+> host on loopback and do **not** expose it on a public interface.
+
+**Manual verification** (`tools/list` over HTTP). Start the server as above, then in
+another shell drive it through the FastMCP client:
+
+```bash
+uv run python -c "
+import asyncio
+from fastmcp import Client
+from fastmcp.client.transports import StreamableHttpTransport
+
+async def main():
+    async with Client(StreamableHttpTransport('http://127.0.0.1:8000/mcp')) as c:
+        print('tools:', sorted(t.name for t in await c.list_tools()))
+        print(await c.call_tool('hello', {'name': 'http'}))
+
+asyncio.run(main())
+"
+```
+
+This prints the tool list and the `hello` round-trip — confirming `tools/list` and a
+tool call answer over HTTP. (The same path is covered automatically by
+`tests/test_server_http.py`.)
+
 ## Local Postgres (Supabase)
 
 Storage is **Supabase (Postgres)** (see [ADR 0001](./docs/adr/0001-pivot-to-supabase-and-vercel-viewer.md)).
