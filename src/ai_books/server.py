@@ -38,8 +38,9 @@ from typing import Any
 import psycopg
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.server.dependencies import get_access_token
 
-from ai_books import db
+from ai_books import auth, db
 from ai_books.db.repository import (
     AccountRepository,
     FiscalYearRepository,
@@ -74,8 +75,18 @@ from ai_books.models import (
 )
 from ai_books.services import CsvImportService, JournalService
 
+# Remote (HTTP) auth provider, or None when unconfigured (stdio / local). Built once
+# from the environment and attached to the server; it only governs the HTTP transport
+# (stdio and the in-memory protocol client carry no token and are unaffected). The
+# fail-closed guard that *requires* it when launching over http lives in ``main()``.
+_AUTH_PROVIDER = auth.build_auth_provider()
+
+# Audit actor used when no authenticated identity is available (stdio / local).
+_DEFAULT_ACTOR = "ai-agent"
+
 mcp: FastMCP = FastMCP(
     name="ai-books",
+    auth=_AUTH_PROVIDER,
     instructions=(
         "AI-first accounting MCP server. Provides double-entry bookkeeping primitives "
         "(chart of accounts, journal entries, trial balance, financial statements). "
@@ -509,6 +520,25 @@ def _tool_error(exc: AiBooksError) -> ToolError:
     return ToolError(json.dumps(exc.to_dict(), ensure_ascii=False))
 
 
+def _resolve_actor(provided: str = _DEFAULT_ACTOR) -> str:
+    """Resolve the audit actor for a write.
+
+    Over the authenticated HTTP transport the actor is the authenticated user
+    (the token's ``email`` then ``sub``); the authenticated identity always wins
+    over ``provided`` so a caller cannot spoof the audit subject on a channel
+    that already proved who they are (invariant #5 — the trail names the real
+    actor). Over stdio (no token) it falls back to ``provided`` / the default
+    actor, preserving local behaviour.
+    """
+    token = get_access_token()
+    if token is not None:
+        claims = token.claims or {}
+        identity = claims.get("email") or claims.get("sub")
+        if identity:
+            return str(identity)
+    return provided
+
+
 @mcp.tool
 def create_journal_entry(entry: JournalEntryInput, actor: str = "ai-agent") -> JournalEntry:
     """Create a journal entry (仕訳) after full server-side validation.
@@ -519,6 +549,7 @@ def create_journal_entry(entry: JournalEntryInput, actor: str = "ai-agent") -> J
     the sequence unless one is supplied. Returns the stored entry; on a validation,
     account, or period failure raises a ``ToolError`` whose message is a JSON payload.
     """
+    actor = _resolve_actor(actor)
     with db.connect() as conn:
         try:
             return JournalService(conn).create_entry(entry, actor=actor)
@@ -537,6 +568,7 @@ def update_journal_entry(
     as create apply. Returns the updated entry; raises ``ToolError`` if it is not a
     draft or fails validation.
     """
+    actor = _resolve_actor(actor)
     with db.connect() as conn:
         try:
             return JournalService(conn).update_entry(entry_id, entry, actor=actor)
@@ -551,6 +583,7 @@ def post_journal_entry(entry_id: int, actor: str = "ai-agent") -> JournalEntry:
     Only a balanced draft with lines can be posted. Returns the posted entry; raises
     ``ToolError`` if the entry is not a draft or has no lines.
     """
+    actor = _resolve_actor(actor)
     with db.connect() as conn:
         try:
             return JournalService(conn).post_entry(entry_id, actor=actor)
@@ -568,6 +601,7 @@ def void_journal_entry(entry_id: int, reason: str, actor: str = "ai-agent") -> J
     no longer count toward balances or the 総勘定元帳. Returns the voided entry; raises
     ``ToolError`` if it is already voided or the reason is empty.
     """
+    actor = _resolve_actor(actor)
     with db.connect() as conn:
         try:
             return JournalService(conn).void_entry(entry_id, reason=reason, actor=actor)
@@ -598,6 +632,7 @@ def import_transactions_csv(
     取込/重複/未割当 with the created entry ids; raises a ``ToolError`` (JSON payload) on a
     parse, format, account, or period failure.
     """
+    actor = _resolve_actor(actor)
     with db.connect() as conn:
         try:
             return CsvImportService(conn).import_csv(
@@ -618,9 +653,10 @@ def import_transactions_csv(
 # the same tools are reachable over the network — a deliberate operator choice, never
 # enabled implicitly (ADR 0008). Host/port come from the environment; the default
 # host is loopback (``127.0.0.1``) so an http launch never opens a public listener by
-# accident. Authentication is intentionally NOT wired here yet: the remote endpoint is
-# unauthenticated until the auth issue lands, at which point ``auth=`` is passed to the
-# ``FastMCP(...)`` constructor above — this entry point stays the same (ADR 0008).
+# accident. Authentication is wired via ``auth=`` on the ``FastMCP(...)`` constructor
+# above (Issue #107): the http path is fail-closed — it refuses to launch unless a
+# Supabase Auth provider + single-user allowlist is configured (ADR 0008). stdio stays
+# unauthenticated and unchanged.
 
 TRANSPORT_ENV = "AI_BOOKS_MCP_TRANSPORT"
 HOST_ENV = "AI_BOOKS_MCP_HOST"
@@ -672,11 +708,22 @@ def main() -> None:
     Default transport is stdio (FastMCP default): unchanged local behaviour. Set
     ``AI_BOOKS_MCP_TRANSPORT=http`` to expose the tools over Streamable HTTP, bound to
     ``AI_BOOKS_MCP_HOST`` / ``AI_BOOKS_MCP_PORT`` (defaults ``127.0.0.1:8000``).
+
+    The http path is **fail-closed** (ADR 0008): it refuses to start unless remote
+    auth is configured (``AI_BOOKS_MCP_AUTH_ALLOWLIST`` + ``SUPABASE_URL`` +
+    ``AI_BOOKS_MCP_BASE_URL``), so a network listener is never opened without the
+    Supabase Auth + single-user allowlist gate in front of it.
     """
     transport = _resolve_transport()
     if transport == "stdio":
         mcp.run()
         return
+    if _AUTH_PROVIDER is None:
+        raise RuntimeError(
+            f"{TRANSPORT_ENV}=http requires authentication to be configured (ADR 0008, "
+            f"fail-closed): set {auth.ALLOWLIST_ENV} (+ {auth.PROJECT_URL_ENV}, "
+            f"{auth.BASE_URL_ENV}). Refusing to expose an unauthenticated remote endpoint."
+        )
     mcp.run(transport="http", host=_resolve_host(), port=_resolve_port())
 
 

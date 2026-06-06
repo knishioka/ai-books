@@ -6,20 +6,22 @@ Two layers:
   / ``AI_BOOKS_MCP_HOST`` / ``AI_BOOKS_MCP_PORT`` env vars resolve to the right values
   and reject bad input, and the default is always stdio (so a plain launch never opens
   a listener).
-- **HTTP boot smoke test**: spawns the server exactly as an operator would —
-  ``python -m ai_books.server`` with ``AI_BOOKS_MCP_TRANSPORT=http`` on an ephemeral
-  port — and drives it through the FastMCP Streamable HTTP client: initialize handshake
-  → ``list_tools`` → a protocol-level ``hello`` call. This is the minimum guarantee that
-  the http entry point actually boots and answers over the wire, mirroring
-  ``test_server_stdio.py`` for the stdio path.
+- **HTTP boot + auth-gate smoke test** (Issue #107): spawns the server exactly as an
+  operator would — ``python -m ai_books.server`` with ``AI_BOOKS_MCP_TRANSPORT=http``
+  on an ephemeral port, with remote auth configured — and asserts the endpoint is
+  **fail-closed**: an unauthenticated request is rejected with ``401`` and a Bearer
+  ``WWW-Authenticate`` challenge before any tool runs (ADR 0008). This is the minimum
+  guarantee that the http entry point boots *and* that the auth boundary is actually in
+  front of the tools, mirroring ``test_server_stdio.py`` for the stdio path.
+- **Fail-closed launch guard**: launching http without auth configured refuses to start.
 
-DB-independent by design (only ``hello`` is exercised), so this runs on every
-``./scripts/verify.sh`` without a live Postgres.
+DB- and network-independent by design (JWKS is fetched lazily, only on a real token
+verification, which these tests never reach), so this runs on every
+``./scripts/verify.sh`` without a live Postgres or Supabase.
 """
 
 from __future__ import annotations
 
-import asyncio
 import os
 import socket
 import subprocess
@@ -29,11 +31,10 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import pytest
-from fastmcp import Client
-from fastmcp.client.transports import StreamableHttpTransport
 
-from ai_books import server
+from ai_books import auth, server
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _TIMEOUT_S = 60.0
@@ -132,6 +133,12 @@ def http_server() -> Iterator[str]:
         server.TRANSPORT_ENV: "http",
         server.HOST_ENV: "127.0.0.1",
         server.PORT_ENV: str(port),
+        # Remote auth must be configured or the http path is fail-closed and refuses
+        # to start (ADR 0008). A placeholder Supabase URL is enough: JWKS is fetched
+        # lazily only when a real token is verified, which this smoke test never does.
+        auth.ALLOWLIST_ENV: "owner@example.com",
+        auth.PROJECT_URL_ENV: "https://proj.supabase.co",
+        auth.BASE_URL_ENV: f"http://127.0.0.1:{port}",
     }
     # Redirect output to a temp file, NOT subprocess.PIPE: FastMCP's startup banner +
     # uvicorn request logs are written continuously, and a PIPE nobody drains would fill
@@ -173,18 +180,43 @@ def http_server() -> Iterator[str]:
                 proc.wait(timeout=10)
 
 
-def _http_client(url: str) -> Client[StreamableHttpTransport]:
-    return Client(StreamableHttpTransport(url), init_timeout=_TIMEOUT_S, timeout=_TIMEOUT_S)
+def test_http_unauthenticated_request_is_rejected(http_server: str) -> None:
+    """Server boots over Streamable HTTP and an unauthenticated request is fail-closed.
+
+    Reaching this body means the auth-configured http server booted and is listening
+    (the fixture only yields once the port accepts connections). An ``initialize``
+    POST with no bearer token must be refused with ``401`` and a Bearer
+    ``WWW-Authenticate`` challenge — the auth boundary runs before any tool (ADR 0008,
+    "no anonymous / no-op fallback on the remote transport").
+    """
+    initialize = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "probe", "version": "0"},
+        },
+    }
+    response = httpx.post(
+        http_server,
+        json=initialize,
+        headers={"Accept": "application/json, text/event-stream"},
+        timeout=_TIMEOUT_S,
+    )
+
+    assert response.status_code == 401
+    assert "bearer" in response.headers.get("www-authenticate", "").lower()
 
 
-async def test_http_boot_initialize_and_hello(http_server: str) -> None:
-    """Server boots over Streamable HTTP, lists tools, and answers ``hello`` on the wire."""
-    client = _http_client(http_server)
-    async with asyncio.timeout(_TIMEOUT_S), client:
-        assert client.is_connected()  # initialize handshake over HTTP succeeded
-        tools = await client.list_tools()
-        result = await client.call_tool("hello", {"name": "http"})
+def test_http_refuses_to_start_without_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Launching http with no auth provider configured refuses to start (fail-closed).
 
-    assert "hello" in {tool.name for tool in tools}
-    assert not result.is_error
-    assert result.data == "Hello, http! ai-books server is alive."
+    Guards the ADR 0008 invariant at the entry point: ``main()`` raises rather than
+    opening an unauthenticated network listener. Pure config check — never binds a port.
+    """
+    monkeypatch.setenv(server.TRANSPORT_ENV, "http")
+    monkeypatch.setattr(server, "_AUTH_PROVIDER", None)
+    with pytest.raises(RuntimeError, match="requires authentication"):
+        server.main()
