@@ -185,6 +185,21 @@ two together cover every CI job:
 | e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
 | `./scripts/verify.sh` (lint/format/typecheck) + secret scan | `pre-commit` / `gitleaks` |
 
+###### Remote-auth boundary tests (#110)
+
+The auth boundary is fixed mechanically so "公開したが認証が効いていない" cannot regress.
+The DB- and network-free guarantees run in **`verify` / `./scripts/verify.sh`**; the
+end-to-end actor assertion needs Postgres and runs in the **Python full suite** row above
+(`verify` job / `./scripts/test.sh`):
+
+| Guarantee (#110 スコープ)                                        | Test                          | Runs in                           |
+| ---------------------------------------------------------------- | ----------------------------- | --------------------------------- |
+| HTTP 未認証アクセスが 401 で拒否される                           | `tests/test_server_http.py`   | `verify.sh` (DB/network-free)     |
+| http は auth 未設定なら起動拒否 (fail-closed, ADR 0008)          | `tests/test_server_http.py`   | `verify.sh` (DB/network-free)     |
+| allowlist 外 / 失効・改竄トークンが拒否される                    | `tests/test_auth.py`          | `verify.sh` (DB/network-free)     |
+| stdio 経路の非退行 (認証なしで従来通り boot / tools)             | `tests/test_server_stdio.py`  | `verify.sh` (DB/network-free)     |
+| 有効トークンで主要ツールが通り `audit_logs.actor` = 認証ユーザー | `tests/test_auth_audit_db.py` | `test.sh` (Python full suite, DB) |
+
 `--pooler` stands a pgbouncer (transaction mode) in front of Postgres — mirroring Supabase's
 production pooler, which routes each transaction to a possibly-different backend and so cannot
 preserve prepared statements. It runs the migrate + seed write path, the report/aggregation/
