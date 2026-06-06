@@ -15,7 +15,12 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 - フレームワーク: FastMCP (Model Context Protocol server)
 - パッケージマネージャ: uv
 - 主要ツール: ruff (lint + format), mypy (typecheck, strict), pytest (test)
-- ランタイム/インフラ: stdio MCP server (書込/検証), Supabase (Postgres) storage, Vercel 上の read-only 集計ビュー (閲覧のみ)
+- ランタイム/インフラ: MCP server (既定 stdio / opt-in Streamable HTTP, 書込/検証), Supabase (Postgres) storage, Vercel 上の read-only 集計ビュー (閲覧のみ)
+
+MCP server の起動トランスポートは環境変数で切替: `AI_BOOKS_MCP_TRANSPORT` (既定 `stdio`,
+`http` で Streamable HTTP)。http 時は `AI_BOOKS_MCP_HOST` / `AI_BOOKS_MCP_PORT` (既定
+`127.0.0.1` / `8000`) で bind。http は明示的な opt-in (暗黙では開かない) で、既定の loopback
+host のまま公開しないこと — **リモート endpoint は未認証** (認証は後続 issue で追加, [ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md))。起動手順は [README.md](./README.md) 参照。
 
 ## Verification
 

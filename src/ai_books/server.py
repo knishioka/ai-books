@@ -31,6 +31,7 @@ service's typed failures into a :class:`ToolError` whose message is the JSON
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
 from typing import Any
 
@@ -609,9 +610,74 @@ def import_transactions_csv(
             raise _tool_error(exc) from exc
 
 
+# --- transport selection (Issue #106) -----------------------------------------
+#
+# stdio is the default and unchanged (FastMCP default transport): a local Claude
+# Desktop / CLI client launches the process and talks over stdio. Setting
+# ``AI_BOOKS_MCP_TRANSPORT=http`` opts in to FastMCP's Streamable HTTP transport so
+# the same tools are reachable over the network — a deliberate operator choice, never
+# enabled implicitly (ADR 0008). Host/port come from the environment; the default
+# host is loopback (``127.0.0.1``) so an http launch never opens a public listener by
+# accident. Authentication is intentionally NOT wired here yet: the remote endpoint is
+# unauthenticated until the auth issue lands, at which point ``auth=`` is passed to the
+# ``FastMCP(...)`` constructor above — this entry point stays the same (ADR 0008).
+
+TRANSPORT_ENV = "AI_BOOKS_MCP_TRANSPORT"
+HOST_ENV = "AI_BOOKS_MCP_HOST"
+PORT_ENV = "AI_BOOKS_MCP_PORT"
+
+_DEFAULT_TRANSPORT = "stdio"
+_DEFAULT_HOST = "127.0.0.1"
+_DEFAULT_PORT = 8000
+_VALID_TRANSPORTS = frozenset({"stdio", "http"})
+
+
+def _resolve_transport() -> str:
+    """Resolve the transport from ``AI_BOOKS_MCP_TRANSPORT`` (default ``stdio``)."""
+    raw = os.environ.get(TRANSPORT_ENV)
+    if not raw or not raw.strip():
+        return _DEFAULT_TRANSPORT
+    transport = raw.strip().lower()
+    if transport not in _VALID_TRANSPORTS:
+        allowed = ", ".join(sorted(_VALID_TRANSPORTS))
+        raise RuntimeError(f"{TRANSPORT_ENV} must be one of: {allowed}; got {raw!r}")
+    return transport
+
+
+def _resolve_host() -> str:
+    """Resolve the HTTP bind host from ``AI_BOOKS_MCP_HOST`` (default ``127.0.0.1``)."""
+    raw = os.environ.get(HOST_ENV)
+    if not raw or not raw.strip():
+        return _DEFAULT_HOST
+    return raw.strip()
+
+
+def _resolve_port() -> int:
+    """Resolve the HTTP bind port from ``AI_BOOKS_MCP_PORT`` (default ``8000``)."""
+    raw = os.environ.get(PORT_ENV)
+    if not raw or not raw.strip():
+        return _DEFAULT_PORT
+    try:
+        port = int(raw.strip())
+    except ValueError as exc:
+        raise RuntimeError(f"{PORT_ENV} must be an integer; got {raw!r}") from exc
+    if not 1 <= port <= 65535:
+        raise RuntimeError(f"{PORT_ENV} must be in 1..65535; got {port}")
+    return port
+
+
 def main() -> None:
-    """Run the MCP server over stdio (FastMCP default transport)."""
-    mcp.run()
+    """Run the MCP server.
+
+    Default transport is stdio (FastMCP default): unchanged local behaviour. Set
+    ``AI_BOOKS_MCP_TRANSPORT=http`` to expose the tools over Streamable HTTP, bound to
+    ``AI_BOOKS_MCP_HOST`` / ``AI_BOOKS_MCP_PORT`` (defaults ``127.0.0.1:8000``).
+    """
+    transport = _resolve_transport()
+    if transport == "stdio":
+        mcp.run()
+        return
+    mcp.run(transport="http", host=_resolve_host(), port=_resolve_port())
 
 
 if __name__ == "__main__":
