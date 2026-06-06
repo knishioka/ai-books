@@ -31,7 +31,13 @@ export default async function LoginPage({
   const params = await searchParams;
   const next = safeNextPath(firstParam(params.next));
   const errorKey = firstParam(params.error);
-  const error = errorKey ? ERROR_MESSAGES[errorKey] : undefined;
+  // `Object.hasOwn` guards against inherited keys: a crafted `?error=toString`
+  // (or `constructor`) must not resolve to a prototype member — only our own
+  // message strings are valid, anything else falls through to no banner.
+  const error =
+    errorKey && Object.hasOwn(ERROR_MESSAGES, errorKey)
+      ? ERROR_MESSAGES[errorKey]
+      : undefined;
 
   return (
     <div className="login">

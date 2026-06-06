@@ -41,11 +41,14 @@ export async function proxy(request: NextRequest) {
     configured && !!user && isAllowedEmail(user.email, allowedEmail);
 
   if (pathname === LOGIN_PATH) {
-    // Already signed in and authorized → bounce away from the login screen.
+    // Already signed in and authorized → bounce away from the login screen. Build the
+    // target with `new URL` so a `next` that carries a query string (e.g.
+    // `/ledger?fy=FY2025`) keeps its `?…` instead of being percent-encoded into the path.
     if (authorized) {
-      const target = request.nextUrl.clone();
-      target.pathname = safeNextPath(request.nextUrl.searchParams.get("next"));
-      target.search = "";
+      const target = new URL(
+        safeNextPath(request.nextUrl.searchParams.get("next")),
+        request.url,
+      );
       return redirectTo(target, response);
     }
     return response;
