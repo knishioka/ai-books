@@ -1,12 +1,19 @@
 # ai-books viewer (`web/`)
 
-A **read-only** aggregation viewer for `ai-books`, deployed on Vercel. It renders
-data stored in Supabase (Postgres) — it does **not** write anything. All
-writes/validation flow through the MCP server (see [AGENTS.md](../AGENTS.md)
-invariant #1: _read-only viewer only, no data-entry UI_).
+An **authenticated, read-only** aggregation viewer for `ai-books`, deployed on
+Vercel. It renders data stored in Supabase (Postgres) — it does **not** write
+anything. All writes/validation flow through the MCP server (see
+[AGENTS.md](../AGENTS.md) invariant #1: _read-only viewer only, no data-entry UI_).
+
+Every route is gated behind **Supabase Auth** login (issue #108 / [ADR 0008](../docs/adr/0008-remote-mcp-single-tenant-auth.md)):
+an unauthenticated visitor is redirected to `/login`, and only the single
+configured owner may view. Login restricts _who can read_; writes stay impossible
+regardless of login via the `viewer_ro` DB role (defence in depth). This is **not**
+multi-tenant — there is one owner and one dataset (AGENTS.md invariant #3).
 
 - Framework: Next.js (App Router, React Server Components)
 - Data: queried server-side from Postgres via [`postgres`](https://github.com/porsager/postgres); the connection string never reaches the browser.
+- Auth: Supabase Auth (email + password) via [`@supabase/ssr`](https://github.com/supabase/auth-helpers); the gate lives in `web/proxy.ts` (Next's proxy/middleware convention).
 
 ## Screens (read-only)
 
@@ -45,9 +52,24 @@ repo root — see the root [README](../README.md#local-postgres-supabase)).
 ```bash
 cd web
 npm install
-cp .env.example .env.local       # set AI_BOOKS_DB_URL (Supabase `DB URL`)
-npm run dev                      # http://localhost:3000
+cp .env.example .env.local       # set AI_BOOKS_DB_URL + the Supabase Auth values
+npm run dev                      # http://localhost:3000 → redirects to /login
 ```
+
+`.env.local` needs both the DB URL and the **Supabase Auth** values (the login gate is
+fail-closed — with auth unconfigured, every route redirects to `/login`):
+
+| Variable                        | Purpose                                                                |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| `AI_BOOKS_DB_URL`               | Postgres connection (server-side; use `viewer_ro` in production)       |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL (public — from `supabase start` / Vercel)         |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon / publishable key (public; **not** the service-role key) |
+| `AUTH_ALLOWED_EMAIL`            | Single-owner allowlist; a different identity is denied (fail closed)   |
+
+There is **no sign-up UI** (single user): provision the owner account in the Supabase
+dashboard (Authentication → Users), then log in at `/login`. `AUTH_ALLOWED_EMAIL` is an
+extra authorization layer — leave it unset to allow any authenticated Supabase user, or
+set it to the owner's email to deny everyone else even with a valid Supabase token.
 
 `AI_BOOKS_DB_URL` defaults to the Supabase CLI's local Postgres
 (`postgresql://postgres:postgres@127.0.0.1:54322/postgres`). The page shows a
@@ -108,7 +130,10 @@ catches it.
 2. Add the `AI_BOOKS_DB_URL` environment variable for the Preview and Production
    environments. Switching its value switches which database the viewer reads —
    e.g. a Supabase cloud connection string for Production.
-3. Push a branch → Vercel builds a **Preview** deployment automatically.
+3. Add the Supabase Auth variables (`NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `AUTH_ALLOWED_EMAIL`) for both environments —
+   without them the gate fails closed and every route redirects to `/login`.
+4. Push a branch → Vercel builds a **Preview** deployment automatically.
 
 ### Use a read-only database role (recommended for Production)
 
@@ -136,5 +161,11 @@ read (golden match included) but is denied every write, and
 - `AI_BOOKS_DB_URL` is server-side only — it is never bundled into client code
   (`postgres` is listed in `serverExternalPackages`, and `lib/db.ts` imports
   `server-only`).
-- No service-role key or other secret is shipped to the browser.
-- There is no write UI; the viewer cannot create or edit data.
+- No service-role key or other secret is shipped to the browser. Only the Supabase
+  **anon** (publishable) key and project URL are public, by design — they cannot
+  write and carry no privileged access; `AUTH_ALLOWED_EMAIL` stays server-side.
+- The login gate (`web/proxy.ts`) is **fail-closed**: missing/expired/forged
+  sessions and non-owner identities are denied, and the session is verified with
+  `supabase.auth.getUser()` (revalidated against Supabase, not just cookie-decoded).
+- There is no write UI and no sign-up UI; the viewer cannot create or edit data,
+  and writes remain blocked at the DB by the `viewer_ro` role independently of login.
