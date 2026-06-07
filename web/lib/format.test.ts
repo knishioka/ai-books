@@ -25,6 +25,12 @@ describe("formatAmount", () => {
   it("tolerates an amount with no fractional part", () => {
     expect(formatAmount("500")).toBe("¥500");
   });
+
+  it("drops an all-zero 端数 regardless of digit count", () => {
+    expect(formatAmount("300000.0")).toBe("¥300,000");
+    expect(formatAmount("300000.000")).toBe("¥300,000");
+    expect(formatAmount("-580500.0")).toBe("△580,500");
+  });
 });
 
 describe("isNegative", () => {

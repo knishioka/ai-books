@@ -636,7 +636,7 @@ td.muted,
   letter-spacing: 0.01em;
 }
 
-@media (max-width: 720px) {
+@media screen and (max-width: 720px) {
   .bs-tform {
     grid-template-columns: 1fr;
   }

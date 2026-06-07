@@ -15,7 +15,8 @@ export function formatAmount(value: string): string {
   const body = negative ? value.slice(1) : value;
   const [intPart = "0", fracPart = "00"] = body.split(".");
   const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  const frac = fracPart === "00" || fracPart === "" ? "" : `.${fracPart}`;
+  // Drop an all-zero 端数 ("00", "0", "" …); keep any non-zero 端数 ("50", "05").
+  const frac = /^0*$/.test(fracPart) ? "" : `.${fracPart}`;
   return negative ? `△${grouped}${frac}` : `¥${grouped}${frac}`;
 }
 
