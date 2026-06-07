@@ -22,13 +22,32 @@
   --ok-fg: #2f6f4f;
   --warn-bg: rgba(178, 58, 46, 0.07);
   --warn-fg: #9a3326;
-  /* type */
-  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
-  --font-body:
-    "Zen Kaku Gothic New", system-ui, "Hiragino Sans", "Noto Sans JP",
-    sans-serif;
-  --font-num: "Zen Kaku Gothic New", ui-monospace, "SF Mono", menlo, monospace;
-  --font-latin: "Spectral", serif;
+  /* type — `--font-*` vars are injected by next/font/google (see app/fonts.ts).
+     The second arg is the fallback for isolated renders (Storybook, unit tests)
+     where <html> isn't mounted, so the next/font variable is undefined. */
+  --font-display: var(
+    --font-shippori-mincho,
+    "Shippori Mincho B1",
+    "Hiragino Mincho ProN",
+    serif
+  );
+  --font-body: var(
+    --font-zen-kaku,
+    "Zen Kaku Gothic New",
+    system-ui,
+    "Hiragino Sans",
+    "Noto Sans JP",
+    sans-serif
+  );
+  --font-num: var(
+    --font-zen-kaku,
+    "Zen Kaku Gothic New",
+    ui-monospace,
+    "SF Mono",
+    menlo,
+    monospace
+  );
+  --font-latin: var(--font-spectral, "Spectral", serif);
 }
 
 * {
