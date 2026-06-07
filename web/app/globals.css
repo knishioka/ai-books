@@ -434,6 +434,60 @@ td.muted,
   border-bottom: 1px solid var(--rule-strong);
 }
 
+/* 階段状の段階利益 — 売上総利益 → 営業利益 → 経常利益 → 当期純利益 が右へ一段ずつ降りる。
+   各段の手前に L 字の罫を引いて利益を導く（"罫で導く強調"）。 */
+.profit-step td:first-child {
+  position: relative;
+}
+.profit-step .profit-label {
+  position: relative;
+  display: inline-block;
+  letter-spacing: 0.06em;
+}
+.profit-step[data-step="1"] td:first-child {
+  padding-left: 1.6rem;
+}
+.profit-step[data-step="2"] td:first-child {
+  padding-left: 2.7rem;
+}
+.profit-step[data-step="3"] td:first-child {
+  padding-left: 3.8rem;
+}
+.profit-step[data-step="4"] td:first-child {
+  padding-left: 4.9rem;
+}
+/* 段をつなぐ L 字罫（┗） */
+.profit-step .profit-label::before {
+  content: "";
+  position: absolute;
+  left: -0.9rem;
+  top: -0.55em;
+  bottom: 0.2em;
+  width: 0.55rem;
+  border-left: 1.5px solid var(--rule-strong);
+  border-bottom: 1.5px solid var(--rule-strong);
+  border-bottom-left-radius: 2px;
+}
+/* 結び = 当期純利益。二重罫で締める */
+.profit-final td {
+  background: rgba(35, 78, 156, 0.09);
+  border-top: 3px double var(--fg);
+  border-bottom: 3px double var(--fg);
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.profit-final .profit-label {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+.profit-final .profit-label::before {
+  border-color: var(--shu);
+}
+.profit-final td.num .amount {
+  font-size: 1.18rem;
+}
+
 /* ── amounts ────────────────────────────────────────────────────────────── */
 .amount {
   white-space: nowrap;
@@ -499,6 +553,101 @@ td.muted,
   color: var(--muted);
   font-size: 0.85rem;
   margin: 1rem 0;
+}
+
+/* ── 貸借対照表 T字（借方/貸方 見開き） ──────────────────────────────────── */
+.bs-tform {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  margin-bottom: 1.25rem;
+}
+.bs-tform .card {
+  margin-bottom: 0;
+  box-shadow: none;
+}
+/* T の縦罫 = 中央の強い境界。左(借方)の右辺に引き、右(貸方)の左辺は重ねない。 */
+.bs-tform .bs-debit {
+  border-right: 2px solid var(--fg);
+}
+.bs-tform .bs-credit {
+  border-left: none;
+}
+/* 借方/貸方 の見出しタグ */
+.side-tag {
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  vertical-align: 0.18em;
+  margin-left: 0.5rem;
+  padding: 0.08rem 0.5rem;
+  color: var(--shu);
+  border: 1px solid var(--shu);
+  border-radius: 999px;
+}
+/* 「負債の部」「純資産の部」= 貸方側の部見出し */
+.part-head td {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.1em;
+  color: var(--fg);
+  padding-top: 0.85rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1.5px solid var(--rule-strong);
+}
+.bs-part-head + tbody .section-head td {
+  padding-top: 0.6rem;
+}
+.subtotal.part-total td {
+  border-top: 1.5px solid var(--fg);
+}
+.subtotal.part-total td.num .amount {
+  font-weight: 700;
+}
+
+/* 貸借一致：左右の脚をひとつに結ぶ朱の印 */
+.balance-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.5rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.86rem;
+  color: var(--fg);
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-fg);
+}
+.balance-check-seal {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  color: var(--shu);
+  border: 1.5px solid var(--shu);
+  border-radius: 4px;
+  padding: 0.12rem 0.55rem;
+}
+.balance-check-body {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 720px) {
+  .bs-tform {
+    grid-template-columns: 1fr;
+  }
+  .bs-tform .bs-debit {
+    border-right: 1px solid var(--rule-strong);
+    border-bottom: none;
+  }
+  .bs-tform .bs-credit {
+    border-left: 1px solid var(--rule-strong);
+    border-top: 2px solid var(--fg);
+  }
 }
 
 /* ── statements (青色申告決算書 4面) ─────────────────────────────────────── */
@@ -624,5 +773,21 @@ footer {
   .card {
     box-shadow: none;
     border-color: #999;
+  }
+  /* T字は印刷でも見開きを維持。中央の縦罫と部見出しの罫は濃色に。 */
+  .bs-tform {
+    grid-template-columns: 1fr 1fr;
+  }
+  .bs-tform .bs-debit {
+    border-right: 1.5pt solid #333;
+  }
+  .statement-face,
+  .bs-tform .card,
+  .balance-check {
+    break-inside: avoid;
+  }
+  .profit-final td,
+  .grand-total td {
+    border-color: #333;
   }
 }

@@ -16,9 +16,10 @@ describe("formatAmount", () => {
     expect(formatAmount("0.05")).toBe("¥0.05");
   });
 
-  it("keeps the minus sign in front of the ¥", () => {
-    expect(formatAmount("-350000.00")).toBe("-¥350,000");
-    expect(formatAmount("-1234.50")).toBe("-¥1,234.50");
+  it("renders negatives with the accounting 三角 △ (no minus, no ¥)", () => {
+    expect(formatAmount("-350000.00")).toBe("△350,000");
+    expect(formatAmount("-580500.00")).toBe("△580,500");
+    expect(formatAmount("-1234.50")).toBe("△1,234.50");
   });
 
   it("tolerates an amount with no fractional part", () => {

@@ -31,10 +31,32 @@ function Section({ section }: { section: ProfitAndLossSectionSnapshot }) {
   );
 }
 
-function Profit({ label, amount }: { label: string; amount: string }) {
+/**
+ * A 段階利益 row. `step` (1〜4) drives the staircase indent so 売上総利益 → 営業利益 → 経常利益 →
+ * 当期純利益 cascade rightward, each 罫 leading the eye to the next; the last step (当期純利益) is
+ * the emphasized 結び (`final`).
+ */
+function Profit({
+  label,
+  amount,
+  step,
+  final = false,
+}: {
+  label: string;
+  amount: string;
+  step: number;
+  final?: boolean;
+}) {
   return (
-    <tr className="profit">
-      <td colSpan={2}>{label}</td>
+    <tr
+      className={
+        final ? "profit profit-step profit-final" : "profit profit-step"
+      }
+      data-step={step}
+    >
+      <td colSpan={2}>
+        <span className="profit-label">{label}</span>
+      </td>
       <td className="num">
         <Amount value={amount} />
       </td>
@@ -56,15 +78,17 @@ export function ProfitAndLossTable({ pl }: { pl: ProfitAndLossSnapshot }) {
       <tbody>
         <Section section={pl.sales} />
         <Section section={pl.cost_of_goods_sold} />
-        <Profit label="売上総利益" amount={pl.gross_profit} />
+        <Profit label="売上総利益" amount={pl.gross_profit} step={1} />
         <Section section={pl.selling_admin_expenses} />
-        <Profit label="営業利益" amount={pl.operating_income} />
+        <Profit label="営業利益" amount={pl.operating_income} step={2} />
         <Section section={pl.non_operating_income} />
         <Section section={pl.non_operating_expenses} />
-        <Profit label="経常利益" amount={pl.ordinary_income} />
+        <Profit label="経常利益" amount={pl.ordinary_income} step={3} />
         <Profit
           label="当期純利益（青色申告特別控除前）"
           amount={pl.net_income}
+          step={4}
+          final
         />
         {pl.unclassified.length > 0 && (
           <>
