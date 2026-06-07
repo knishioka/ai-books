@@ -1,20 +1,39 @@
+/* ============================================================================
+   ai-books viewer — "藍 Ledger" theme
+   紙の決算書に寄せた精密エディトリアル。藍(ink) × 朱(accent) × 生成り(paper)。
+   既存コンポーネントのクラス名はそのまま、見た目だけを刷新する。
+   ============================================================================ */
+
 :root {
-  --bg: #f7f7f8;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --card: #ffffff;
-  --ok-bg: #ecfdf5;
-  --ok-fg: #065f46;
-  --warn-bg: #fffbeb;
-  --warn-fg: #92400e;
-  --accent: #4338ca;
+  /* paper & ink */
+  --paper: #efe9da; /* 生成り（地） */
+  --sheet: #faf6ec; /* 紙シート（明部） */
+  --fg: #1b2a4a; /* 藍（本文インク） */
+  --muted: #5c6a86; /* 補助インク */
+  --rule: #d8cfb8; /* ヘアライン罫 */
+  --rule-strong: #b9ac8c; /* 強め罫 */
+  --accent: #234e9c; /* 藍アクセント（リンク/見出し） */
+  --shu: #b23a2e; /* 朱（負数・印・強調） */
+  --bg: var(--paper);
+  --card: var(--sheet);
+  --border: var(--rule);
+  /* status */
+  --ok-bg: rgba(47, 111, 79, 0.08);
+  --ok-fg: #2f6f4f;
+  --warn-bg: rgba(178, 58, 46, 0.07);
+  --warn-fg: #9a3326;
+  /* type */
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  --font-body:
+    "Zen Kaku Gothic New", system-ui, "Hiragino Sans", "Noto Sans JP",
+    sans-serif;
+  --font-num: "Zen Kaku Gothic New", ui-monospace, "SF Mono", menlo, monospace;
+  --font-latin: "Spectral", serif;
 }
 
 * {
   box-sizing: border-box;
 }
-
 html,
 body {
   margin: 0;
@@ -22,551 +41,566 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--fg);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    "Hiragino Sans",
-    "Noto Sans JP",
-    sans-serif;
-  line-height: 1.5;
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* 紙のグレイン */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/></svg>");
+  background-attachment: fixed;
 }
 
 .container {
-  max-width: 880px;
+  max-width: 1040px;
   margin: 0 auto;
   padding: 2.5rem 1.25rem 4rem;
 }
 
-header h1 {
-  font-size: 1.5rem;
-  margin: 0 0 0.25rem;
-}
-
-header p {
-  color: var(--muted);
-  margin: 0 0 1.5rem;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.15rem 0.6rem;
-  border-radius: 999px;
-}
-
-.banner {
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.5rem;
-  border: 1px solid var(--border);
-}
-
-.banner.ok {
-  background: var(--ok-bg);
-  color: var(--ok-fg);
-  border-color: #a7f3d0;
-}
-
-.banner.warn {
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  border-color: #fde68a;
-}
-
-.banner code {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.85em;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.92rem;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.6rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-th {
-  background: #fafafa;
-  font-weight: 600;
-  color: var(--muted);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-td.code {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+a {
   color: var(--accent);
+  text-underline-offset: 2px;
 }
 
-td.muted {
-  color: var(--muted);
+/* tabular figures for all numeric cells */
+.num,
+.amount,
+.ledger-account-balance,
+.report-period .num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
+  letter-spacing: 0.01em;
 }
 
-.empty {
-  padding: 2rem 1.25rem;
-  text-align: center;
-  color: var(--muted);
-}
-
-footer {
-  margin-top: 2rem;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
-/* --- top navigation --------------------------------------------------------- */
-
+/* ── top masthead (was a plain nav) ─────────────────────────────────────── */
 .site-nav {
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  padding: 0.75rem 1.25rem;
+  background: var(--sheet);
+  border-bottom: 2px solid var(--fg);
+  padding: 0.85rem 1.5rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1.25rem;
+  gap: 0.5rem 1.5rem;
+  position: relative;
 }
-
+.site-nav::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 1px;
+  background: var(--rule-strong);
+}
 .site-nav-brand {
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 0.16em;
   color: var(--fg);
   text-decoration: none;
-  margin-right: 0.5rem;
+  margin-right: 0.75rem;
+  position: relative;
+  padding-left: 1.4rem;
 }
-
+/* 朱の角印ドット */
+.site-nav-brand::before {
+  content: "藍";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.05rem;
+  height: 1.05rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  color: var(--shu);
+  border: 1.5px solid var(--shu);
+  border-radius: 4px;
+}
 .site-nav ul {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  gap: 0.2rem 1.1rem;
   margin: 0;
   padding: 0;
 }
-
 .site-nav a {
-  color: var(--accent);
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-
-.site-nav a:hover {
-  text-decoration: underline;
-}
-
-.site-footer {
-  max-width: 1080px;
-  margin: 2rem auto 3rem;
-  padding: 0 1.25rem;
   color: var(--muted);
+  text-decoration: none;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid transparent;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.site-nav a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--shu);
+}
+.site-nav-user {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 0.8rem;
+  color: var(--muted);
+}
+.site-nav-signout {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.site-nav-signout:hover {
+  border-color: var(--shu);
+  color: var(--shu);
 }
 
-.container {
-  max-width: 1080px;
-}
-
-/* --- report header + controls ---------------------------------------------- */
-
+/* ── report header ──────────────────────────────────────────────────────── */
 .report-header {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
   gap: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--fg);
 }
-
 .report-header-titles h1 {
-  font-size: 1.4rem;
-  margin: 0 0 0.2rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 2rem;
+  letter-spacing: 0.1em;
+  margin: 0 0 0.15rem;
+  line-height: 1.1;
 }
-
 .report-subtitle {
+  font-family: var(--font-latin);
+  font-style: italic;
   color: var(--muted);
   margin: 0;
+  font-size: 0.95rem;
 }
-
 .report-period {
-  margin: 0.35rem 0 0;
-  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
-
 .report-header-controls {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
+/* ── controls ───────────────────────────────────────────────────────────── */
 .period-selector,
 .filter-form {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-
 .period-selector label,
 .filter-form label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--muted);
 }
-
 .period-selector select,
 .filter-form select {
   font: inherit;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
+  font-size: 0.85rem;
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--sheet);
+  color: var(--fg);
 }
-
 .period-selector button,
 .filter-form button,
 .print-button,
 .download-button {
   font: inherit;
-  font-size: 0.85rem;
-  padding: 0.35rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  padding: 0.36rem 0.85rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: transparent;
   color: var(--fg);
   cursor: pointer;
   text-decoration: none;
   display: inline-block;
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
 }
-
 .print-button:hover,
 .download-button:hover,
 .period-selector button:hover,
 .filter-form button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--shu);
+  color: var(--shu);
 }
 
-/* --- login gate (issue #108) ------------------------------------------------ */
-
-.login {
-  max-width: 26rem;
-  margin: 0 auto;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.5rem;
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.login-field input {
-  font: inherit;
-  font-size: 0.95rem;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
-  color: var(--fg);
-}
-
-.login-field input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.login-submit {
-  font: inherit;
-  font-weight: 600;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  cursor: pointer;
-}
-
-.login-submit:hover {
-  filter: brightness(1.08);
-}
-
-/* --- signed-in user / sign-out (in the top nav) ----------------------------- */
-
-.site-nav-user {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.site-nav-signout {
-  font: inherit;
-  font-size: 0.82rem;
-  padding: 0.25rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--card);
-  color: var(--fg);
-  cursor: pointer;
-}
-
-.site-nav-signout:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.filter-form {
-  margin-bottom: 1.25rem;
-}
-
-/* --- report tables ---------------------------------------------------------- */
-
-.report-table {
-  width: 100%;
-  border-collapse: collapse;
+/* ── banners ────────────────────────────────────────────────────────────── */
+.banner {
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--rule-strong);
+  background: var(--sheet);
+  padding: 0.9rem 1.2rem;
+  margin-bottom: 1.5rem;
   font-size: 0.9rem;
 }
-
-.report-table th,
-.report-table td {
-  padding: 0.45rem 0.75rem;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
+.banner.ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-fg);
 }
-
-.report-table thead th {
-  background: #fafafa;
-  font-size: 0.75rem;
-  color: var(--muted);
-  text-transform: none;
-  letter-spacing: 0;
-  position: sticky;
-  top: 0;
-}
-
-.report-table .num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.report-table .nowrap {
-  white-space: nowrap;
-}
-
-.amount {
-  font-variant-numeric: tabular-nums;
-}
-
-.amount-negative {
-  color: #b91c1c;
-}
-
-.report-table .section-head td {
-  background: #f4f4f6;
-  font-weight: 600;
-}
-
-.report-table .subtotal td {
-  font-weight: 600;
-  border-top: 1px solid var(--border);
-}
-
-.report-table .profit td {
-  font-weight: 700;
-  background: #f0f4ff;
-}
-
-.report-table tfoot td,
-.report-table .grand-total td {
-  font-weight: 700;
-  border-top: 2px solid var(--fg);
-}
-
-.report-table .opening td,
-.report-table .warn-row td {
-  color: var(--muted);
-}
-
-.report-table .warn-row td {
+.banner.warn {
   background: var(--warn-bg);
+  border-color: var(--shu);
 }
-
-.section-caption {
-  text-align: left;
-  caption-side: top;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 0.5rem 0.75rem;
-  background: #eef2ff;
-  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-right: 0.4rem;
+}
+.banner.ok .badge {
+  color: var(--ok-fg);
+}
+.banner.warn .badge {
+  color: var(--shu);
+}
+.banner code {
+  font-family: var(--font-num);
+  font-size: 0.85em;
+  background: rgba(27, 42, 74, 0.06);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
 }
 
+/* ── sheets (was .card) ─────────────────────────────────────────────────── */
+.card {
+  background: var(--sheet);
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.03),
+    0 18px 40px -30px rgba(27, 42, 74, 0.25);
+  position: relative;
+}
 .scroll-x {
   overflow-x: auto;
 }
 
-.worksheet-table {
+/* ── tables ─────────────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+caption.section-caption {
+  caption-side: top;
+  text-align: left;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
+  color: var(--fg);
+  padding: 0.9rem 1.1rem 0.5rem;
+  border-bottom: 1.5px solid var(--fg);
+}
+th,
+td {
+  text-align: left;
+  padding: 0.55rem 1.1rem;
+  border-bottom: 1px dotted var(--rule);
+}
+th {
+  background: transparent;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--rule-strong);
+}
+th.num,
+td.num {
+  text-align: right;
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+tr:hover td {
+  background: rgba(35, 78, 156, 0.04);
+}
+td.code {
+  font-family: var(--font-num);
+  color: var(--muted);
   font-size: 0.8rem;
-  min-width: 920px;
+  white-space: nowrap;
+}
+td.muted,
+.muted {
+  color: var(--muted);
+}
+.nowrap {
+  white-space: nowrap;
 }
 
-.journal-table .journal-entry-start td {
-  border-top: 1px solid #d1d5db;
+/* section rows inside statements */
+.section-head td {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--rule);
+  padding-top: 0.85rem;
+}
+.subtotal td {
+  font-weight: 600;
+  color: var(--muted);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: none;
+}
+.subtotal td.num,
+.subtotal .amount {
+  color: var(--fg);
+}
+/* 合計 = 二重罫（会計の二重線） */
+.grand-total td {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  border-top: 3px double var(--fg);
+  border-bottom: none;
+  padding-top: 0.7rem;
+}
+.grand-total td.num .amount {
+  font-size: 1.2rem;
 }
 
+/* 段階利益 (P/L) — emphasized profit rows */
+.profit td {
+  font-weight: 700;
+  color: var(--fg);
+  background: rgba(35, 78, 156, 0.05);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+/* ── amounts ────────────────────────────────────────────────────────────── */
+.amount {
+  white-space: nowrap;
+}
+.amount-negative {
+  color: var(--shu);
+}
+
+/* ── ledger (総勘定元帳) helpers ─────────────────────────────────────────── */
 .ledger-account {
   margin-bottom: 1.5rem;
 }
-
 .ledger-account-title {
-  font-size: 1rem;
-  margin: 0 0 0.5rem;
-  padding: 0.75rem 1rem 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
-
-.ledger-account-balance {
-  font-size: 0.82rem;
-  font-weight: 400;
-}
-
-.report-note {
-  font-size: 0.85rem;
+.opening td {
   color: var(--muted);
-  margin: 0.5rem 0 1.5rem;
+  font-style: italic;
+}
+.warn-row td {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
 }
 
+/* ── home report index ──────────────────────────────────────────────────── */
 .report-index-list {
   list-style: none;
-  margin: 0 0 2rem;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule-strong);
 }
-
-.report-index-list a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+.report-index {
+  background: var(--sheet);
+  padding: 1.1rem 1.25rem;
   text-decoration: none;
-  color: var(--fg);
+  display: block;
+  transition: background 0.15s;
 }
-
-.report-index-list a:hover {
-  border-color: var(--accent);
+.report-index:hover {
+  background: #fff;
 }
-
 .report-index-label {
-  font-weight: 600;
-}
-
-.report-index-desc {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.statement-face {
-  margin-bottom: 2rem;
-}
-
-.statement-face h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 1.05rem;
-  border-left: 4px solid var(--accent);
-  padding-left: 0.6rem;
-  margin: 0 0 0.75rem;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  display: block;
+}
+.report-index-desc {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+  display: block;
+}
+.report-note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 1rem 0;
 }
 
+/* ── statements (青色申告決算書 4面) ─────────────────────────────────────── */
+.statement-face {
+  margin-bottom: 2.5rem;
+}
+.statement-face > h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.12em;
+  border-left: 4px solid var(--shu);
+  padding-left: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+/* ── etax ───────────────────────────────────────────────────────────────── */
 .etax-downloads {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
-.code {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  color: var(--accent);
+/* ── empty / footer ─────────────────────────────────────────────────────── */
+.empty {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+}
+.site-footer,
+footer {
+  max-width: 1040px;
+  margin: 2.5rem auto 3rem;
+  padding: 1rem 1.25rem 0;
+  border-top: 1px solid var(--rule-strong);
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
 }
 
-/* --- print / PDF ------------------------------------------------------------ */
+/* ── login (issue #108) ─────────────────────────────────────────────────── */
+.login {
+  max-width: 26rem;
+  margin: 3rem auto 0;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.75rem;
+}
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.83rem;
+  color: var(--muted);
+}
+.login-field input {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--fg);
+}
+.login-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.login-submit {
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--fg);
+  color: var(--sheet);
+  cursor: pointer;
+}
+.login-submit:hover {
+  background: var(--accent);
+}
 
-@media print {
-  .site-nav,
-  .report-header-controls,
-  .filter-form,
-  .etax-downloads,
-  .site-footer {
-    display: none !important;
+/* ── load reveal (抑制的) ───────────────────────────────────────────────── */
+.card,
+.report-header {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+  }
+}
 
+/* ── print: そのまま提出資料級 ──────────────────────────────────────────── */
+@media print {
   body {
     background: #fff;
   }
-
-  .container {
-    max-width: none;
-    padding: 0;
+  .site-nav,
+  .report-header-controls,
+  .etax-downloads {
+    display: none !important;
   }
-
   .card {
-    border: none;
     box-shadow: none;
-  }
-
-  .report-table {
-    font-size: 10pt;
-  }
-
-  .report-table thead th {
-    position: static;
-  }
-
-  .ledger-account,
-  .statement-face {
-    break-inside: avoid;
+    border-color: #999;
   }
 }
