@@ -24,6 +24,15 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 const LOGIN_PATH = "/login";
 
+/**
+ * Public sample mode (env-gated). When `AI_BOOKS_VIEWER_PUBLIC=true` the auth gate is
+ * skipped and the read-only viewer is served to anyone — for the hosted *demo* of
+ * synthetic/sample data. Writes remain impossible regardless (the viewer connects via the
+ * `viewer_ro` role), so a public demo only exposes read-only sample numbers. Unset / any
+ * other value keeps the single-user auth gate (#108 / ADR-0008) — the default.
+ */
+const PUBLIC_VIEWER = process.env.AI_BOOKS_VIEWER_PUBLIC === "true";
+
 /** Build a redirect that preserves any refreshed Supabase session cookies. */
 function redirectTo(url: URL, cookieCarrier: NextResponse): NextResponse {
   const redirect = NextResponse.redirect(url);
@@ -34,6 +43,10 @@ function redirectTo(url: URL, cookieCarrier: NextResponse): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
+  // Public demo: serve the read-only viewer to everyone (no auth). Default keeps the gate.
+  if (PUBLIC_VIEWER) {
+    return NextResponse.next();
+  }
   const { response, user, configured } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
   const allowedEmail = getAllowedEmail();
