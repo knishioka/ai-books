@@ -1,3 +1,4 @@
+import { formatMoney, parseMoney } from "@/lib/money";
 import type {
   BalanceSheetSectionSnapshot,
   BalanceSheetSnapshot,
@@ -5,6 +6,7 @@ import type {
 import { CATEGORY_LABELS } from "@/lib/reports/types";
 
 import { Amount } from "./amount";
+import { formatAmount } from "@/lib/format";
 
 function Sections({ sections }: { sections: BalanceSheetSectionSnapshot[] }) {
   return (
@@ -40,66 +42,97 @@ function Sections({ sections }: { sections: BalanceSheetSectionSnapshot[] }) {
   );
 }
 
-/** The 貸借対照表 tables (資産 / 負債 / 純資産), shared by `/bs` and the 決算書 (`/statements`) 4面. */
+function PartHead({ label }: { label: string }) {
+  return (
+    <tbody className="bs-part-head">
+      <tr className="part-head">
+        <td colSpan={3}>{label}</td>
+      </tr>
+    </tbody>
+  );
+}
+
+/**
+ * The 貸借対照表, laid out as a 借方/貸方 見開き (T字): 資産の部 (左) ↔ 負債・純資産の部 (右),
+ * with each side footing to the same figure and a 貸借一致 line drawing the two together. Shared
+ * by `/bs` and the 決算書 (`/statements`) 4面.
+ */
 export function BalanceSheetTables({ bs }: { bs: BalanceSheetSnapshot }) {
+  // 貸方側の脚 = 負債合計 + 純資産合計（純資産合計に 当期純利益 は織り込み済み）。貸借一致が
+  // 成り立つので数値は資産合計と一致するが、意味どおり足し上げて表示する。
+  const liabilitiesEquityTotal = formatMoney(
+    parseMoney(bs.total_liabilities) + parseMoney(bs.total_equity),
+  );
+
   return (
     <>
-      <div className="card">
-        <table className="report-table">
-          <caption className="section-caption">資産の部</caption>
-          <Sections sections={bs.assets} />
-          <tfoot>
-            <tr className="grand-total">
-              <td colSpan={2}>資産合計</td>
-              <td className="num">
-                <Amount value={bs.total_assets} />
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+      <div className="bs-tform">
+        <div className="card bs-debit">
+          <table className="report-table">
+            <caption className="section-caption">
+              資産の部 <span className="side-tag">借方</span>
+            </caption>
+            <Sections sections={bs.assets} />
+            <tfoot>
+              <tr className="grand-total">
+                <td colSpan={2}>資産合計</td>
+                <td className="num">
+                  <Amount value={bs.total_assets} />
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div className="card bs-credit">
+          <table className="report-table">
+            <caption className="section-caption">
+              負債・純資産の部 <span className="side-tag">貸方</span>
+            </caption>
+            <PartHead label="負債の部" />
+            <Sections sections={bs.liabilities} />
+            <tbody>
+              <tr className="subtotal part-total">
+                <td colSpan={2}>負債合計</td>
+                <td className="num">
+                  <Amount value={bs.total_liabilities} />
+                </td>
+              </tr>
+            </tbody>
+            <PartHead label="純資産の部" />
+            <Sections sections={bs.equity} />
+            <tbody>
+              <tr className="profit">
+                <td colSpan={2}>当期純利益</td>
+                <td className="num">
+                  <Amount value={bs.net_income} />
+                </td>
+              </tr>
+              <tr className="subtotal part-total">
+                <td colSpan={2}>純資産合計</td>
+                <td className="num">
+                  <Amount value={bs.total_equity} />
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr className="grand-total">
+                <td colSpan={2}>負債・純資産合計</td>
+                <td className="num">
+                  <Amount value={liabilitiesEquityTotal} />
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
 
-      <div className="card">
-        <table className="report-table">
-          <caption className="section-caption">負債の部</caption>
-          <Sections sections={bs.liabilities} />
-          <tfoot>
-            <tr className="subtotal">
-              <td colSpan={2}>負債合計</td>
-              <td className="num">
-                <Amount value={bs.total_liabilities} />
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div className="card">
-        <table className="report-table">
-          <caption className="section-caption">純資産の部</caption>
-          <Sections sections={bs.equity} />
-          <tbody>
-            <tr className="profit">
-              <td colSpan={2}>当期純利益</td>
-              <td className="num">
-                <Amount value={bs.net_income} />
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr className="grand-total">
-              <td colSpan={2}>純資産合計</td>
-              <td className="num">
-                <Amount value={bs.total_equity} />
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <p className="report-note">
-        貸借一致：資産合計 {bs.total_assets} ＝ 負債合計 {bs.total_liabilities}{" "}
-        ＋ 純資産合計 {bs.total_equity}
+      <p className="balance-check">
+        <span className="balance-check-seal">貸借一致</span>
+        <span className="balance-check-body">
+          資産合計 {formatAmount(bs.total_assets)} ＝ 負債・純資産合計{" "}
+          {formatAmount(liabilitiesEquityTotal)}
+        </span>
       </p>
     </>
   );
