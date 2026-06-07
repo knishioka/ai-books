@@ -40,7 +40,7 @@
     sans-serif
   );
   --font-num: var(
-    --font-zen-kaku,
+    --font-zen-kaku-mono,
     "Zen Kaku Gothic New",
     ui-monospace,
     "SF Mono",

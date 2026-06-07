@@ -34,6 +34,20 @@ export const zenKaku = Zen_Kaku_Gothic_New({
   fallback: ["system-ui", "Hiragino Sans", "Noto Sans JP", "sans-serif"],
 });
 
+// Same face as `zenKaku` (the woff2 dedupe to identical hashed files), but a
+// *monospace* fallback chain so numeric cells (`--font-num`) keep tabular-nums
+// alignment even if Zen Kaku fails to load. Without this the var() would resolve
+// to `zenKaku`'s sans-serif fallback, silently losing the monospace tail the
+// original CDN stack guaranteed.
+export const zenKakuMono = Zen_Kaku_Gothic_New({
+  weight: ["400", "500", "700"],
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
+  variable: "--font-zen-kaku-mono",
+  fallback: ["ui-monospace", "SF Mono", "Menlo", "monospace"],
+});
+
 // Spectral is a Latin-only face (italic subtitles); preloading its latin slice is
 // cheap and worthwhile, so we keep the default `preload: true`.
 export const spectral = Spectral({

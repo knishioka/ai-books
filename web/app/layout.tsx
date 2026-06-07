@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/nav";
 import { createClient } from "@/lib/supabase/server";
 
-import { shipporiMincho, spectral, zenKaku } from "./fonts";
+import { shipporiMincho, spectral, zenKaku, zenKakuMono } from "./fonts";
 import "./globals.css";
 
 // next/font/google self-hosts the JP/Latin faces (no CDN <link>, no external DNS),
 // generates fallback metrics to curb CLS, and keeps Google out of the request path.
-const fontVariables = `${shipporiMincho.variable} ${zenKaku.variable} ${spectral.variable}`;
+const fontVariables = `${shipporiMincho.variable} ${zenKaku.variable} ${zenKakuMono.variable} ${spectral.variable}`;
 
 export const metadata: Metadata = {
   title: "ai-books viewer",
