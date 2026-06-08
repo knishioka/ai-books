@@ -22,9 +22,9 @@
   --ok-fg: #2f6f4f;
   --warn-bg: rgba(178, 58, 46, 0.07);
   --warn-fg: #9a3326;
-  /* type — `--font-*` vars are injected by next/font/google (see app/fonts.ts).
-     The second arg is the fallback for isolated renders (Storybook, unit tests)
-     where <html> isn't mounted, so the next/font variable is undefined. */
+  /* type — JP/Latin faces load via a CDN <link> in app/layout.tsx (next/font's
+     build-time fetch fails on the Vercel build env for the CJK faces). These
+     `var(--font-*, "Family")` fallbacks resolve to those CDN-loaded family names. */
   --font-display: var(
     --font-shippori-mincho,
     "Shippori Mincho B1",
