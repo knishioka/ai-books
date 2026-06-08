@@ -27,7 +27,12 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ai_books.etax import etax_export_snapshot, render_etax_xtx
+from ai_books.etax import (
+    build_agricultural_etax_export,
+    build_real_estate_etax_export,
+    etax_export_snapshot,
+    render_etax_xtx,
+)
 from ai_books.reports import (
     agricultural_income_snapshot,
     balance_sheet_snapshot,
@@ -155,6 +160,42 @@ def etax_xtx_snapshot() -> dict[str, Any]:
     }
 
 
+_ETAX_NS = "http://xml.e-tax.nta.go.jp/XSD/shotoku"
+
+
+def _etax_xtx_lines_snapshot(xtx: str, form_id: str, version: str) -> dict[str, Any]:
+    """Golden shape for a rendered ``.xtx``: 様式 identity + the file split into lines (#79/#126).
+
+    Freezing the .xtx as a list of lines means a regression diffs to the exact changed line, not one
+    opaque blob; the 様式 identity (form_id/version/namespace) makes the file self-describing.
+    """
+    return {
+        "report": "etax_xtx",
+        "form_id": form_id,
+        "version": version,
+        "namespace": _ETAX_NS,
+        "xtx_lines": xtx.splitlines(),
+    }
+
+
+def real_estate_etax_xtx_snapshot() -> dict[str, Any]:
+    """Golden shape for the KOA220(不動産所得用) ``.xtx`` rendered from the synthetic landlord (#126)."""
+    return _etax_xtx_lines_snapshot(
+        render_etax_xtx(build_real_estate_etax_export(real_estate_income_from_dataset())),
+        "KOA220",
+        "8.0",
+    )
+
+
+def agricultural_etax_xtx_snapshot() -> dict[str, Any]:
+    """Golden shape for the KOA240(農業所得用) ``.xtx`` rendered from the synthetic farm (#126)."""
+    return _etax_xtx_lines_snapshot(
+        render_etax_xtx(build_agricultural_etax_export(agricultural_income_from_dataset())),
+        "KOA240",
+        "8.0",
+    )
+
+
 #: name → (filename, generator). The generator returns the golden-shaped dict from the
 #: in-memory dataset (no DB), so golden files can be produced offline. Downstream report
 #: Issues append their own entry here.
@@ -206,6 +247,26 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "agricultural_income": (
         "agricultural_income.json",
         lambda: agricultural_income_snapshot(agricultural_income_from_dataset()),
+    ),
+    "etax_export_koa220": (
+        "etax_export_koa220.json",
+        lambda: etax_export_snapshot(
+            build_real_estate_etax_export(real_estate_income_from_dataset())
+        ),
+    ),
+    "etax_xtx_koa220": (
+        "etax_xtx_koa220.json",
+        real_estate_etax_xtx_snapshot,
+    ),
+    "etax_export_koa240": (
+        "etax_export_koa240.json",
+        lambda: etax_export_snapshot(
+            build_agricultural_etax_export(agricultural_income_from_dataset())
+        ),
+    ),
+    "etax_xtx_koa240": (
+        "etax_xtx_koa240.json",
+        agricultural_etax_xtx_snapshot,
     ),
 }
 

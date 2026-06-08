@@ -53,11 +53,11 @@
 
 ### 様式別 spec 実装状況
 
-| 帳票       | EtaxFormatSpec | .xtx layout | 備考                                                                                        |
-| ---------- | -------------- | ----------- | ------------------------------------------------------------------------------------------- |
-| **KOA210** | ✅ `2025`      | ✅          | 一般用。営業外マッピング方針も確定 (利子割引料→AMF00330 橋渡し, #83)                        |
-| **KOA220** | ⏳ 未登録      | ✅ (#103)   | 不動産所得用。layout + renderer 対応済。**収入側 data-supply 実装済 (#124)**、spec 登録待ち |
-| **KOA240** | ⏳ 未登録      | ✅ (#103)   | 農業所得用。layout + renderer 対応済。**収入側 data-supply 実装済 (#125)**、spec 登録待ち   |
+| 帳票       | EtaxFormatSpec   | .xtx layout | 備考                                                                                                        |
+| ---------- | ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| **KOA210** | ✅ `2025`        | ✅          | 一般用。営業外マッピング方針も確定 (利子割引料→AMF00330 橋渡し, #83)                                        |
+| **KOA220** | ✅ `2025-KOA220` | ✅ (#103)   | 不動産所得用。**収入側 spec 登録 + 実データ .xtx golden/XSD 完了 (#126)**。経費/BS/減価償却は未供給で対象外 |
+| **KOA240** | ✅ `2025-KOA240` | ✅ (#103)   | 農業所得用。**収入側 spec 登録 + 実データ .xtx golden/XSD 完了 (#126)**。経費/BS/減価償却は未供給で対象外   |
 
 **#103 で完了したこと (stage 3)**: `.xtx` レンダラ (`render_etax_xtx`) を様式別 layout に対応させ、
 KOA220-008 / KOA240-008 の XSD 由来 layout (`koa220_layout.json` / `koa240_layout.json`) を追加した。
@@ -83,9 +83,20 @@ fail-loud。engine/renderer は不変。
 農業の合成年度 (`AG_ENTRIES`) と golden (`agricultural_income.json`) を足し、`*_from_dataset` /
 `*_from_db` の二経路一致で突合する。カテゴリ内訳が科目残高に foot しなければ fail-loud。engine/renderer は不変。
 
-**残り (follow-up)**: KOA220 / KOA240 とも `EtaxFormatSpec` は未登録 (stage 4: 各様式の spec 登録 +
-end-to-end `.xtx` golden/XSD)。収入側 data-supply は両様式とも実装済なので、残るは spec 登録のみ。
-engine は data-driven のままで、`EtaxFixedSection` (#78) / `EtaxComputedField` (#83) を再利用できる。
+**#126 で完了したこと (stage 4: KOA220/240 spec 登録 + e2e)**: 収入側 snapshot を様式の 内訳ブロックへ
+写す `EtaxFormatSpec` を登録した (`_SPEC_2025_KOA220` / `_SPEC_2025_KOA240`、version キー `2025-KOA220`
+/ `2025-KOA240`)。三〜七つの 内訳 (賃貸/地代/利子・農産物/畜産/雑収入/棚卸/育成) はいずれも様式上の繰返し
+ブロックなので `EtaxSection`、各 計 と収入金額 summary は `EtaxScalarField`。engine は KOA210 と同じ
+data-driven のままで、入口 `build_real_estate_etax_export` / `build_agricultural_etax_export` が収入側
+snapshot を選ぶ。seed_fy に 4 つの golden (`etax_export_koa220` / `etax_xtx_koa220` /
+`etax_export_koa240` / `etax_xtx_koa240`) を足し、**実データ由来の `.xtx` が公式 KOA220-008 /
+KOA240-008 の `.xsd` を pass** する (最小 `.xtx` だけでなく)。金額 (整数円) と区分・名称・数量表記
+(文字) のみを写し、小数許容の数量・面積や和暦複合型の月は除外する。
+
+**残り (follow-up)**: KOA220/240 の **経費・貸借対照表・減価償却** (ANF00120 / ANG\* / ANF00880 ・
+APF00190 / APF02040) は本様式向けの data-supply が未実装のため未マッピング。供給後は KOA210 と同じ
+`EtaxFixedSection` (#78) / `EtaxComputedField` (#83) 機構で同様に流用できる。MCP `export_etax` ツールは
+現状 KOA210 (FinancialStatements) のみを公開しており、KOA220/240 を公開するには各所得の repository 経路が要る。
 
 ## 再現手順
 
