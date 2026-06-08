@@ -60,17 +60,34 @@ The earlier *synthetic* (非公式・教育用) layout is kept off the 年度 ax
 ``"synthetic"`` version key so its mapping/validation/golden machinery still runs without being
 mistaken for the real 様式.
 
-## KOA220(不動産所得用) / KOA240(農業所得用) — 未登録 (spec 登録待ち)
+## KOA220(不動産所得用) / KOA240(農業所得用) — 収入側 spec 登録済 (#126 stage 4)
 
 項目カタログは取得済み (#76 ``field_catalog.json``: KOA220=226 / KOA240=357 項目)。
 :func:`~ai_books.reports.financial_statements_snapshot` は KOA210(一般用) 向けで、不動産賃貸料収入・
-農産物売上等の所得固有データは供給しない。**両様式とも収入側 data-supply は実装済**: KOA220 は #124
+農産物売上等の所得固有データは供給しない。両様式の **収入側 data-supply** は実装済: KOA220 は #124/#127
 (:func:`~ai_books.reports.real_estate_income_snapshot` — 不動産所得の収入の内訳 / 地代家賃の内訳 /
-借入金利子の内訳)、KOA240 は #125 (:func:`~ai_books.reports.agricultural_income_snapshot` — 農産物の収入
-の内訳 / 畜産物その他 / 雑収入 / 収入金額 / 棚卸・育成費用の明細); いずれも金額は仕訳から集計、記述メタは
-fixture。残りは両様式の :class:`EtaxFormatSpec` 登録 + end-to-end ``.xtx`` golden/XSD (stage 4)。engine は
-data-driven のままで、:class:`EtaxFixedSection` (#78) / :class:`EtaxComputedField` (#83 営業外橋渡し) を
-再利用して spec を追加できる。詳細は ``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
+借入金利子の内訳)、KOA240 は #125/#128 (:func:`~ai_books.reports.agricultural_income_snapshot` — 農産物の
+収入の内訳 / 畜産物その他 / 雑収入 / 収入金額 / 未収穫農産物 / 販売用動物 / 育成費用の明細); いずれも金額は
+仕訳から集計、記述メタは fixture。
+
+#126 (stage 4) は **その収入側 snapshot を 様式の 内訳ブロックへ写す** :class:`EtaxFormatSpec` を登録する
+(:data:`_SPEC_2025_KOA220` / :data:`_SPEC_2025_KOA240`)。様式の三〜七つの 内訳 はいずれも 繰返しブロック
+(KOA220: 賃貸 ANF00340 / 地代 ANF01160 / 利子 ANF01260; KOA240: 農産物 APF00680 / 畜産 APF01100 / 雑収入
+APF01200 / 棚卸 APF01250・01330 / 育成 APF02320) なので :class:`EtaxSection` で表し、各 計 と 収入金額 summary
+は :class:`EtaxScalarField`。engine は KOA210 と同じ data-driven のまま — 違うのは入力 snapshot だけで、入口は
+:func:`~ai_books.etax.export.build_real_estate_etax_export` /
+:func:`~ai_books.etax.export.build_agricultural_etax_export` が選ぶ (KOA210 は
+:func:`~ai_books.etax.export.build_etax_export`)。version キーは ``2025-KOA220`` / ``2025-KOA240``
+(KOA210 の ``2025`` と別)。
+
+経費・貸借対照表・減価償却 (KOA220 ANF00120 / ANG\\* / ANF00880; KOA240 APF00190 / 減価償却 APF02040) は
+KOA210 と同じ 決算書 snapshot を :class:`EtaxFixedSection` (#78) / :class:`EtaxComputedField` (#83) で流用
+できるが、本様式向けの 経費/BS data-supply は未実装のため stage 4 の対象外 (収入側のみ)。詳細は
+``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
+
+数量・面積 (作付面積 APF00700 等) は 様式上 小数許容 (``Z,ZZZ,ZZZ.ZZ``) で 整数円 AMOUNT に乗らず、賃貸契約期間の
+月 (KOA220 ANF00410/00420) は 和暦の複合型 (``gen:era``/``gen:yy`` を子に要求) で整数リーフに乗らない。よって本
+spec は **金額 (整数円) と 区分・名称・数量表記 (文字)** のみを写す (いずれも収入金額には影響しない記述メタは除外)。
 """
 
 from __future__ import annotations
@@ -579,6 +596,296 @@ _SPEC_2025 = EtaxFormatSpec(
 )
 
 
+# ── 令和7年分 (2025) — 実 様式 KOA220 青色申告決算書(不動産所得用) v8.0 ─────────────
+#
+# 収入側 data-supply (#124/#127, ``real_estate_income_snapshot``) を 様式の 内訳 へ写す。三つの 内訳 は
+# いずれも 様式上の 繰返しブロック (賃貸 ANF00340 / 地代家賃 ANF01160 / 借入金利子 ANF01260) なので
+# :class:`EtaxSection`、各 計 (ANF00560 賃貸計 等) は :class:`EtaxScalarField`。金額は format ``Z,ZZZ,…``
+# = 整数円 (AMOUNT)。賃貸契約期間の 月 は和暦の複合型なので写さない。経費/BS/減価償却は未供給で対象外。
+
+_SPEC_2025_KOA220 = EtaxFormatSpec(
+    version="2025-KOA220",
+    form_id="青色申告決算書(不動産所得用)",
+    items=(
+        # 不動産所得の収入の内訳 — 物件ごとの繰返しブロック ANF00340 (賃貸料年額/礼金/権利金…).
+        EtaxSection(
+            "RENTAL_INCOME",
+            "RE_RENTAL_LINES",
+            "不動産所得の収入の内訳",
+            "rental_income.lines",
+            (
+                EtaxSectionField(
+                    "ANF00350", "貸家貸地等の別", "property_type", _TEXT, required=False
+                ),
+                EtaxSectionField("ANF00355", "用途", "usage", _TEXT, required=False),
+                EtaxSectionField("ANF00360", "不動産の所在地", "location", _TEXT, required=False),
+                EtaxSectionField(
+                    "ANF00380", "賃借人の住所", "tenant_address", _TEXT, required=False
+                ),
+                EtaxSectionField("ANF00390", "賃借人の氏名", "tenant_name", _TEXT, required=False),
+                # 賃貸契約期間 (自/至 月 ANF00410/ANF00420) は様式上 和暦の複合型 (gen:era/yy を子に要求)
+                # で整数リーフに乗らないため 写さない (収入金額には影響しない契約メタ)。
+                EtaxSectionField("ANF00500", "賃貸料年額", "rent_annual"),
+                EtaxSectionField("ANF00510", "礼金", "key_money"),
+                EtaxSectionField("ANF00520", "権利金", "right_money"),
+                EtaxSectionField("ANF00530", "更新料", "renewal_fee"),
+                EtaxSectionField("ANF00540", "名義書換料その他", "name_change_other"),
+                EtaxSectionField("ANF00550", "保証金・敷金", "deposit"),
+            ),
+        ),
+        # 不動産所得の収入の内訳 計 (ANF00560).
+        EtaxScalarField(
+            "RENTAL_INCOME", "ANF00570", "賃貸料年額 計", "rental_income.rent_annual_total"
+        ),
+        EtaxScalarField(
+            "RENTAL_INCOME",
+            "ANF00580",
+            "礼金・権利金・更新料 計",
+            "rental_income.key_right_renewal_total",
+        ),
+        EtaxScalarField(
+            "RENTAL_INCOME",
+            "ANF00590",
+            "名義書換料その他 計",
+            "rental_income.name_change_other_total",
+        ),
+        EtaxScalarField(
+            "RENTAL_INCOME", "ANF00600", "保証金・敷金 計", "rental_income.deposit_total"
+        ),
+        # 地代家賃の内訳 — 繰返しブロック ANF01160 (支払先/賃借物件/賃借料/必要経費算入額).
+        EtaxSection(
+            "RENT_PAID",
+            "RE_RENT_PAID_LINES",
+            "地代家賃の内訳",
+            "rent_paid.lines",
+            (
+                EtaxSectionField(
+                    "ANF01180", "支払先の住所", "payee_address", _TEXT, required=False
+                ),
+                EtaxSectionField("ANF01190", "支払先の氏名", "payee_name", _TEXT, required=False),
+                EtaxSectionField("ANF01200", "賃借物件", "leased_property", _TEXT, required=False),
+                EtaxSectionField("ANF01220", "権利金", "right_money"),
+                EtaxSectionField("ANF01230", "更新料", "renewal_fee"),
+                EtaxSectionField("ANF01240", "賃借料", "rent"),
+                EtaxSectionField("ANF01250", "賃借料のうち必要経費算入額", "deductible_expense"),
+            ),
+        ),
+        # 借入金利子の内訳 — 繰返しブロック ANF01260 (支払先/期末残高/利子/必要経費算入額).
+        EtaxSection(
+            "LOAN_INTEREST",
+            "RE_LOAN_LINES",
+            "借入金利子の内訳",
+            "loan_interest.lines",
+            (
+                EtaxSectionField(
+                    "ANF01280", "支払先の住所", "payee_address", _TEXT, required=False
+                ),
+                EtaxSectionField("ANF01290", "支払先の氏名", "payee_name", _TEXT, required=False),
+                EtaxSectionField("ANF01300", "期末現在の借入金等の金額", "year_end_balance"),
+                EtaxSectionField("ANF01310", "本年中の借入金利子", "interest_paid"),
+                EtaxSectionField("ANF01320", "うち必要経費算入額", "deductible_interest"),
+            ),
+        ),
+    ),
+)
+
+
+# ── 令和7年分 (2025) — 実 様式 KOA240 青色申告決算書(農業所得用) v8.0 ───────────────
+#
+# 収入側 data-supply (#125/#128, ``agricultural_income_snapshot``) を 様式の 内訳 へ写す。農産物 (APF00680)・
+# 畜産物 (APF01100)・雑収入 (APF01200)・棚卸明細 (未収穫 APF01250 / 販売用動物 APF01330)・育成費用 (APF02320)
+# はいずれも 繰返しブロック → :class:`EtaxSection`、各 計 と 収入金額 summary (page1 APF00110-00180) は
+# :class:`EtaxScalarField`。農産物の三区分 (田畑/果樹/特殊施設) は様式上 別ブロックだが、snapshot は 1 リストに
+# ``category`` を持つので 先頭ブロック APF00680 に区分付きで写す。数量・面積は小数許容で整数円に乗らないため除外。
+
+_SPEC_2025_KOA240 = EtaxFormatSpec(
+    version="2025-KOA240",
+    form_id="青色申告決算書(農業所得用)",
+    items=(
+        # 農産物の収入の内訳 — 作物ごとの繰返しブロック APF00680 (区分で田畑/果樹/特殊施設を識別).
+        EtaxSection(
+            "FARM_PRODUCTS",
+            "AG_CROP_LINES",
+            "農産物の収入の内訳",
+            "farm_products.lines",
+            (
+                EtaxSectionField("APF00690", "区分", "category", _TEXT, required=False),
+                EtaxSectionField(
+                    "APF00740", "農産物の期首棚卸高(金額)", "opening_inventory_amount"
+                ),
+                EtaxSectionField("APF00750", "販売金額", "sales_amount"),
+                EtaxSectionField("APF00760", "家事消費・事業消費金額", "home_consumption"),
+                EtaxSectionField(
+                    "APF00790", "農産物の期末棚卸高(金額)", "closing_inventory_amount"
+                ),
+            ),
+        ),
+        # 農産物の収入の内訳 計 (APF01040).
+        EtaxScalarField(
+            "FARM_PRODUCTS",
+            "APF01060",
+            "農産物 期首棚卸高 計",
+            "farm_products.opening_inventory_total",
+        ),
+        EtaxScalarField(
+            "FARM_PRODUCTS", "APF01070", "農産物 販売金額 計", "farm_products.sales_total"
+        ),
+        EtaxScalarField(
+            "FARM_PRODUCTS",
+            "APF01080",
+            "農産物 家事消費等 計",
+            "farm_products.home_consumption_total",
+        ),
+        EtaxScalarField(
+            "FARM_PRODUCTS",
+            "APF01090",
+            "農産物 期末棚卸高 計",
+            "farm_products.closing_inventory_total",
+        ),
+        # 畜産物その他の収入の内訳 — 繰返しブロック APF01100.
+        EtaxSection(
+            "LIVESTOCK",
+            "AG_LIVESTOCK_LINES",
+            "畜産物その他の収入の内訳",
+            "livestock.lines",
+            (
+                EtaxSectionField("APF01110", "区分", "category_name", _TEXT, required=False),
+                EtaxSectionField("APF01140", "販売金額", "sales_amount"),
+                EtaxSectionField("APF01150", "家事消費・事業消費金額", "home_consumption"),
+            ),
+        ),
+        EtaxScalarField("LIVESTOCK", "APF01170", "畜産物 販売金額 計", "livestock.sales_total"),
+        EtaxScalarField(
+            "LIVESTOCK", "APF01180", "畜産物 家事消費等 計", "livestock.home_consumption_total"
+        ),
+        # 雑収入の内訳 — 繰返しブロック APF01200.
+        EtaxSection(
+            "MISC_INCOME",
+            "AG_MISC_LINES",
+            "雑収入の内訳",
+            "misc_income.lines",
+            (
+                EtaxSectionField("APF01210", "区分", "category_name", _TEXT, required=False),
+                EtaxSectionField("APF01220", "金額", "amount"),
+            ),
+        ),
+        EtaxScalarField("MISC_INCOME", "APF01230", "雑収入 合計金額", "misc_income.total"),
+        # 収入金額 (page1 損益 summary APF00110-00180).
+        EtaxScalarField("INCOME", "APF00110", "販売金額", "income.sales_amount_total"),
+        EtaxScalarField(
+            "INCOME", "APF00120", "家事消費・事業消費金額", "income.home_consumption_total"
+        ),
+        EtaxScalarField("INCOME", "APF00130", "雑収入", "income.misc_income_total"),
+        EtaxScalarField("INCOME", "APF00140", "小計", "income.subtotal"),
+        EtaxScalarField(
+            "INCOME", "APF00160", "農産物の棚卸高(期首)", "income.opening_inventory_total"
+        ),
+        EtaxScalarField(
+            "INCOME", "APF00170", "農産物の棚卸高(期末)", "income.closing_inventory_total"
+        ),
+        EtaxScalarField("INCOME", "APF00180", "収入金額(計)", "income.gross_income"),
+        # 未収穫農産物 — 棚卸明細 繰返しブロック APF01250 (数量は文字).
+        EtaxSection(
+            "UNHARVESTED",
+            "AG_UNHARVESTED_LINES",
+            "未収穫農産物",
+            "unharvested.lines",
+            (
+                EtaxSectionField("APF01260", "区分", "category_name", _TEXT, required=False),
+                EtaxSectionField(
+                    "APF01280", "期首棚卸高(数量)", "opening_qty", _TEXT, required=False
+                ),
+                EtaxSectionField("APF01290", "期首棚卸高(金額)", "opening_amount"),
+                EtaxSectionField(
+                    "APF01310", "期末棚卸高(数量)", "closing_qty", _TEXT, required=False
+                ),
+                EtaxSectionField("APF01320", "期末棚卸高(金額)", "closing_amount"),
+            ),
+        ),
+        # 販売用動物等 — 棚卸明細 繰返しブロック APF01330 (数量は文字).
+        EtaxSection(
+            "SALE_ANIMALS",
+            "AG_SALE_ANIMAL_LINES",
+            "販売用動物等",
+            "sale_animals.lines",
+            (
+                EtaxSectionField("APF01340", "区分", "category_name", _TEXT, required=False),
+                EtaxSectionField(
+                    "APF01360", "期首棚卸高(数量)", "opening_qty", _TEXT, required=False
+                ),
+                EtaxSectionField("APF01370", "期首棚卸高(金額)", "opening_amount"),
+                EtaxSectionField(
+                    "APF01390", "期末棚卸高(数量)", "closing_qty", _TEXT, required=False
+                ),
+                EtaxSectionField("APF01400", "期末棚卸高(金額)", "closing_amount"),
+            ),
+        ),
+        # 果樹・牛馬等の育成費用の計算 — 繰返しブロック APF02320.
+        EtaxSection(
+            "CULTIVATION",
+            "AG_CULTIVATION_LINES",
+            "果樹・牛馬等の育成費用の計算",
+            "cultivation_cost.lines",
+            (
+                EtaxSectionField("APF02330", "果樹・牛馬等の名称", "name", _TEXT, required=False),
+                EtaxSectionField("APF02350", "前年からの繰越額", "opening_carryover"),
+                EtaxSectionField("APF02370", "本年中の種苗費・種付料・素畜費", "seedling_cost"),
+                EtaxSectionField("APF02380", "本年中の肥料・農薬等の投下費用", "fertilizer_cost"),
+                EtaxSectionField("APF02390", "小計", "subtotal"),
+                EtaxSectionField(
+                    "APF02400", "育成中の果樹等から生じた収入金額", "income_from_growing"
+                ),
+                EtaxSectionField(
+                    "APF02410", "本年に取得価額に加算する金額", "added_to_acquisition_cost"
+                ),
+                EtaxSectionField(
+                    "APF02420", "本年中に成熟したものの取得価額", "matured_acquisition_cost"
+                ),
+                EtaxSectionField("APF02430", "翌年への繰越額", "carryover_to_next"),
+            ),
+        ),
+        # 果樹・牛馬等の育成費用 計 (APF02440).
+        EtaxScalarField(
+            "CULTIVATION",
+            "APF02450",
+            "前年からの繰越額 計",
+            "cultivation_cost.opening_carryover_total",
+        ),
+        EtaxScalarField(
+            "CULTIVATION", "APF02470", "種苗費等 計", "cultivation_cost.seedling_cost_total"
+        ),
+        EtaxScalarField(
+            "CULTIVATION", "APF02480", "肥料・農薬等 計", "cultivation_cost.fertilizer_cost_total"
+        ),
+        EtaxScalarField("CULTIVATION", "APF02490", "小計 計", "cultivation_cost.subtotal_total"),
+        EtaxScalarField(
+            "CULTIVATION",
+            "APF02500",
+            "育成中の収入金額 計",
+            "cultivation_cost.income_from_growing_total",
+        ),
+        EtaxScalarField(
+            "CULTIVATION",
+            "APF02510",
+            "取得価額に加算する金額 計",
+            "cultivation_cost.added_to_acquisition_total",
+        ),
+        EtaxScalarField(
+            "CULTIVATION",
+            "APF02520",
+            "成熟取得価額 計",
+            "cultivation_cost.matured_acquisition_total",
+        ),
+        EtaxScalarField(
+            "CULTIVATION",
+            "APF02530",
+            "翌年への繰越額 計",
+            "cultivation_cost.carryover_to_next_total",
+        ),
+    ),
+)
+
+
 # ── 合成様式 (synthetic, 非公式・教育用) — 年度軸の外 ───────────────────────────────
 #
 # 実 様式 (KOA210) に取り違えないよう ``"synthetic"`` キーで隔離。data-driven 機構
@@ -635,11 +942,16 @@ _SPEC_SYNTHETIC = EtaxFormatSpec(
 #: Adding a 年度 registers one more entry here; nothing else changes.
 ETAX_FORMAT_SPECS: dict[str, EtaxFormatSpec] = {
     _SPEC_2025.version: _SPEC_2025,
+    _SPEC_2025_KOA220.version: _SPEC_2025_KOA220,
+    _SPEC_2025_KOA240.version: _SPEC_2025_KOA240,
     _SPEC_SYNTHETIC.version: _SPEC_SYNTHETIC,
 }
 
-#: 既定の 様式 version — caller が pin しないときの最新の実様式 (令和7年分).
+#: 既定の 様式 version — caller が pin しないときの最新の実様式 (令和7年分 一般用 KOA210).
 LATEST_ETAX_VERSION = _SPEC_2025.version
+#: 既定の KOA220(不動産所得用) / KOA240(農業所得用) version — 収入側 build 入口の既定 (#126).
+LATEST_REAL_ESTATE_VERSION = _SPEC_2025_KOA220.version
+LATEST_AGRICULTURAL_VERSION = _SPEC_2025_KOA240.version
 
 
 def get_format_spec(version: str) -> EtaxFormatSpec:

@@ -1,0 +1,352 @@
+{
+  "report": "etax_export",
+  "format_version": "2025-KOA220",
+  "form_id": "青色申告決算書(不動産所得用)",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "records": [
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00350",
+      "label": "貸家貸地等の別",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "貸家"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00355",
+      "label": "用途",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "住宅用"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00360",
+      "label": "不動産の所在地",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "東京都杉並区○○1-2-3 甲アパート101"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00380",
+      "label": "賃借人の住所",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "東京都杉並区○○4-5-6"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00390",
+      "label": "賃借人の氏名",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "賃借 一郎"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00500",
+      "label": "賃貸料年額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "1200000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00510",
+      "label": "礼金",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "100000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00520",
+      "label": "権利金",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00530",
+      "label": "更新料",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00540",
+      "label": "名義書換料その他",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00550",
+      "label": "保証金・敷金",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00350",
+      "label": "貸家貸地等の別",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "貸事務所"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00355",
+      "label": "用途",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "住宅用以外"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00360",
+      "label": "不動産の所在地",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "東京都中野区△△7-8-9 乙ビル2F"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00380",
+      "label": "賃借人の住所",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "東京都新宿区△△10-11-12"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00390",
+      "label": "賃借人の氏名",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "乙商事株式会社"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00500",
+      "label": "賃貸料年額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "900000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00510",
+      "label": "礼金",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00520",
+      "label": "権利金",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00530",
+      "label": "更新料",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "60000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00540",
+      "label": "名義書換料その他",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00550",
+      "label": "保証金・敷金",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00570",
+      "label": "賃貸料年額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "2100000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00580",
+      "label": "礼金・権利金・更新料 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "160000"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00590",
+      "label": "名義書換料その他 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENTAL_INCOME",
+      "item_code": "ANF00600",
+      "label": "保証金・敷金 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01180",
+      "label": "支払先の住所",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "東京都杉並区○○1-2-0"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01190",
+      "label": "支払先の氏名",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "底地 地主丙"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01200",
+      "label": "賃借物件",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "甲アパートの底地"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01220",
+      "label": "権利金",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01230",
+      "label": "更新料",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01240",
+      "label": "賃借料",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "240000"
+    },
+    {
+      "form": "RENT_PAID",
+      "item_code": "ANF01250",
+      "label": "賃借料のうち必要経費算入額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "240000"
+    },
+    {
+      "form": "LOAN_INTEREST",
+      "item_code": "ANF01280",
+      "label": "支払先の住所",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "東京都千代田区□□1-1-1"
+    },
+    {
+      "form": "LOAN_INTEREST",
+      "item_code": "ANF01290",
+      "label": "支払先の氏名",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "○○銀行 △△支店"
+    },
+    {
+      "form": "LOAN_INTEREST",
+      "item_code": "ANF01300",
+      "label": "期末現在の借入金等の金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "7500000"
+    },
+    {
+      "form": "LOAN_INTEREST",
+      "item_code": "ANF01310",
+      "label": "本年中の借入金利子",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "80000"
+    },
+    {
+      "form": "LOAN_INTEREST",
+      "item_code": "ANF01320",
+      "label": "うち必要経費算入額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "80000"
+    }
+  ]
+}

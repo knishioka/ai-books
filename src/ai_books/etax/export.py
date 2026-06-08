@@ -35,14 +35,28 @@ from importlib.resources import files
 from typing import Any
 
 from ai_books.errors import EtaxValidationError
-from ai_books.models import EtaxExport, EtaxRecord, EtaxValueKind, FinancialStatements
-from ai_books.reports import financial_statements_snapshot
+from ai_books.models import (
+    AgriculturalIncome,
+    EtaxExport,
+    EtaxRecord,
+    EtaxValueKind,
+    FinancialStatements,
+    RealEstateIncome,
+)
+from ai_books.reports import (
+    agricultural_income_snapshot,
+    financial_statements_snapshot,
+    real_estate_income_snapshot,
+)
 
 from .spec import (
+    LATEST_AGRICULTURAL_VERSION,
     LATEST_ETAX_VERSION,
+    LATEST_REAL_ESTATE_VERSION,
     MISSING,
     EtaxComputedField,
     EtaxFixedSection,
+    EtaxFormatSpec,
     EtaxScalarField,
     EtaxSection,
     EtaxSectionField,
@@ -130,16 +144,79 @@ def _render_amount(text: str, max_int_digits: int) -> tuple[str | None, str | No
 def build_etax_export(
     financial_statements: FinancialStatements, *, version: str = LATEST_ETAX_VERSION
 ) -> EtaxExport:
-    """Map a 青色申告決算書 to e-Tax records under the ``version`` 様式, validating every 項目.
+    """Map a 青色申告決算書(一般用) to e-Tax records under the ``version`` 様式, validating every 項目.
 
     Reads the 決算書 through its canonical snapshot (so the e-Tax layer depends on the frozen JSON
     shape, not model internals), pulls each spec field/section by path, and validates as it goes.
     Every fault is collected; if any exist, raises :class:`~ai_books.errors.EtaxValidationError`
     with the full list (no partial export is returned). Otherwise returns the ordered
     :class:`~ai_books.models.EtaxExport`.
+
+    This is the KOA210(一般用) entry. KOA220(不動産所得用) / KOA240(農業所得用) read a different
+    収入側 snapshot, so they have their own entries (:func:`build_real_estate_etax_export` /
+    :func:`build_agricultural_etax_export`); the engine below is shared, only the snapshot differs.
     """
-    spec = get_format_spec(version)
-    snapshot = financial_statements_snapshot(financial_statements)
+    return _build_export(
+        get_format_spec(version),
+        financial_statements_snapshot(financial_statements),
+        fiscal_year=financial_statements.fiscal_year,
+        start_date=financial_statements.start_date,
+        end_date=financial_statements.end_date,
+    )
+
+
+def build_real_estate_etax_export(
+    real_estate_income: RealEstateIncome, *, version: str = LATEST_REAL_ESTATE_VERSION
+) -> EtaxExport:
+    """Map the 不動産所得 収入側 内訳 to KOA220 e-Tax records under ``version`` (#126).
+
+    Reads the 収入側 through :func:`~ai_books.reports.real_estate_income_snapshot` (the frozen JSON
+    shape the golden harness pins) and walks the same data-driven engine as KOA210 — only the input
+    snapshot and the 様式 spec differ. Raises :class:`~ai_books.errors.EtaxValidationError` on any
+    schema fault.
+    """
+    return _build_export(
+        get_format_spec(version),
+        real_estate_income_snapshot(real_estate_income),
+        fiscal_year=real_estate_income.fiscal_year,
+        start_date=real_estate_income.start_date,
+        end_date=real_estate_income.end_date,
+    )
+
+
+def build_agricultural_etax_export(
+    agricultural_income: AgriculturalIncome, *, version: str = LATEST_AGRICULTURAL_VERSION
+) -> EtaxExport:
+    """Map the 農業所得 収入側 内訳 to KOA240 e-Tax records under ``version`` (#126).
+
+    Reads the 収入側 through :func:`~ai_books.reports.agricultural_income_snapshot` and walks the
+    same data-driven engine as KOA210 — only the input snapshot and the 様式 spec differ. Raises
+    :class:`~ai_books.errors.EtaxValidationError` on any schema fault.
+    """
+    return _build_export(
+        get_format_spec(version),
+        agricultural_income_snapshot(agricultural_income),
+        fiscal_year=agricultural_income.fiscal_year,
+        start_date=agricultural_income.start_date,
+        end_date=agricultural_income.end_date,
+    )
+
+
+def _build_export(
+    spec: EtaxFormatSpec,
+    snapshot: dict[str, Any],
+    *,
+    fiscal_year: str,
+    start_date: Any,
+    end_date: Any,
+) -> EtaxExport:
+    """Walk ``spec`` over ``snapshot`` and assemble the validated :class:`EtaxExport`.
+
+    The 様式-agnostic core shared by every build entry: it dispatches each spec item on type (in
+    declared order), collects *all* faults, and raises :class:`~ai_books.errors.EtaxValidationError`
+    if any exist (no partial export). The only thing the public entries decide is which snapshot to
+    feed and which 様式 spec to use — the mapping/validation here is identical across 様式.
+    """
     records: list[EtaxRecord] = []
     problems: list[dict[str, str]] = []
     #: section_code → its routed total (Σ emitted 金額); fed to later EtaxComputedField items.
@@ -162,9 +239,9 @@ def build_etax_export(
     return EtaxExport(
         format_version=spec.version,
         form_id=spec.form_id,
-        fiscal_year=financial_statements.fiscal_year,
-        start_date=financial_statements.start_date,
-        end_date=financial_statements.end_date,
+        fiscal_year=fiscal_year,
+        start_date=start_date,
+        end_date=end_date,
         records=records,
     )
 

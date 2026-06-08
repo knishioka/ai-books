@@ -21,7 +21,9 @@ from __future__ import annotations
 
 from .export import (
     EtaxFormat,
+    build_agricultural_etax_export,
     build_etax_export,
+    build_real_estate_etax_export,
     etax_export_snapshot,
     export_etax,
     form_layout,
@@ -34,7 +36,9 @@ from .export import (
 )
 from .spec import (
     ETAX_FORMAT_SPECS,
+    LATEST_AGRICULTURAL_VERSION,
     LATEST_ETAX_VERSION,
+    LATEST_REAL_ESTATE_VERSION,
     EtaxComputedField,
     EtaxFixedRow,
     EtaxFixedSection,
@@ -47,7 +51,9 @@ from .spec import (
 
 __all__ = [
     "ETAX_FORMAT_SPECS",
+    "LATEST_AGRICULTURAL_VERSION",
     "LATEST_ETAX_VERSION",
+    "LATEST_REAL_ESTATE_VERSION",
     "EtaxComputedField",
     "EtaxFixedRow",
     "EtaxFixedSection",
@@ -56,7 +62,9 @@ __all__ = [
     "EtaxScalarField",
     "EtaxSection",
     "EtaxSectionField",
+    "build_agricultural_etax_export",
     "build_etax_export",
+    "build_real_estate_etax_export",
     "etax_export_snapshot",
     "export_etax",
     "form_layout",

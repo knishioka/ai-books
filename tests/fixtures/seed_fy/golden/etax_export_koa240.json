@@ -1,0 +1,730 @@
+{
+  "report": "etax_export",
+  "format_version": "2025-KOA240",
+  "form_id": "青色申告決算書(農業所得用)",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "records": [
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00690",
+      "label": "区分",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "田畑"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00740",
+      "label": "農産物の期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "80000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00750",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "800000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00760",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "50000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00790",
+      "label": "農産物の期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "100000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00690",
+      "label": "区分",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "田畑"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00740",
+      "label": "農産物の期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "40000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00750",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "300000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00760",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "20000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00790",
+      "label": "農産物の期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "50000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00690",
+      "label": "区分",
+      "kind": "text",
+      "row": 3,
+      "account_code": null,
+      "value": "果樹"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00740",
+      "label": "農産物の期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 3,
+      "account_code": null,
+      "value": "50000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00750",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 3,
+      "account_code": null,
+      "value": "400000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00760",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 3,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00790",
+      "label": "農産物の期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 3,
+      "account_code": null,
+      "value": "60000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00690",
+      "label": "区分",
+      "kind": "text",
+      "row": 4,
+      "account_code": null,
+      "value": "特殊施設"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00740",
+      "label": "農産物の期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 4,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00750",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 4,
+      "account_code": null,
+      "value": "500000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00760",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 4,
+      "account_code": null,
+      "value": "10000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF00790",
+      "label": "農産物の期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 4,
+      "account_code": null,
+      "value": "40000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF01060",
+      "label": "農産物 期首棚卸高 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF01070",
+      "label": "農産物 販売金額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "2000000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF01080",
+      "label": "農産物 家事消費等 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "110000"
+    },
+    {
+      "form": "FARM_PRODUCTS",
+      "item_code": "APF01090",
+      "label": "農産物 期末棚卸高 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "250000"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01110",
+      "label": "区分",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "肉用牛"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01140",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "1200000"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01150",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01110",
+      "label": "区分",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "鶏卵"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01140",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "600000"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01150",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01170",
+      "label": "畜産物 販売金額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "1800000"
+    },
+    {
+      "form": "LIVESTOCK",
+      "item_code": "APF01180",
+      "label": "畜産物 家事消費等 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "MISC_INCOME",
+      "item_code": "APF01210",
+      "label": "区分",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "共済受取金"
+    },
+    {
+      "form": "MISC_INCOME",
+      "item_code": "APF01220",
+      "label": "金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "80000"
+    },
+    {
+      "form": "MISC_INCOME",
+      "item_code": "APF01210",
+      "label": "区分",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "作業受託収入"
+    },
+    {
+      "form": "MISC_INCOME",
+      "item_code": "APF01220",
+      "label": "金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "120000"
+    },
+    {
+      "form": "MISC_INCOME",
+      "item_code": "APF01230",
+      "label": "雑収入 合計金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00110",
+      "label": "販売金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "3800000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00120",
+      "label": "家事消費・事業消費金額",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "140000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00130",
+      "label": "雑収入",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00140",
+      "label": "小計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "4140000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00160",
+      "label": "農産物の棚卸高(期首)",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00170",
+      "label": "農産物の棚卸高(期末)",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "250000"
+    },
+    {
+      "form": "INCOME",
+      "item_code": "APF00180",
+      "label": "収入金額(計)",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "4190000"
+    },
+    {
+      "form": "UNHARVESTED",
+      "item_code": "APF01260",
+      "label": "区分",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "米 (未収穫)"
+    },
+    {
+      "form": "UNHARVESTED",
+      "item_code": "APF01280",
+      "label": "期首棚卸高(数量)",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "10a"
+    },
+    {
+      "form": "UNHARVESTED",
+      "item_code": "APF01290",
+      "label": "期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "20000"
+    },
+    {
+      "form": "UNHARVESTED",
+      "item_code": "APF01310",
+      "label": "期末棚卸高(数量)",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "12a"
+    },
+    {
+      "form": "UNHARVESTED",
+      "item_code": "APF01320",
+      "label": "期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "25000"
+    },
+    {
+      "form": "SALE_ANIMALS",
+      "item_code": "APF01340",
+      "label": "区分",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "子牛"
+    },
+    {
+      "form": "SALE_ANIMALS",
+      "item_code": "APF01360",
+      "label": "期首棚卸高(数量)",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "2頭"
+    },
+    {
+      "form": "SALE_ANIMALS",
+      "item_code": "APF01370",
+      "label": "期首棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "300000"
+    },
+    {
+      "form": "SALE_ANIMALS",
+      "item_code": "APF01390",
+      "label": "期末棚卸高(数量)",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "1頭"
+    },
+    {
+      "form": "SALE_ANIMALS",
+      "item_code": "APF01400",
+      "label": "期末棚卸高(金額)",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "180000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02330",
+      "label": "果樹・牛馬等の名称",
+      "kind": "text",
+      "row": 1,
+      "account_code": null,
+      "value": "みかん幼木"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02350",
+      "label": "前年からの繰越額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "150000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02370",
+      "label": "本年中の種苗費・種付料・素畜費",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02380",
+      "label": "本年中の肥料・農薬等の投下費用",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "20000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02390",
+      "label": "小計",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02400",
+      "label": "育成中の果樹等から生じた収入金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "5000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02410",
+      "label": "本年に取得価額に加算する金額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02420",
+      "label": "本年中に成熟したものの取得価額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02430",
+      "label": "翌年への繰越額",
+      "kind": "amount",
+      "row": 1,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02330",
+      "label": "果樹・牛馬等の名称",
+      "kind": "text",
+      "row": 2,
+      "account_code": null,
+      "value": "繁殖牛 (育成中)"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02350",
+      "label": "前年からの繰越額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "200000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02370",
+      "label": "本年中の種苗費・種付料・素畜費",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "100000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02380",
+      "label": "本年中の肥料・農薬等の投下費用",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "10000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02390",
+      "label": "小計",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "310000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02400",
+      "label": "育成中の果樹等から生じた収入金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02410",
+      "label": "本年に取得価額に加算する金額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02420",
+      "label": "本年中に成熟したものの取得価額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "310000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02430",
+      "label": "翌年への繰越額",
+      "kind": "amount",
+      "row": 2,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02450",
+      "label": "前年からの繰越額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "350000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02470",
+      "label": "種苗費等 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "130000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02480",
+      "label": "肥料・農薬等 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "30000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02490",
+      "label": "小計 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "510000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02500",
+      "label": "育成中の収入金額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "5000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02510",
+      "label": "取得価額に加算する金額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "0"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02520",
+      "label": "成熟取得価額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "310000"
+    },
+    {
+      "form": "CULTIVATION",
+      "item_code": "APF02530",
+      "label": "翌年への繰越額 計",
+      "kind": "amount",
+      "row": null,
+      "account_code": null,
+      "value": "200000"
+    }
+  ]
+}

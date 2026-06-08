@@ -409,6 +409,39 @@ def test_db_real_estate_income_reconciles(migrated_conn: psycopg.Connection[Any]
     assert re.loan_interest_total == Decimal("80000")
 
 
+def test_db_koa220_xtx_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#126): seed_fy → KOA220 .xtx — the DB-read 不動産所得 収入側 renders to the same .xtx as the
+    # offline golden, so the storage round-trip does not perturb the real e-Tax 交換ファイル.
+    from ai_books.etax import build_real_estate_etax_export, render_etax_xtx
+
+    load_fiscal_year(migrated_conn, RE_ENTRIES)
+    actual = {
+        "report": "etax_xtx",
+        "form_id": "KOA220",
+        "version": "8.0",
+        "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+        "xtx_lines": render_etax_xtx(
+            build_real_estate_etax_export(real_estate_income_from_db(migrated_conn))
+        ).splitlines(),
+    }
+    problems = diff_snapshots(load_golden("etax_xtx_koa220"), actual)
+    assert problems == [], "DB KOA220 .xtx diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_koa220_xtx_passes_official_xsd(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#126): 実データ由来の KOA220 .xtx が 国税庁 KOA220-008.xsd を pass — over the real stored rows.
+    from ai_books.etax import build_real_estate_etax_export, render_etax_xtx
+    from tests.etax_xsd import skip_reason, validate_xtx, xsd_available
+
+    if not xsd_available("KOA220"):
+        pytest.skip(skip_reason())
+    load_fiscal_year(migrated_conn, RE_ENTRIES)
+    errors = validate_xtx(
+        render_etax_xtx(build_real_estate_etax_export(real_estate_income_from_db(migrated_conn)))
+    )
+    assert errors == [], f"DB KOA220 .xtx failed official XSD: {errors}"
+
+
 # --- 農業所得 収入側 内訳 (KOA240 data-supply, Issue #125) --------------------
 
 
@@ -433,3 +466,36 @@ def test_db_agricultural_income_reconciles(migrated_conn: psycopg.Connection[Any
     assert ag.gross_income == Decimal("4190000")
     assert ag.closing_inventory_total == Decimal("250000")
     assert ag.misc_income_total == Decimal("200000")
+
+
+def test_db_koa240_xtx_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#126): seed_fy → KOA240 .xtx — the DB-read 農業所得 収入側 renders to the same .xtx as the
+    # offline golden, so the storage round-trip does not perturb the real e-Tax 交換ファイル.
+    from ai_books.etax import build_agricultural_etax_export, render_etax_xtx
+
+    load_fiscal_year(migrated_conn, AG_ENTRIES)
+    actual = {
+        "report": "etax_xtx",
+        "form_id": "KOA240",
+        "version": "8.0",
+        "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+        "xtx_lines": render_etax_xtx(
+            build_agricultural_etax_export(agricultural_income_from_db(migrated_conn))
+        ).splitlines(),
+    }
+    problems = diff_snapshots(load_golden("etax_xtx_koa240"), actual)
+    assert problems == [], "DB KOA240 .xtx diverged from golden:\n  - " + "\n  - ".join(problems)
+
+
+def test_db_koa240_xtx_passes_official_xsd(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#126): 実データ由来の KOA240 .xtx が 国税庁 KOA240-008.xsd を pass — over the real stored rows.
+    from ai_books.etax import build_agricultural_etax_export, render_etax_xtx
+    from tests.etax_xsd import skip_reason, validate_xtx, xsd_available
+
+    if not xsd_available("KOA240"):
+        pytest.skip(skip_reason())
+    load_fiscal_year(migrated_conn, AG_ENTRIES)
+    errors = validate_xtx(
+        render_etax_xtx(build_agricultural_etax_export(agricultural_income_from_db(migrated_conn)))
+    )
+    assert errors == [], f"DB KOA240 .xtx failed official XSD: {errors}"
