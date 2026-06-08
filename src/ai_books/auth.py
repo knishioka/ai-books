@@ -1,4 +1,10 @@
-"""Remote (HTTP) authentication + single-user authorization for the MCP server.
+"""Dormant remote (HTTP) authentication + single-user authorization for the MCP server.
+
+Current project posture (ADR 0009 / #142): remote MCP publishing is on hold, but the
+fail-closed auth code from #107 is intentionally retained as a restart point.
+In normal local operation this module is unused because stdio remains the default
+transport. It only affects the optional HTTP transport when the operator
+explicitly configures the remote auth environment.
 
 Per ADR 0008 the remote surface is **fail-closed**: when the server runs over
 Streamable HTTP, every request must carry a valid Supabase-issued JWT (verified

@@ -1,16 +1,24 @@
 # リモート公開 Runbook — MCP を Web に公開し Claude から接続する (#109)
 
+> **現在のステータス (#142, 2026-06-08): 保留・再開用参照。**
+> リモート公開トラック (#104/#109) はローカル中心方針により not planned でクローズ済み。
+> HTTP transport / Supabase Auth / single-user allowlist のコードは fail-closed な休眠コードとして
+> 残置するが、本書は日常運用手順ではない。再開する場合は、新しい明示的な意思決定・レビューを経てから
+> この runbook を更新して使う。viewer 側の Supabase 認証 (#108) は別スコープで維持する。
+
 > **このドキュメントの目的**
 > ローカル stdio 専用だった MCP サーバーを **Web 上にリモート公開**し、**Claude (Web / Desktop / Code)**
 > からリモートコネクタ経由で接続できる状態にするための、デプロイ・secret 投入・Supabase Auth 設定・
 > コネクタ登録の手順 SSOT。設計判断は [ADR 0008](../adr/0008-remote-mcp-single-tenant-auth.md)、
-> 実装は #106 (HTTP transport) / #107 (認証) / #108 (viewer 認証) でマージ済み。
+> remote MCP 実装は #106 (HTTP transport) / #107 (認証) でマージ済み、#142 で
+> 休眠として残置する方針に確定済み。viewer 認証 (#108) は別スコープで維持する。
 >
 > **シングルテナント前提は不変** (AGENTS.md invariant #3)。本書は「公開はするが利用者は自分 1 人・帳簿は 1 冊」
 > の構成であり、マルチテナント化 (`tenant_id` / RLS) は導入しない。**認証 ≠ マルチテナント**。
 
 - **参照日**: 2026-06-06
 - **対象実装**: `AI_BOOKS_MCP_TRANSPORT=http` (Streamable HTTP) + Supabase Auth (OAuth/JWT) + single-user allowlist
+- **運用状態**: remote MCP は休眠中 (#142)。通常運用は `stdio`。
 
 ---
 
@@ -18,18 +26,18 @@
 
 | 領域                                             | 担い手                             | 対象                                               |
 | ------------------------------------------------ | ---------------------------------- | -------------------------------------------------- |
-| HTTP transport / 認証ゲートの**コード**          | ai-books (#106/#107/#108 マージ済) | ✅ (実装済)                                        |
+| HTTP transport / 認証ゲートの**コード**          | ai-books (#106/#107 マージ済)      | ✅ (実装済)                                        |
 | MCP サーバーの**公開デプロイ + TLS**             | ユーザー (本書の手順)              | ✅ (手順提供)                                      |
 | **secret 投入** (DB URL / Supabase / allowlist)  | ユーザー (本書の手順)              | ✅ (手順提供)                                      |
 | **Supabase Auth 有効化 + アカウント作成**        | ユーザー (Supabase ダッシュボード) | ✅ (手順提供)                                      |
 | Vercel viewer の **Supabase Auth 設定**          | ユーザー (本書の手順)              | ✅ (手順提供)                                      |
-| **Claude リモートコネクタ登録 + OAuth ログイン** | ユーザー + Claude クライアント     | ✅ (手順提供)                                      |
+| **Claude リモートコネクタ登録 + OAuth ログイン** | ユーザー + Claude クライアント     | ⚠️ 再開時のみ (現状は保留)                         |
 | マルチテナント / RLS / 複数事業者                | —                                  | ❌ (恒久 non-goal)                                 |
 | 税額計算・電子署名・e-Tax 送信                   | 公式ツール (別 runbook)            | ❌ ([handoff-runbook](../etax/handoff-runbook.md)) |
 
 > ⚠️ **最後の「Claude から実際にツールが通る」確認は、ユーザー + 実 Supabase プロジェクト + 公開 URL が
-> 必須**で自動化できない (本リポで #109 のみ)。実接続の受入結果は本書の
-> [受入確認の記録](#5-受入確認の記録-manual-acceptance) に残す。
+> 必須**で自動化できない。#109 は not planned でクローズ済みのため、実接続の受入は再開時の新 Issue で
+> 扱い、結果を本書の [受入確認の記録](#5-受入確認の記録-manual-acceptance) に残す。
 
 ---
 

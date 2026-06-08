@@ -19,8 +19,12 @@ AI-first accounting MCP server. Primary interface is Model Context Protocol (MCP
 
 MCP server の起動トランスポートは環境変数で切替: `AI_BOOKS_MCP_TRANSPORT` (既定 `stdio`,
 `http` で Streamable HTTP)。http 時は `AI_BOOKS_MCP_HOST` / `AI_BOOKS_MCP_PORT` (既定
-`127.0.0.1` / `8000`) で bind。http は明示的な opt-in (暗黙では開かない) で、既定の loopback
-host のまま公開しないこと — **リモート endpoint は未認証** (認証は後続 issue で追加, [ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md))。起動手順は [README.md](./README.md) 参照。
+`127.0.0.1` / `8000`) で bind。http は明示的な opt-in (暗黙では開かない) で、**Supabase Auth /
+single-user allowlist が未設定なら fail-closed で起動拒否**する ([ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md))。
+ただしリモート公開トラック (#104/#109) はローカル中心方針により保留済みで、HTTP/Auth コードは
+将来再開用の休眠コードとして残置する ([ADR 0009](./docs/adr/0009-retain-dormant-remote-mcp.md), #142)。
+通常運用は `stdio` を使い、再開判断なしに public endpoint として公開しないこと。
+起動手順は [README.md](./README.md) 参照。
 
 ## Verification
 
