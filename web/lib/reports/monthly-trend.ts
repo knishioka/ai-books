@@ -53,6 +53,7 @@ export interface MonthlyTrendOptions {
   start: string;
   end: string;
   status?: EntryStatus | null;
+  carryForward?: boolean;
 }
 
 async function trendForAccount(
@@ -61,21 +62,25 @@ async function trendForAccount(
   start: string,
   end: string,
   status: EntryStatus | null,
+  carryForward: boolean,
 ): Promise<MonthlyTrendAccountSnapshot> {
-  const [open] = await sql<{ debit_total: string; credit_total: string }[]>`
-    SELECT COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
-           COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
-    FROM journal_lines jl
-    JOIN journal_entries je ON je.id = jl.entry_id
-    WHERE jl.account_id = ${account.id}::bigint
-      AND je.entry_date < ${start}::date
-      AND ${statusFilter(sql, status)}
-  `;
-  const opening = balanceFromTotals(
-    parseMoney(open.debit_total),
-    parseMoney(open.credit_total),
-    account.normal_balance,
-  );
+  let opening = ZERO;
+  if (carryForward) {
+    const [open] = await sql<{ debit_total: string; credit_total: string }[]>`
+      SELECT COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
+             COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
+      FROM journal_lines jl
+      JOIN journal_entries je ON je.id = jl.entry_id
+      WHERE jl.account_id = ${account.id}::bigint
+        AND je.entry_date < ${start}::date
+        AND ${statusFilter(sql, status)}
+    `;
+    opening = balanceFromTotals(
+      parseMoney(open.debit_total),
+      parseMoney(open.credit_total),
+      account.normal_balance,
+    );
+  }
 
   const monthRows = await sql<
     { month: string; debit_total: string; credit_total: string }[]
@@ -127,7 +132,14 @@ async function trendForAccount(
 
 export async function fetchMonthlyTrend(
   sql: Sql,
-  { codes, fiscalYear, start, end, status = "posted" }: MonthlyTrendOptions,
+  {
+    codes,
+    fiscalYear,
+    start,
+    end,
+    status = "posted",
+    carryForward = true,
+  }: MonthlyTrendOptions,
 ): Promise<MonthlyTrendSnapshot> {
   const accounts: MonthlyTrendAccountSnapshot[] = [];
   for (const code of codes) {
@@ -137,7 +149,9 @@ export async function fetchMonthlyTrend(
       WHERE code = ${code}
     `;
     if (!account) throw new Error(`account ${code} not found`);
-    accounts.push(await trendForAccount(sql, account, start, end, status));
+    accounts.push(
+      await trendForAccount(sql, account, start, end, status, carryForward),
+    );
   }
   return { report: "monthly_trend", fiscal_year: fiscalYear, accounts };
 }

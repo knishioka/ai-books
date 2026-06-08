@@ -602,6 +602,209 @@ const SPEC_2025: EtaxFormatSpec = {
   ],
 };
 
+const SPEC_2025_KOA220: EtaxFormatSpec = {
+  version: "2025-KOA220",
+  formId: "青色申告決算書(不動産所得用)",
+  items: [
+    {
+      descriptor: "section",
+      form: "RENTAL_INCOME",
+      sectionCode: "RE_RENTAL_LINES",
+      label: "不動産所得の収入の内訳",
+      source: "rental_income.lines",
+      fields: [
+        field("ANF00350", "貸家貸地等の別", "property_type", "text", { required: false }),
+        field("ANF00355", "用途", "usage", "text", { required: false }),
+        field("ANF00360", "不動産の所在地", "location", "text", { required: false }),
+        field("ANF00380", "賃借人の住所", "tenant_address", "text", { required: false }),
+        field("ANF00390", "賃借人の氏名", "tenant_name", "text", { required: false }),
+        field("ANF00500", "賃貸料年額", "rent_annual"),
+        field("ANF00510", "礼金", "key_money"),
+        field("ANF00520", "権利金", "right_money"),
+        field("ANF00530", "更新料", "renewal_fee"),
+        field("ANF00540", "名義書換料その他", "name_change_other"),
+        field("ANF00550", "保証金・敷金", "deposit"),
+      ],
+    },
+    scalar("RENTAL_INCOME", "ANF00570", "賃貸料年額 計", "rental_income.rent_annual_total"),
+    scalar(
+      "RENTAL_INCOME",
+      "ANF00580",
+      "礼金・権利金・更新料 計",
+      "rental_income.key_right_renewal_total",
+    ),
+    scalar(
+      "RENTAL_INCOME",
+      "ANF00590",
+      "名義書換料その他 計",
+      "rental_income.name_change_other_total",
+    ),
+    scalar("RENTAL_INCOME", "ANF00600", "保証金・敷金 計", "rental_income.deposit_total"),
+    {
+      descriptor: "section",
+      form: "RENT_PAID",
+      sectionCode: "RE_RENT_PAID_LINES",
+      label: "地代家賃の内訳",
+      source: "rent_paid.lines",
+      fields: [
+        field("ANF01180", "支払先の住所", "payee_address", "text", { required: false }),
+        field("ANF01190", "支払先の氏名", "payee_name", "text", { required: false }),
+        field("ANF01200", "賃借物件", "leased_property", "text", { required: false }),
+        field("ANF01220", "権利金", "right_money"),
+        field("ANF01230", "更新料", "renewal_fee"),
+        field("ANF01240", "賃借料", "rent"),
+        field("ANF01250", "賃借料のうち必要経費算入額", "deductible_expense"),
+      ],
+    },
+    {
+      descriptor: "section",
+      form: "LOAN_INTEREST",
+      sectionCode: "RE_LOAN_LINES",
+      label: "借入金利子の内訳",
+      source: "loan_interest.lines",
+      fields: [
+        field("ANF01280", "支払先の住所", "payee_address", "text", { required: false }),
+        field("ANF01290", "支払先の氏名", "payee_name", "text", { required: false }),
+        field("ANF01300", "期末現在の借入金等の金額", "year_end_balance"),
+        field("ANF01310", "本年中の借入金利子", "interest_paid"),
+        field("ANF01320", "うち必要経費算入額", "deductible_interest"),
+      ],
+    },
+  ],
+};
+
+const SPEC_2025_KOA240: EtaxFormatSpec = {
+  version: "2025-KOA240",
+  formId: "青色申告決算書(農業所得用)",
+  items: [
+    {
+      descriptor: "section",
+      form: "FARM_PRODUCTS",
+      sectionCode: "AG_CROP_LINES",
+      label: "農産物の収入の内訳",
+      source: "farm_products.lines",
+      fields: [
+        field("APF00690", "区分", "category", "text", { required: false }),
+        field("APF00740", "農産物の期首棚卸高(金額)", "opening_inventory_amount"),
+        field("APF00750", "販売金額", "sales_amount"),
+        field("APF00760", "家事消費・事業消費金額", "home_consumption"),
+        field("APF00790", "農産物の期末棚卸高(金額)", "closing_inventory_amount"),
+      ],
+    },
+    scalar("FARM_PRODUCTS", "APF01060", "農産物 期首棚卸高 計", "farm_products.opening_inventory_total"),
+    scalar("FARM_PRODUCTS", "APF01070", "農産物 販売金額 計", "farm_products.sales_total"),
+    scalar(
+      "FARM_PRODUCTS",
+      "APF01080",
+      "農産物 家事消費等 計",
+      "farm_products.home_consumption_total",
+    ),
+    scalar(
+      "FARM_PRODUCTS",
+      "APF01090",
+      "農産物 期末棚卸高 計",
+      "farm_products.closing_inventory_total",
+    ),
+    {
+      descriptor: "section",
+      form: "LIVESTOCK",
+      sectionCode: "AG_LIVESTOCK_LINES",
+      label: "畜産物その他の収入の内訳",
+      source: "livestock.lines",
+      fields: [
+        field("APF01110", "区分", "category_name", "text", { required: false }),
+        field("APF01140", "販売金額", "sales_amount"),
+        field("APF01150", "家事消費・事業消費金額", "home_consumption"),
+      ],
+    },
+    scalar("LIVESTOCK", "APF01170", "畜産物 販売金額 計", "livestock.sales_total"),
+    scalar("LIVESTOCK", "APF01180", "畜産物 家事消費等 計", "livestock.home_consumption_total"),
+    {
+      descriptor: "section",
+      form: "MISC_INCOME",
+      sectionCode: "AG_MISC_LINES",
+      label: "雑収入の内訳",
+      source: "misc_income.lines",
+      fields: [
+        field("APF01210", "区分", "category_name", "text", { required: false }),
+        field("APF01220", "金額", "amount"),
+      ],
+    },
+    scalar("MISC_INCOME", "APF01230", "雑収入 合計金額", "misc_income.total"),
+    scalar("INCOME", "APF00110", "販売金額", "income.sales_amount_total"),
+    scalar("INCOME", "APF00120", "家事消費・事業消費金額", "income.home_consumption_total"),
+    scalar("INCOME", "APF00130", "雑収入", "income.misc_income_total"),
+    scalar("INCOME", "APF00140", "小計", "income.subtotal"),
+    scalar("INCOME", "APF00160", "農産物の棚卸高(期首)", "income.opening_inventory_total"),
+    scalar("INCOME", "APF00170", "農産物の棚卸高(期末)", "income.closing_inventory_total"),
+    scalar("INCOME", "APF00180", "収入金額(計)", "income.gross_income"),
+    {
+      descriptor: "section",
+      form: "UNHARVESTED",
+      sectionCode: "AG_UNHARVESTED_LINES",
+      label: "未収穫農産物",
+      source: "unharvested.lines",
+      fields: [
+        field("APF01260", "区分", "category_name", "text", { required: false }),
+        field("APF01280", "期首棚卸高(数量)", "opening_qty", "text", { required: false }),
+        field("APF01290", "期首棚卸高(金額)", "opening_amount"),
+        field("APF01310", "期末棚卸高(数量)", "closing_qty", "text", { required: false }),
+        field("APF01320", "期末棚卸高(金額)", "closing_amount"),
+      ],
+    },
+    {
+      descriptor: "section",
+      form: "SALE_ANIMALS",
+      sectionCode: "AG_SALE_ANIMAL_LINES",
+      label: "販売用動物等",
+      source: "sale_animals.lines",
+      fields: [
+        field("APF01340", "区分", "category_name", "text", { required: false }),
+        field("APF01360", "期首棚卸高(数量)", "opening_qty", "text", { required: false }),
+        field("APF01370", "期首棚卸高(金額)", "opening_amount"),
+        field("APF01390", "期末棚卸高(数量)", "closing_qty", "text", { required: false }),
+        field("APF01400", "期末棚卸高(金額)", "closing_amount"),
+      ],
+    },
+    {
+      descriptor: "section",
+      form: "CULTIVATION",
+      sectionCode: "AG_CULTIVATION_LINES",
+      label: "果樹・牛馬等の育成費用の計算",
+      source: "cultivation_cost.lines",
+      fields: [
+        field("APF02330", "果樹・牛馬等の名称", "name", "text", { required: false }),
+        field("APF02350", "前年からの繰越額", "opening_carryover"),
+        field("APF02370", "本年中の種苗費・種付料・素畜費", "seedling_cost"),
+        field("APF02380", "本年中の肥料・農薬等の投下費用", "fertilizer_cost"),
+        field("APF02390", "小計", "subtotal"),
+        field("APF02400", "育成中の果樹等から生じた収入金額", "income_from_growing"),
+        field("APF02410", "本年に取得価額に加算する金額", "added_to_acquisition_cost"),
+        field("APF02420", "本年中に成熟したものの取得価額", "matured_acquisition_cost"),
+        field("APF02430", "翌年への繰越額", "carryover_to_next"),
+      ],
+    },
+    scalar("CULTIVATION", "APF02450", "前年からの繰越額 計", "cultivation_cost.opening_carryover_total"),
+    scalar("CULTIVATION", "APF02470", "種苗費等 計", "cultivation_cost.seedling_cost_total"),
+    scalar("CULTIVATION", "APF02480", "肥料・農薬等 計", "cultivation_cost.fertilizer_cost_total"),
+    scalar("CULTIVATION", "APF02490", "小計 計", "cultivation_cost.subtotal_total"),
+    scalar(
+      "CULTIVATION",
+      "APF02500",
+      "育成中の収入金額 計",
+      "cultivation_cost.income_from_growing_total",
+    ),
+    scalar(
+      "CULTIVATION",
+      "APF02510",
+      "取得価額に加算する金額 計",
+      "cultivation_cost.added_to_acquisition_total",
+    ),
+    scalar("CULTIVATION", "APF02520", "成熟取得価額 計", "cultivation_cost.matured_acquisition_total"),
+    scalar("CULTIVATION", "APF02530", "翌年への繰越額 計", "cultivation_cost.carryover_to_next_total"),
+  ],
+};
+
 // ── 合成様式 (synthetic, 非公式・教育用) — 年度軸の外 ───────────────────────────────
 
 const SPEC_SYNTHETIC: EtaxFormatSpec = {
@@ -665,11 +868,15 @@ const SPEC_SYNTHETIC: EtaxFormatSpec = {
 /** version → spec. 年度キー ("2025") で実様式を切替; "synthetic" は年度軸外. */
 export const ETAX_FORMAT_SPECS: Record<string, EtaxFormatSpec> = {
   [SPEC_2025.version]: SPEC_2025,
+  [SPEC_2025_KOA220.version]: SPEC_2025_KOA220,
+  [SPEC_2025_KOA240.version]: SPEC_2025_KOA240,
   [SPEC_SYNTHETIC.version]: SPEC_SYNTHETIC,
 };
 
 /** The newest 様式 version — the default when a caller does not pin one (令和7年分). */
 export const LATEST_ETAX_VERSION = SPEC_2025.version;
+export const LATEST_REAL_ESTATE_VERSION = SPEC_2025_KOA220.version;
+export const LATEST_AGRICULTURAL_VERSION = SPEC_2025_KOA240.version;
 
 /** Look up the e-Tax 様式 spec for `version`; throw if unknown. */
 export function getFormatSpec(version: string): EtaxFormatSpec {

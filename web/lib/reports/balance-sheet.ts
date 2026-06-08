@@ -65,6 +65,15 @@ interface ClassifiedLine {
 }
 
 export interface BalanceSheetOptions {
+  /**
+   * Inclusive lower bound on 取引日 (`null` = cumulative all-time).
+   *
+   * B/S is normally cumulative, so callers should leave this null for continuous
+   * real books. The public sample viewer passes a start date only because its
+   * KOA210/220/240 demo businesses are isolated by fiscal-year windows rather
+   * than by a ledger id.
+   */
+  start?: string | null;
   /** Inclusive upper bound on 取引日 (`null` = cumulative all-time). */
   asOf?: string | null;
   status?: EntryStatus | null;
@@ -91,7 +100,7 @@ function buildSections(
 
 export async function fetchBalanceSheet(
   sql: Sql,
-  { asOf = null, status = "posted" }: BalanceSheetOptions = {},
+  { start = null, asOf = null, status = "posted" }: BalanceSheetOptions = {},
 ): Promise<BalanceSheetSnapshot> {
   const rows = await sql<BalanceRow[]>`
     SELECT a.code, a.name, a.statement_category, a.normal_balance,
@@ -100,7 +109,8 @@ export async function fetchBalanceSheet(
     FROM journal_lines jl
     JOIN journal_entries je ON je.id = jl.entry_id
     JOIN accounts a ON a.id = jl.account_id
-    WHERE (${asOf}::date IS NULL OR je.entry_date <= ${asOf}::date)
+    WHERE (${start}::date IS NULL OR je.entry_date >= ${start}::date)
+      AND (${asOf}::date IS NULL OR je.entry_date <= ${asOf}::date)
       AND ${statusFilter(sql, status)}
     GROUP BY a.code, a.name, a.statement_category, a.normal_balance
     ORDER BY a.code

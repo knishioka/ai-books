@@ -301,7 +301,7 @@ export async function fetchFinancialStatements(
     end,
     status,
   });
-  const balanceSheet = await fetchBalanceSheet(sql, { asOf: end, status });
+  const balanceSheet = await fetchBalanceSheet(sql, { start, asOf: end, status });
   const monthly = await monthlySalesPurchases(sql, start, end, status);
   const depreciation = await depreciationSchedule(
     sql,

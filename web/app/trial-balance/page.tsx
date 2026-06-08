@@ -15,6 +15,7 @@ export default async function TrialBalancePage({
   const result = await loadReport(fy, (sql, year) =>
     fetchTrialBalance(sql, {
       fiscalYear: year.name,
+      start: year.start_date,
       asOf: year.end_date,
       status: "posted",
     }),

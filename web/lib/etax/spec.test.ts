@@ -93,6 +93,11 @@ describe("getFormatSpec", () => {
     expect(synthetic.formId).toBe("青色申告決算書(一般用・合成)");
   });
 
+  it("registers the real-estate and agricultural public sample specs", () => {
+    expect(getFormatSpec("2025-KOA220").formId).toBe("青色申告決算書(不動産所得用)");
+    expect(getFormatSpec("2025-KOA240").formId).toBe("青色申告決算書(農業所得用)");
+  });
+
   it("LATEST_ETAX_VERSION points at a registered spec", () => {
     expect(ETAX_FORMAT_SPECS[LATEST_ETAX_VERSION]).toBeDefined();
   });

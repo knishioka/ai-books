@@ -1,8 +1,7 @@
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
-import { buildEtaxExport, etaxExportSnapshot } from "@/lib/etax/export";
+import { buildSampleEtaxSnapshot } from "@/lib/etax/sample";
 import { loadReport } from "@/lib/reports/context";
-import { fetchFinancialStatements } from "@/lib/reports/financial-statements";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +11,7 @@ export default async function EtaxPage({
   searchParams: Promise<{ fy?: string }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, async (sql, year) => {
-    const fs = await fetchFinancialStatements(sql, {
-      fiscalYear: year.name,
-      start: year.start_date,
-      end: year.end_date,
-      status: "posted",
-    });
-    // build validates every 項目; a schema fault throws and surfaces in the banner.
-    return etaxExportSnapshot(buildEtaxExport(fs));
-  });
+  const result = await loadReport(fy, buildSampleEtaxSnapshot);
   if (!result.ok) return <ErrorBanner error={result.error} />;
 
   const { data: exported, fiscalYear, fiscalYears } = result.data;
@@ -40,9 +30,7 @@ export default async function EtaxPage({
 
       <section className="etax-handoff" aria-labelledby="etax-handoff-title">
         <div>
-          <h2 id="etax-handoff-title">
-            e-Taxソフト(WEB版)への引き継ぎ
-          </h2>
+          <h2 id="etax-handoff-title">e-Taxソフト(WEB版)への引き継ぎ</h2>
           <p>
             ダウンロードした <code>.xtx</code> は e-Taxソフト(WEB版) の
             「作成済みデータの利用」から取り込み、公式ツール側で署名して送信します。
@@ -75,7 +63,7 @@ export default async function EtaxPage({
       <div className="etax-downloads">
         <a
           className="download-button primary"
-          href={`${downloadBase}&format=xml`}
+          href={`${downloadBase}&format=xtx`}
           download
         >
           .xtx をダウンロード

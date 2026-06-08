@@ -1,13 +1,12 @@
 import "server-only";
 
 import {
-  buildEtaxExport,
   EtaxValidationError,
   parseEtaxFormat,
   renderEtax,
 } from "@/lib/etax/export";
+import { buildSampleEtaxExport } from "@/lib/etax/sample";
 import { getSql, NO_DB_ERROR } from "@/lib/db";
-import { fetchFinancialStatements } from "@/lib/reports/financial-statements";
 import { resolveFiscalYear } from "@/lib/reports/fiscal-year";
 
 export const dynamic = "force-dynamic";
@@ -44,13 +43,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!fiscalYear) {
       return new Response("会計年度が登録されていません。", { status: 404 });
     }
-    const fs = await fetchFinancialStatements(sql, {
-      fiscalYear: fiscalYear.name,
-      start: fiscalYear.start_date,
-      end: fiscalYear.end_date,
-      status: "posted",
-    });
-    const body = renderEtax(buildEtaxExport(fs), format);
+    const body = renderEtax(await buildSampleEtaxExport(sql, fiscalYear), format);
     const contentType =
       format === "csv"
         ? "text/csv; charset=utf-8"

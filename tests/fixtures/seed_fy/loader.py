@@ -13,6 +13,7 @@ re-runs the model's debit/credit balance validation, a second guard on the datas
 
 from __future__ import annotations
 
+from datetime import date
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from ai_books.db.repository import AccountRepository, JournalRepository
@@ -49,7 +50,9 @@ def _existing_vouchers(conn: psycopg.Connection[Any], vouchers: list[str]) -> se
         return {row["voucher_no"] for row in cur.fetchall()}
 
 
-def _seed_fiscal_year(conn: psycopg.Connection[Any]) -> None:
+def _seed_fiscal_year(
+    conn: psycopg.Connection[Any], *, fiscal_year: str, start: date, end: date
+) -> None:
     """Insert the dataset's fiscal year (FY2025) idempotently.
 
     The synthetic year *is* FY2025, so the ``fiscal_years`` row belongs with the seed: it is
@@ -62,7 +65,7 @@ def _seed_fiscal_year(conn: psycopg.Connection[Any]) -> None:
         VALUES (%s, %s, %s)
         ON CONFLICT (name) DO NOTHING
         """,
-        (FISCAL_YEAR, FY_START, FY_END),
+        (fiscal_year, start, end),
     )
 
 
@@ -88,7 +91,12 @@ def _to_journal_entry(entry: SeedEntry, code_to_id: dict[str, int]) -> JournalEn
 
 
 def load_fiscal_year(
-    conn: psycopg.Connection[Any], entries: tuple[SeedEntry, ...] = FY_ENTRIES
+    conn: psycopg.Connection[Any],
+    entries: tuple[SeedEntry, ...] = FY_ENTRIES,
+    *,
+    fiscal_year: str = FISCAL_YEAR,
+    start: date = FY_START,
+    end: date = FY_END,
 ) -> LoadResult:
     """Seed accounts + the synthetic year into ``conn``; return insert/skip counts.
 
@@ -100,7 +108,7 @@ def load_fiscal_year(
     """
     validate_dataset(entries)
     seed_accounts(conn)
-    _seed_fiscal_year(conn)
+    _seed_fiscal_year(conn, fiscal_year=fiscal_year, start=start, end=end)
 
     accounts = AccountRepository(conn).find()
     code_to_id = {a.code: a.id for a in accounts if a.id is not None}

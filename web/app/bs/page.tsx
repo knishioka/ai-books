@@ -13,7 +13,11 @@ export default async function BalanceSheetPage({
 }) {
   const { fy } = await searchParams;
   const result = await loadReport(fy, (sql, year) =>
-    fetchBalanceSheet(sql, { asOf: year.end_date, status: "posted" }),
+    fetchBalanceSheet(sql, {
+      start: year.start_date,
+      asOf: year.end_date,
+      status: "posted",
+    }),
   );
   if (!result.ok) return <ErrorBanner error={result.error} />;
 

@@ -67,6 +67,7 @@ export interface GeneralLedgerOptions {
   start?: string | null;
   end?: string | null;
   status?: EntryStatus | null;
+  carryForward?: boolean;
 }
 
 async function openingBalance(
@@ -75,9 +76,9 @@ async function openingBalance(
   start: string | null,
   normal: NormalSide,
   status: EntryStatus | null,
+  carryForward: boolean,
 ): Promise<Money> {
-  // With no start there is no 繰越 — opening is zero and the rows cover all history.
-  if (start === null) return ZERO;
+  if (!carryForward || start === null) return ZERO;
   const [row] = await sql<{ debit_total: string; credit_total: string }[]>`
     SELECT COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
            COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
@@ -101,7 +102,13 @@ async function accountLedger(
     start,
     end,
     status,
-  }: { start: string | null; end: string | null; status: EntryStatus | null },
+    carryForward,
+  }: {
+    start: string | null;
+    end: string | null;
+    status: EntryStatus | null;
+    carryForward: boolean;
+  },
 ): Promise<GeneralLedgerAccountSnapshot> {
   const opening = await openingBalance(
     sql,
@@ -109,6 +116,7 @@ async function accountLedger(
     start,
     account.normal_balance,
     status,
+    carryForward,
   );
 
   const lineRows = await sql<LedgerLineRow[]>`
@@ -176,6 +184,7 @@ export async function fetchGeneralLedger(
     start = null,
     end = null,
     status = "posted",
+    carryForward = true,
   }: GeneralLedgerOptions = {},
 ): Promise<GeneralLedgerSnapshot> {
   let accounts: AccountMeta[];
@@ -199,6 +208,7 @@ export async function fetchGeneralLedger(
         FROM journal_lines jl
         JOIN journal_entries je ON je.id = jl.entry_id
         WHERE jl.account_id = a.id
+          AND (${start}::date IS NULL OR je.entry_date >= ${start}::date)
           AND (${end}::date IS NULL OR je.entry_date <= ${end}::date)
           AND ${statusFilter(sql, status)}
       )
@@ -209,7 +219,7 @@ export async function fetchGeneralLedger(
   const accountSnapshots: GeneralLedgerAccountSnapshot[] = [];
   for (const account of accounts) {
     accountSnapshots.push(
-      await accountLedger(sql, account, { start, end, status }),
+      await accountLedger(sql, account, { start, end, status, carryForward }),
     );
   }
 
