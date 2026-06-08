@@ -654,8 +654,8 @@ interface FormLayout {
 
 // Layout JSONs are bundled (static imports) rather than read from the Python package at
 // runtime: the Vercel deployment Root Directory is `web/`, so `../src/ai_books/etax/*.json`
-// is absent there. The committed copies in `./layouts/` are kept in sync with
-// `src/ai_books/etax/*_layout.json` by `lib/etax/layouts.test.ts`.
+// is absent there. The committed generated copies in `./layouts/` are synchronized from
+// `src/ai_books/etax/*_layout.json` by `scripts/etax/sync_web_layouts.py`.
 const FORM_LAYOUTS: Record<string, FormLayout> = {
   KOA210: koa210Layout as unknown as FormLayout,
   KOA220: koa220Layout as unknown as FormLayout,
