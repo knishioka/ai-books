@@ -157,17 +157,18 @@ Next.js (App Router)。**書込 UI を持たない** (不変条件 #1)。各 pag
 > **DB 連携テスト (約半数) は `AI_BOOKS_DB_URL` 未設定で skip** される。`verify.sh` は skip でも
 > green (カバレッジは計測のみ・ゲートなし)。全保証はローカルでは `test.sh --all` が再現する。
 
-### 3.2 CI ジョブ (7 個) と保証範囲
+### 3.2 CI ジョブ (8 個) と保証範囲
 
-| ジョブ       | 実行                                                               | 保証                                             |
-| ------------ | ------------------------------------------------------------------ | ------------------------------------------------ |
-| `verify`     | `verify.sh` (matrix 3.12/3.13) + DB 連携 pytest + カバレッジゲート | Python 全テスト pass + line≥80/branch≥70         |
-| `web`        | lint/typecheck + `npm run test:coverage` + build                   | web ユニット層 (vitest) + v8 カバレッジゲート    |
-| `web-golden` | Postgres + seed + `npm run verify:golden`                          | ビューア数値 = Python golden (byte 一致)         |
-| `pooler`     | Postgres + pgbouncer(tx) + `test_pooler_db.py` + golden 越し       | prepared statement 無し、pooler 越し golden 一致 |
-| `etax-xsd`   | 公式 .xsd 取得 + `test_etax_xtx.py`                                | .xtx が公式 XSD 検証を通過                       |
-| `pre-commit` | `pre-commit run --all-files` (ruff/mypy/hygiene)                   | 静的検査 pass                                    |
-| `gitleaks`   | `gitleaks detect` (履歴全体)                                       | 秘密情報の混入なし                               |
+| ジョブ              | 実行                                                               | 保証                                             |
+| ------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
+| `verify`            | `verify.sh` (matrix 3.12/3.13) + DB 連携 pytest + カバレッジゲート | Python 全テスト pass + line≥80/branch≥70         |
+| `web`               | lint/typecheck + `npm run test:coverage` + build                   | web ユニット層 (vitest) + v8 カバレッジゲート    |
+| `web-vercel-build`  | `web/` だけを隔離して `npm ci && npm run build`                    | Vercel Root=web で repo-root 参照なし            |
+| `web-golden`        | Postgres + seed + `npm run verify:golden`                          | ビューア数値 = Python golden (byte 一致)         |
+| `pooler`            | Postgres + pgbouncer(tx) + `test_pooler_db.py` + golden 越し       | prepared statement 無し、pooler 越し golden 一致 |
+| `etax-xsd`          | 公式 .xsd 取得 + `test_etax_xtx.py`                                | .xtx が公式 XSD 検証を通過                       |
+| `pre-commit`        | `pre-commit run --all-files` (ruff/mypy/hygiene)                   | 静的検査 pass                                    |
+| `gitleaks`          | `gitleaks detect` (履歴全体)                                       | 秘密情報の混入なし                               |
 
 ### 3.3 `./scripts/test.sh --all` とブロック対応
 
@@ -175,12 +176,13 @@ Next.js (App Router)。**書込 UI を持たない** (不変条件 #1)。各 pag
 1 回立ち上げ、全ブロックをまとめて 1 回走らせ最後に PASS/FAIL サマリを出す。各ブロックは CI
 ジョブと 1:1 対応する (詳細・由来 Issue は [AGENTS.md#verification](../../AGENTS.md#verification) が正)。
 
-| `test.sh --all` ブロック                 | 対応 CI ジョブ |
-| ---------------------------------------- | -------------- |
-| Python full suite + coverage gate (直結) | `verify`       |
-| Web unit layer + coverage gate (vitest)  | `web`          |
-| Viewer golden cross-check (直結)         | `web-golden`   |
-| Pooler safety + golden (pgbouncer 越し)  | `pooler`       |
+| `test.sh --all` ブロック                 | 対応 CI ジョブ       |
+| ---------------------------------------- | -------------------- |
+| Python full suite + coverage gate (直結) | `verify`             |
+| Web unit layer + coverage gate (vitest)  | `web`                |
+| Web Vercel parity build                  | `web-vercel-build`   |
+| Viewer golden cross-check (直結)         | `web-golden`         |
+| Pooler safety + golden (pgbouncer 越し)  | `pooler`             |
 
 `etax-xsd` (公式 .xsd 非同梱) と `pre-commit`/`gitleaks` (`verify.sh` で担保) は CI 専用。
 両者を合わせてローカルが CI 全ジョブを網羅する。

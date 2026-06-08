@@ -167,6 +167,7 @@ any block failed:
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------- |
 | Python full suite + coverage gate (direct DB)    | All DB-backed pytest (MCP, property-based, read-only role) + the line 80 / branch 70 gate               | #50/#56/#57/#54/#58 |
 | Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                    | #55/#58             |
+| Web Vercel parity build (isolated web root)      | Production build passes with only `web/` visible, catching repo-root reads such as `../src`             | #140                |
 | Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
 | Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
 
@@ -180,6 +181,7 @@ two together cover every CI job:
 | ----------------------------------------------------------- | ------------------------- |
 | Python full suite + coverage gate                           | `verify` (3.12 / 3.13)    |
 | Web unit layer + coverage gate                              | `web`                     |
+| Web Vercel parity build                                     | `web-vercel-build`        |
 | Viewer golden cross-check (direct DB)                       | `web-golden`              |
 | Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
 | e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
