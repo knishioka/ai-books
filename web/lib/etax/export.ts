@@ -13,9 +13,9 @@
  * validation error rather than being silently rounded.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
+import koa210Layout from "./layouts/koa210_layout.json";
+import koa220Layout from "./layouts/koa220_layout.json";
+import koa240Layout from "./layouts/koa240_layout.json";
 import { formatMoney, parseMoney, type Money } from "../money";
 import {
   getFormatSpec,
@@ -652,16 +652,14 @@ interface FormLayout {
   pages: Array<{ tag: string; children: LayoutNode[] }>;
 }
 
-function readFormLayout(fileName: string): FormLayout {
-  return JSON.parse(
-    readFileSync(join(process.cwd(), "..", "src", "ai_books", "etax", fileName), "utf8"),
-  ) as FormLayout;
-}
-
+// Layout JSONs are bundled (static imports) rather than read from the Python package at
+// runtime: the Vercel deployment Root Directory is `web/`, so `../src/ai_books/etax/*.json`
+// is absent there. The committed copies in `./layouts/` are kept in sync with
+// `src/ai_books/etax/*_layout.json` by `lib/etax/layouts.test.ts`.
 const FORM_LAYOUTS: Record<string, FormLayout> = {
-  KOA210: readFormLayout("koa210_layout.json"),
-  KOA220: readFormLayout("koa220_layout.json"),
-  KOA240: readFormLayout("koa240_layout.json"),
+  KOA210: koa210Layout as unknown as FormLayout,
+  KOA220: koa220Layout as unknown as FormLayout,
+  KOA240: koa240Layout as unknown as FormLayout,
 };
 
 function layoutCodes(nodes: LayoutNode[], out: Set<string>): void {
@@ -687,7 +685,9 @@ const FORM_CODES = new Map(
 function selectLayout(exported: EtaxExport): FormLayout {
   const codes = new Set(exported.records.map((record) => record.itemCode));
   if (codes.size === 0) {
-    throw new Error("cannot render .xtx: export has no records, so its 様式 is ambiguous");
+    throw new Error(
+      "cannot render .xtx: export has no records, so its 様式 is ambiguous",
+    );
   }
   const matches = Object.entries(FORM_LAYOUTS)
     .filter(([formId]) => {
@@ -697,7 +697,9 @@ function selectLayout(exported: EtaxExport): FormLayout {
     .map(([, layout]) => layout);
   if (matches.length === 1) return matches[0];
   if (matches.length === 0) {
-    const known = new Set([...FORM_CODES.values()].flatMap((codes) => [...codes]));
+    const known = new Set(
+      [...FORM_CODES.values()].flatMap((codes) => [...codes]),
+    );
     const unknown = [...codes].filter((code) => !known.has(code)).sort();
     throw new Error(
       `cannot render .xtx: 項目コード not in any known 様式 layout (${unknown.join(", ")})`,
@@ -721,7 +723,11 @@ function descendantLeafCodes(node: LayoutNode): Set<string> {
   return codes;
 }
 
-function renderElement(tag: string, children: string[], indent: number): string {
+function renderElement(
+  tag: string,
+  children: string[],
+  indent: number,
+): string {
   const pad = "  ".repeat(indent);
   if (children.length === 0) return "";
   return `${pad}<${tag}>\n${children.join("")}${pad}</${tag}>\n`;
@@ -793,13 +799,7 @@ export function renderEtaxXtx(exported: EtaxExport): string {
 
   const pageXml: string[] = [];
   for (const page of layout.pages) {
-    const inner = emitLayoutChildren(
-      page.children,
-      scalar,
-      repeating,
-      null,
-      2,
-    );
+    const inner = emitLayoutChildren(page.children, scalar, repeating, null, 2);
     if (inner.length > 0) pageXml.push(renderElement(page.tag, inner, 1));
   }
   const rootAttrs = [
