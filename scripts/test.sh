@@ -210,12 +210,13 @@ if [[ "$ALL" == true ]]; then
   }
 
   block_pooler() {
-    # The same write path + golden, plus the Python pooler safety suite, all routed
-    # THROUGH pgbouncer (transaction mode) — proves the pooler-safe path stays safe.
+    # Route the Python pooler safety suite over the original FY2025 golden fixture,
+    # then add the extra public viewer samples before the web golden check.
     (
       export AI_BOOKS_DB_URL="$AI_BOOKS_POOLER_URL"
-      PYTHONPATH=. uv run python scripts/seed_verify_db.py &&
+      PYTHONPATH=. uv run python scripts/seed_verify_db.py --fy2025-only &&
         uv run pytest -q tests/test_pooler_db.py &&
+        PYTHONPATH=. uv run python scripts/seed_verify_db.py &&
         { cd web && npm run verify:golden; }
     )
   }

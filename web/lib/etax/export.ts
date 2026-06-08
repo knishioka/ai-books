@@ -13,10 +13,10 @@
  * validation error rather than being silently rounded.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { formatMoney, parseMoney, type Money } from "../money";
-import koa210Layout from "../../../src/ai_books/etax/koa210_layout.json";
-import koa220Layout from "../../../src/ai_books/etax/koa220_layout.json";
-import koa240Layout from "../../../src/ai_books/etax/koa240_layout.json";
 import {
   getFormatSpec,
   LATEST_ETAX_VERSION,
@@ -652,10 +652,16 @@ interface FormLayout {
   pages: Array<{ tag: string; children: LayoutNode[] }>;
 }
 
+function readFormLayout(fileName: string): FormLayout {
+  return JSON.parse(
+    readFileSync(join(process.cwd(), "..", "src", "ai_books", "etax", fileName), "utf8"),
+  ) as FormLayout;
+}
+
 const FORM_LAYOUTS: Record<string, FormLayout> = {
-  KOA210: koa210Layout as FormLayout,
-  KOA220: koa220Layout as FormLayout,
-  KOA240: koa240Layout as FormLayout,
+  KOA210: readFormLayout("koa210_layout.json"),
+  KOA220: readFormLayout("koa220_layout.json"),
+  KOA240: readFormLayout("koa240_layout.json"),
 };
 
 function layoutCodes(nodes: LayoutNode[], out: Set<string>): void {

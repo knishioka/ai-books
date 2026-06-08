@@ -251,7 +251,7 @@ jobs:
       # write path over pgbouncer; PYTHONPATH=. so the tests.fixtures seed loader imports
       # from the repo root).
       - name: Migrate + seed FY2025 fixture (through pooler)
-        run: PYTHONPATH=. uv run python scripts/seed_verify_db.py
+        run: PYTHONPATH=. uv run python scripts/seed_verify_db.py --fy2025-only
 
       - name: Python pooler safety suite (through pooler)
         run: uv run pytest -q tests/test_pooler_db.py
@@ -266,6 +266,9 @@ jobs:
       - name: Install web dependencies
         run: npm ci
         working-directory: web
+
+      - name: Seed public sample fixtures (through pooler)
+        run: PYTHONPATH=. uv run python scripts/seed_verify_db.py
 
       - name: Golden cross-check (through pooler)
         run: npm run verify:golden
