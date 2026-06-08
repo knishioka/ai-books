@@ -115,6 +115,27 @@ jobs:
       - name: Build
         run: npm run build
 
+  web-vercel-build:
+    name: Web viewer Vercel parity build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # Vercel is configured with Root Directory=web, so production builds cannot
+      # reach files outside web/. Run the same build from an isolated copy of web/
+      # to catch regressions such as `../src` fs reads that pass in a full-repo CI
+      # checkout but fail on Vercel.
+      - name: Build isolated web root
+        run: bash scripts/verify_web_vercel_build.sh
+
   web-golden:
     name: Web viewer golden cross-check
     runs-on: ubuntu-latest

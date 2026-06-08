@@ -18,11 +18,12 @@
 # Postgres + the pgbouncer pooler once, then runs EVERY guarantee block and prints a
 # PASS/FAIL summary — the Python full suite (incl. MCP #50/#56, property #57, read-only
 # role #54) with the coverage gate (#58), the pgbouncer pooler safety suite + viewer
-# golden through the pooler (#52), the web unit layer + its coverage gate (#55/#58), and
-# the viewer golden cross-check against a directly-connected Postgres. Unlike the other
-# modes it does NOT stop at the first failure: every block runs so the summary shows the
-# full picture, and the script exits non-zero if any block failed. This mirrors the CI
-# jobs (verify / web / web-golden / pooler); see README "CI ↔ local guarantee mapping".
+# golden through the pooler (#52), the web unit layer + its coverage gate (#55/#58),
+# the isolated Vercel-parity web build (#140), and the viewer golden cross-check
+# against a directly-connected Postgres. Unlike the other modes it does NOT stop at
+# the first failure: every block runs so the summary shows the full picture, and the
+# script exits non-zero if any block failed. This mirrors the CI jobs (verify / web /
+# web-vercel-build / web-golden / pooler); see README "CI ↔ local guarantee mapping".
 #
 # --pooler reproduces Supabase's production pooler (pgbouncer, transaction mode): it
 # brings up the extra `pgbouncer` compose service in front of `db`, points
@@ -201,6 +202,12 @@ if [[ "$ALL" == true ]]; then
       (cd web && npm run test:coverage)
   }
 
+  block_web_vercel_build() {
+    # Vercel Root Directory=web parity (#140): build an isolated web/ copy so
+    # build-time reads of ../src or other repo-root files fail before deployment.
+    bash scripts/verify_web_vercel_build.sh
+  }
+
   block_web_golden() {
     # Seed FY2025 through the production write path on the DIRECT connection, then
     # assert the viewer's numbers reproduce the report-layer golden byte-for-byte.
@@ -223,6 +230,7 @@ if [[ "$ALL" == true ]]; then
 
   run_block "Python full suite + coverage gate (direct DB)" block_python
   run_block "Web unit layer + coverage gate (vitest)" block_web_unit
+  run_block "Web Vercel parity build (isolated web root)" block_web_vercel_build
   run_block "Viewer golden cross-check (direct DB)" block_web_golden
   run_block "Pooler safety suite + golden (through pgbouncer)" block_pooler
 
