@@ -646,14 +646,16 @@ def import_transactions_csv(
             raise _tool_error(exc) from exc
 
 
-# --- transport selection (Issue #106) -----------------------------------------
+# --- dormant remote transport selection (Issues #106/#142) --------------------
 #
 # stdio is the default and unchanged (FastMCP default transport): a local Claude
 # Desktop / CLI client launches the process and talks over stdio. Setting
 # ``AI_BOOKS_MCP_TRANSPORT=http`` opts in to FastMCP's Streamable HTTP transport so
-# the same tools are reachable over the network — a deliberate operator choice, never
-# enabled implicitly (ADR 0008). Host/port come from the environment; the default
-# host is loopback (``127.0.0.1``) so an http launch never opens a public listener by
+# the same tools are reachable over the network. Current posture (ADR 0009 / #142):
+# remote MCP publishing is on hold, but the tested HTTP/Auth path is retained dormant
+# for a future restart. It is still a deliberate operator choice, never enabled
+# implicitly (ADR 0008). Host/port come from the environment; the default host is
+# loopback (``127.0.0.1``) so an http launch never opens a public listener by
 # accident. Authentication is wired via ``auth=`` on the ``FastMCP(...)`` constructor
 # above (Issue #107): the http path is fail-closed — it refuses to launch unless a
 # Supabase Auth provider + single-user allowlist is configured (ADR 0008). stdio stays
@@ -709,6 +711,9 @@ def main() -> None:
     Default transport is stdio (FastMCP default): unchanged local behaviour. Set
     ``AI_BOOKS_MCP_TRANSPORT=http`` to expose the tools over Streamable HTTP, bound to
     ``AI_BOOKS_MCP_HOST`` / ``AI_BOOKS_MCP_PORT`` (defaults ``127.0.0.1:8000``).
+
+    Remote MCP is currently dormant by policy (ADR 0009 / #142). The HTTP path is
+    retained for a future explicit restart, not as the normal operating mode.
 
     The http path is **fail-closed** (ADR 0008): it refuses to start unless remote
     auth is configured (``AI_BOOKS_MCP_AUTH_ALLOWLIST`` + ``SUPABASE_URL`` +

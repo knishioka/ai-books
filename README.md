@@ -70,38 +70,53 @@ operator choice — never enabled implicitly; see
 AI_BOOKS_MCP_TRANSPORT=http \
   AI_BOOKS_MCP_HOST=127.0.0.1 \
   AI_BOOKS_MCP_PORT=8000 \
+  AI_BOOKS_MCP_AUTH_ALLOWLIST=owner@example.com \
+  SUPABASE_URL=https://your-project.supabase.co \
+  AI_BOOKS_MCP_BASE_URL=http://127.0.0.1:8000 \
   uv run python -m ai_books.server   # serves MCP at http://127.0.0.1:8000/mcp
 ```
 
 `AI_BOOKS_MCP_HOST` / `AI_BOOKS_MCP_PORT` default to `127.0.0.1` / `8000`. The host
 defaults to **loopback** so an http launch never opens a public listener by accident.
 
-> ⚠️ **The HTTP endpoint is not authenticated yet.** Auth (Supabase JWT +
-> single-user allowlist, fail-closed) lands in a later issue per
-> [ADR 0008](./docs/adr/0008-remote-mcp-single-tenant-auth.md). Until then keep the
-> host on loopback and do **not** expose it on a public interface.
+> ℹ️ **Current posture (#142 / [ADR 0009](./docs/adr/0009-retain-dormant-remote-mcp.md)):
+> remote MCP is dormant.** The HTTP transport and
+> Supabase JWT + single-user allowlist gate are retained for a future restart, but
+> the active operating mode is local `stdio`. If `AI_BOOKS_MCP_TRANSPORT=http` is
+> set without the auth variables above, startup fails closed rather than opening
+> an unauthenticated endpoint. Do **not** expose it publicly unless the remote track
+> is explicitly reactivated.
 
-**Manual verification** (`tools/list` over HTTP). Start the server as above, then in
-another shell drive it through the FastMCP client:
+**Manual boundary verification** (HTTP auth gate). Start the server as above, then in
+another shell send an unauthenticated MCP initialize request:
 
 ```bash
 uv run python -c "
-import asyncio
-from fastmcp import Client
-from fastmcp.client.transports import StreamableHttpTransport
+import httpx
 
-async def main():
-    async with Client(StreamableHttpTransport('http://127.0.0.1:8000/mcp')) as c:
-        print('tools:', sorted(t.name for t in await c.list_tools()))
-        print(await c.call_tool('hello', {'name': 'http'}))
-
-asyncio.run(main())
+payload = {
+    'jsonrpc': '2.0',
+    'id': 1,
+    'method': 'initialize',
+    'params': {
+        'protocolVersion': '2025-06-18',
+        'capabilities': {},
+        'clientInfo': {'name': 'probe', 'version': '0'},
+    },
+}
+response = httpx.post(
+    'http://127.0.0.1:8000/mcp',
+    json=payload,
+    headers={'Accept': 'application/json, text/event-stream'},
+)
+print(response.status_code, response.headers.get('www-authenticate'))
 "
 ```
 
-This prints the tool list and the `hello` round-trip — confirming `tools/list` and a
-tool call answer over HTTP. (The same path is covered automatically by
-`tests/test_server_http.py`.)
+This should print `401` with a Bearer challenge, confirming the remote auth boundary
+runs before any tool. Authenticated tool calls require a real Supabase-issued JWT and
+owner allowlist match; the same fail-closed path is covered automatically by
+`tests/test_server_http.py`.
 
 ## Local Postgres (Supabase)
 
