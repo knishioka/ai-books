@@ -680,6 +680,9 @@ const FORM_CODES = new Map(
 
 function selectLayout(exported: EtaxExport): FormLayout {
   const codes = new Set(exported.records.map((record) => record.itemCode));
+  if (codes.size === 0) {
+    throw new Error("cannot render .xtx: export has no records, so its 様式 is ambiguous");
+  }
   const matches = Object.entries(FORM_LAYOUTS)
     .filter(([formId]) => {
       const layout = FORM_CODES.get(formId)!;
@@ -694,7 +697,9 @@ function selectLayout(exported: EtaxExport): FormLayout {
       `cannot render .xtx: 項目コード not in any known 様式 layout (${unknown.join(", ")})`,
     );
   }
-  throw new Error("cannot render .xtx: export has no records, so its 様式 is ambiguous");
+  throw new Error(
+    `cannot render .xtx: multiple layouts matched (${matches.map((layout) => layout.form_id).join(", ")}), making the 様式 ambiguous`,
+  );
 }
 
 function descendantLeafCodes(node: LayoutNode): Set<string> {

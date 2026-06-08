@@ -65,7 +65,14 @@ interface ClassifiedLine {
 }
 
 export interface BalanceSheetOptions {
-  /** Inclusive lower bound on 取引日 (`null` = open). */
+  /**
+   * Inclusive lower bound on 取引日 (`null` = cumulative all-time).
+   *
+   * B/S is normally cumulative, so callers should leave this null for continuous
+   * real books. The public sample viewer passes a start date only because its
+   * KOA210/220/240 demo businesses are isolated by fiscal-year windows rather
+   * than by a ledger id.
+   */
   start?: string | null;
   /** Inclusive upper bound on 取引日 (`null` = cumulative all-time). */
   asOf?: string | null;

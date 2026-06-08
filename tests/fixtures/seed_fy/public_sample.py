@@ -34,8 +34,12 @@ class PublicSampleLoadResult(NamedTuple):
 
 
 def _shift_date(value: date, years: int) -> date:
-    """Shift a fixture date by whole years; the committed sample has no Feb 29."""
-    return value.replace(year=value.year + years)
+    """Shift a fixture date by whole years, clamping Feb 29 to Feb 28 when needed."""
+    target_year = value.year + years
+    try:
+        return value.replace(year=target_year)
+    except ValueError:
+        return date(target_year, 2, 28)
 
 
 def _shift_entries(entries: tuple[SeedEntry, ...], years: int) -> tuple[SeedEntry, ...]:
