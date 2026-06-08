@@ -1,8 +1,7 @@
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
-import { buildEtaxExport, etaxExportSnapshot } from "@/lib/etax/export";
+import { buildSampleEtaxSnapshot } from "@/lib/etax/sample";
 import { loadReport } from "@/lib/reports/context";
-import { fetchFinancialStatements } from "@/lib/reports/financial-statements";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +11,7 @@ export default async function EtaxPage({
   searchParams: Promise<{ fy?: string }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, async (sql, year) => {
-    const fs = await fetchFinancialStatements(sql, {
-      fiscalYear: year.name,
-      start: year.start_date,
-      end: year.end_date,
-      status: "posted",
-    });
-    // build validates every 項目; a schema fault throws and surfaces in the banner.
-    return etaxExportSnapshot(buildEtaxExport(fs));
-  });
+  const result = await loadReport(fy, buildSampleEtaxSnapshot);
   if (!result.ok) return <ErrorBanner error={result.error} />;
 
   const { data: exported, fiscalYear, fiscalYears } = result.data;
@@ -52,6 +42,13 @@ export default async function EtaxPage({
           download
         >
           XML をダウンロード
+        </a>
+        <a
+          className="download-button"
+          href={`${downloadBase}&format=xtx`}
+          download
+        >
+          XTX をダウンロード
         </a>
         <span className="muted">{exported.records.length} 項目</span>
       </div>

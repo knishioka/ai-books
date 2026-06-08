@@ -28,6 +28,7 @@ export default async function LedgerPage({
       start: year.start_date,
       end: year.end_date,
       status: "posted",
+      carryForward: false,
     });
     const accountOptions = await sql<AccountOption[]>`
       SELECT a.code, a.name
@@ -37,6 +38,7 @@ export default async function LedgerPage({
         FROM journal_lines jl
         JOIN journal_entries je ON je.id = jl.entry_id
         WHERE jl.account_id = a.id
+          AND je.entry_date >= ${year.start_date}::date
           AND je.entry_date <= ${year.end_date}::date
           AND je.status <> 'voided'::entry_status
       )

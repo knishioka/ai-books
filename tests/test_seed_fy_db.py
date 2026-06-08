@@ -49,6 +49,7 @@ from tests.fixtures.seed_fy import (
     trial_balance_snapshot,
     worksheet_from_db,
 )
+from tests.fixtures.seed_fy.public_sample import load_public_sample_years
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get(db.DB_URL_ENV),
@@ -80,6 +81,30 @@ def test_load_is_idempotent(migrated_conn: psycopg.Connection[Any]) -> None:
     assert second.inserted == 0
     assert second.skipped == len(FY_ENTRIES)
     assert _entry_count(migrated_conn) == after_first == len(FY_ENTRIES)
+
+
+def test_public_sample_loads_isolated_demo_years(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#130): public sample seeding keeps KOA210 FY2025 intact and adds selectable
+    # KOA220/KOA240 demo years without commingling their date ranges.
+    result = load_public_sample_years(migrated_conn)
+    assert result.koa210.inserted == len(FY_ENTRIES)
+    assert result.koa220.inserted == len(RE_ENTRIES)
+    assert result.koa240.inserted == len(AG_ENTRIES)
+
+    rows = migrated_conn.execute(
+        """
+        SELECT name, start_date::text AS start_date, end_date::text AS end_date
+        FROM fiscal_years
+        ORDER BY start_date
+        """
+    ).fetchall()
+    assert [row["name"] for row in rows] == ["FY2023-KOA220", "FY2024-KOA240", "FY2025"]
+    assert rows[-1]["start_date"] == "2025-01-01"
+
+    second = load_public_sample_years(migrated_conn)
+    assert second.koa210.inserted == 0
+    assert second.koa220.inserted == 0
+    assert second.koa240.inserted == 0
 
 
 def test_load_is_atomic_on_midbatch_failure(

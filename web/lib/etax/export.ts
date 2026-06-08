@@ -14,7 +14,9 @@
  */
 
 import { formatMoney, parseMoney, type Money } from "../money";
-import type { FinancialStatementsSnapshot } from "../reports/financial-statements";
+import koa210Layout from "../../../src/ai_books/etax/koa210_layout.json";
+import koa220Layout from "../../../src/ai_books/etax/koa220_layout.json";
+import koa240Layout from "../../../src/ai_books/etax/koa240_layout.json";
 import {
   getFormatSpec,
   LATEST_ETAX_VERSION,
@@ -27,6 +29,12 @@ import {
   type EtaxSectionField,
   type EtaxValueKind,
 } from "./spec";
+
+interface EtaxSourceSnapshot {
+  fiscal_year: string;
+  start_date: string;
+  end_date: string;
+}
 
 export interface EtaxRecord {
   form: string;
@@ -71,7 +79,7 @@ export class EtaxValidationError extends Error {
   }
 }
 
-export const ETAX_FORMATS = ["csv", "xml"] as const;
+export const ETAX_FORMATS = ["csv", "xml", "xtx"] as const;
 export type EtaxFormat = (typeof ETAX_FORMATS)[number];
 
 export function parseEtaxFormat(value: string): EtaxFormat {
@@ -154,7 +162,7 @@ function renderAmount(text: string, maxIntDigits: number): Validated {
 // ── 決算書 → EtaxExport ───────────────────────────────────────────────────────────
 
 export function buildEtaxExport(
-  financialStatements: FinancialStatementsSnapshot,
+  financialStatements: EtaxSourceSnapshot,
   version: string = LATEST_ETAX_VERSION,
 ): EtaxExport {
   const spec = getFormatSpec(version);
@@ -204,7 +212,7 @@ export function buildEtaxExport(
 
 function emitScalar(
   fieldSpec: EtaxScalarField,
-  snapshot: FinancialStatementsSnapshot,
+  snapshot: EtaxSourceSnapshot,
   records: EtaxRecord[],
   problems: EtaxProblem[],
 ): void {
@@ -233,7 +241,7 @@ function emitScalar(
 /** Emit a computed scalar: a base 金額 ± earlier sections' routed totals (#83 営業外橋渡し). */
 function emitComputed(
   fieldSpec: EtaxComputedField,
-  snapshot: FinancialStatementsSnapshot,
+  snapshot: EtaxSourceSnapshot,
   sectionTotals: Map<string, Money>,
   records: EtaxRecord[],
   problems: EtaxProblem[],
@@ -365,7 +373,7 @@ function signedAmount(
  */
 function emitFixedSection(
   section: EtaxFixedSection,
-  snapshot: FinancialStatementsSnapshot,
+  snapshot: EtaxSourceSnapshot,
   records: EtaxRecord[],
   problems: EtaxProblem[],
   sectionTotals?: Map<string, Money>,
@@ -554,7 +562,7 @@ function emitFixedValue(
   });
 }
 
-// ── EtaxExport → CSV / XML / snapshot ─────────────────────────────────────────────
+// ── EtaxExport → CSV / XML / XTX / snapshot ───────────────────────────────────────
 
 const ETAX_CSV_HEADER = [
   "面",
@@ -630,6 +638,174 @@ export function renderEtaxXml(exported: EtaxExport): string {
   );
 }
 
+interface LayoutNode {
+  tag: string;
+  amount?: boolean;
+  repeat?: boolean;
+  children?: LayoutNode[];
+}
+
+interface FormLayout {
+  form_id: string;
+  version: string;
+  namespace: string;
+  pages: Array<{ tag: string; children: LayoutNode[] }>;
+}
+
+const FORM_LAYOUTS: Record<string, FormLayout> = {
+  KOA210: koa210Layout as FormLayout,
+  KOA220: koa220Layout as FormLayout,
+  KOA240: koa240Layout as FormLayout,
+};
+
+function layoutCodes(nodes: LayoutNode[], out: Set<string>): void {
+  for (const node of nodes) {
+    out.add(node.tag);
+    if (node.children) layoutCodes(node.children, out);
+  }
+}
+
+function allLayoutCodes(layout: FormLayout): Set<string> {
+  const codes = new Set<string>();
+  for (const page of layout.pages) layoutCodes(page.children, codes);
+  return codes;
+}
+
+const FORM_CODES = new Map(
+  Object.entries(FORM_LAYOUTS).map(([formId, layout]) => [
+    formId,
+    allLayoutCodes(layout),
+  ]),
+);
+
+function selectLayout(exported: EtaxExport): FormLayout {
+  const codes = new Set(exported.records.map((record) => record.itemCode));
+  const matches = Object.entries(FORM_LAYOUTS)
+    .filter(([formId]) => {
+      const layout = FORM_CODES.get(formId)!;
+      return [...codes].every((code) => layout.has(code));
+    })
+    .map(([, layout]) => layout);
+  if (matches.length === 1) return matches[0];
+  if (matches.length === 0) {
+    const known = new Set([...FORM_CODES.values()].flatMap((codes) => [...codes]));
+    const unknown = [...codes].filter((code) => !known.has(code)).sort();
+    throw new Error(
+      `cannot render .xtx: 項目コード not in any known 様式 layout (${unknown.join(", ")})`,
+    );
+  }
+  throw new Error("cannot render .xtx: export has no records, so its 様式 is ambiguous");
+}
+
+function descendantLeafCodes(node: LayoutNode): Set<string> {
+  const codes = new Set<string>();
+  if (!node.children) return codes;
+  for (const child of node.children) {
+    if (child.children) {
+      for (const code of descendantLeafCodes(child)) codes.add(code);
+    } else {
+      codes.add(child.tag);
+    }
+  }
+  return codes;
+}
+
+function renderElement(tag: string, children: string[], indent: number): string {
+  const pad = "  ".repeat(indent);
+  if (children.length === 0) return "";
+  return `${pad}<${tag}>\n${children.join("")}${pad}</${tag}>\n`;
+}
+
+function renderLeaf(tag: string, value: string, indent: number): string {
+  return `${"  ".repeat(indent)}<${tag}>${xmlEscapeText(value)}</${tag}>\n`;
+}
+
+function emitLayoutChildren(
+  children: LayoutNode[],
+  scalar: Map<string, string>,
+  repeating: Map<string, Map<number, string>>,
+  row: number | null,
+  indent: number,
+): string[] {
+  const out: string[] = [];
+  for (const node of children) {
+    if (!node.children) {
+      const value =
+        row === null ? scalar.get(node.tag) : repeating.get(node.tag)?.get(row);
+      if (value !== undefined) out.push(renderLeaf(node.tag, value, indent));
+      continue;
+    }
+    if (node.repeat) {
+      const occupied = new Set<number>();
+      for (const code of descendantLeafCodes(node)) {
+        for (const occurrence of repeating.get(code)?.keys() ?? []) {
+          occupied.add(occurrence);
+        }
+      }
+      for (const occurrence of [...occupied].sort((a, b) => a - b)) {
+        const inner = emitLayoutChildren(
+          node.children,
+          scalar,
+          repeating,
+          occurrence,
+          indent + 1,
+        );
+        if (inner.length > 0) out.push(renderElement(node.tag, inner, indent));
+      }
+      continue;
+    }
+    const inner = emitLayoutChildren(
+      node.children,
+      scalar,
+      repeating,
+      row,
+      indent + 1,
+    );
+    if (inner.length > 0) out.push(renderElement(node.tag, inner, indent));
+  }
+  return out;
+}
+
+export function renderEtaxXtx(exported: EtaxExport): string {
+  const layout = selectLayout(exported);
+  const scalar = new Map<string, string>();
+  const repeating = new Map<string, Map<number, string>>();
+  for (const record of exported.records) {
+    if (record.row === null) {
+      scalar.set(record.itemCode, record.value);
+    } else {
+      const rows = repeating.get(record.itemCode) ?? new Map<number, string>();
+      rows.set(record.row, record.value);
+      repeating.set(record.itemCode, rows);
+    }
+  }
+
+  const pageXml: string[] = [];
+  for (const page of layout.pages) {
+    const inner = emitLayoutChildren(
+      page.children,
+      scalar,
+      repeating,
+      null,
+      2,
+    );
+    if (inner.length > 0) pageXml.push(renderElement(page.tag, inner, 1));
+  }
+  const rootAttrs = [
+    ["xmlns", layout.namespace],
+    ["VR", layout.version],
+    ["softNM", "ai-books"],
+    ["sakuseiNM", "ai-books"],
+    ["sakuseiDay", exported.endDate],
+  ] satisfies Array<[string, string]>;
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    `<${layout.form_id}${rootAttrs.map(([k, v]) => ` ${k}="${xmlEscapeAttr(v)}"`).join("")}>\n` +
+    pageXml.join("") +
+    `</${layout.form_id}>\n`
+  );
+}
+
 /** Turn an {@link EtaxExport} into its canonical JSON shape (the golden harness freezes this). */
 export function etaxExportSnapshot(exported: EtaxExport) {
   return {
@@ -653,5 +829,7 @@ export function etaxExportSnapshot(exported: EtaxExport) {
 
 /** Render an {@link EtaxExport} to the requested concrete format. */
 export function renderEtax(exported: EtaxExport, format: EtaxFormat): string {
-  return format === "csv" ? renderEtaxCsv(exported) : renderEtaxXml(exported);
+  if (format === "csv") return renderEtaxCsv(exported);
+  if (format === "xtx") return renderEtaxXtx(exported);
+  return renderEtaxXml(exported);
 }
