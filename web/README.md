@@ -135,6 +135,49 @@ catches it.
    without them the gate fails closed and every route redirects to `/login`.
 4. Push a branch → Vercel builds a **Preview** deployment automatically.
 
+### Deploying from the CLI (run from the repository root)
+
+The project's **Root Directory is `web`**, so the Vercel CLI must be run from the
+**repository root**, _not_ from `web/`. Running `vercel deploy` inside `web/` makes Vercel
+apply the `web` root twice and double the path (`web/web/.next` locally,
+`/vercel/path0/path0/.next` remotely): the build succeeds but the deploy fails with
+`ENOENT … .next/package.json`. From the repo root:
+
+```bash
+vercel deploy --prod --scope <team>   # e.g. --scope d-stats
+```
+
+(`vercel link` creates a `.vercel/` dir; it is gitignored at the repo root.)
+
+### Public demo sample (synthetic data)
+
+Set `AI_BOOKS_VIEWER_PUBLIC=true` (server-side env) to serve the read-only viewer
+**without** the single-user auth gate — used for the hosted demo. Writes stay impossible
+regardless via the `viewer_ro` role.
+
+Seed the demo fiscal years through the production write path. This needs a **write-capable**
+`AI_BOOKS_DB_URL` (the `postgres` role, **not** `viewer_ro`, which is read-only):
+
+```bash
+# fresh / throwaway DB — migrate + seed all demo years in one shot:
+PYTHONPATH=. AI_BOOKS_DB_URL="<write-role connection string>" \
+  uv run python scripts/seed_verify_db.py --public-sample
+
+# already-provisioned DB (e.g. the live cloud project, schema already applied) —
+# run only the loader (migrate is for throwaway DBs and errors on an existing schema):
+PYTHONPATH=. AI_BOOKS_DB_URL="<write-role connection string>" uv run python - <<'PY'
+from ai_books.db import transaction
+from tests.fixtures.seed_fy.public_sample import load_public_sample_years
+with transaction() as conn:            # transaction() commits on context exit
+    print(load_public_sample_years(conn))
+PY
+```
+
+The loader (`tests/fixtures/seed_fy/public_sample.py`) is idempotent (voucher-no keyed) and
+seeds **FY2025** (KOA210 一般用) + **FY2023-KOA220** (不動産所得) + **FY2024-KOA240** (農業所得),
+date-shifted into separate fiscal years so a single sample year never mixes the three
+businesses in date-range report queries.
+
 ### Use a read-only database role (recommended for Production)
 
 The viewer only ever runs `SELECT`s, but for defence in depth point
