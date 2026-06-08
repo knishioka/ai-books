@@ -116,6 +116,9 @@ uv run python scripts/etax/build_etax_layout.py \
     --xsd .cache/etax/extracted/KOA220-008.xsd --out src/ai_books/etax/koa220_layout.json
 uv run python scripts/etax/build_etax_layout.py \
     --xsd .cache/etax/extracted/KOA240-008.xsd --out src/ai_books/etax/koa240_layout.json
+
+# 4. Vercel web root 用の committed 生成物を src から同期 (#141)
+uv run python scripts/etax/sync_web_layouts.py
 ```
 
 `.cache/` は生成物 (国税庁 著作物を含む) であり commit しないこと。SHA256 不一致時はスクリプトが
@@ -131,6 +134,10 @@ EtaxExport の項目コード族(一般用 `AMF*` / 不動産 `ANF*` / 農業 `A
 自動判定し、対応する layout を選ぶ。どの様式 layout にも無い項目コードは fail loud で拒否する。ルート
 `<KOA2x0>` は `VR`(様式バージョン)と `gen:FormAttribute`(softNM/sakuseiNM/sakuseiDay)を持ち、
 名前空間は `http://xml.e-tax.nta.go.jp/XSD/shotoku`。
+
+Vercel viewer は Root Directory が `web/` のため `../src` に依存できない。`web/lib/etax/layouts/`
+の JSON は手編集対象ではなく、`scripts/etax/sync_web_layouts.py` が `src/ai_books/etax/*_layout.json`
+から作る committed 生成物。pre-commit hook と `web/lib/etax/layouts.test.ts` が未同期を検出する。
 
 **形式妥当性 (.xsd) の機械検証**: `tests/test_etax_xtx.py` が生成 .xtx を国税庁の各様式 .xsd
 (`KOA210-011.xsd` / `KOA220-008.xsd` / `KOA240-008.xsd`、いずれも + 共通 `General.xsd` クロージャ)で

@@ -13,6 +13,15 @@ default_language_version:
   python: python3
 
 repos:
+  - repo: local
+    hooks:
+      - id: sync-web-etax-layouts
+        name: sync web e-Tax layout JSONs
+        entry: python scripts/etax/sync_web_layouts.py
+        language: python
+        pass_filenames: false
+        files: ^(src/ai_books/etax/.*_layout\.json|web/lib/etax/layouts/.*_layout\.json|scripts/etax/sync_web_layouts\.py)$
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:

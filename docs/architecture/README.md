@@ -98,7 +98,7 @@ Next.js (App Router)。**書込 UI を持たない** (不変条件 #1)。各 pag
 | `scripts/test.sh`                    | 実 Postgres で全テスト。`--web`/`--pooler`/`--all`/`--down` ([§3.3](#33-scriptstestsh---all-とブロック対応))                    |
 | `scripts/check_coverage.py`          | `coverage.json` から line/branch を**個別に**ゲート (単一 `--cov-fail-under` では混合値しか見えない)                            |
 | `scripts/seed_verify_db.py`          | golden クロスチェック用に FY2025 fixture を migrate + seed                                                                      |
-| `scripts/etax/*.py`                  | 国税庁 公式仕様の取得 (`fetch_etax_spec.py`)・field catalog / KOA210 layout 生成 (CI/手動の build 補助)                         |
+| `scripts/etax/*.py`                  | 国税庁 公式仕様の取得 (`fetch_etax_spec.py`)・field catalog / KOA2x0 layout 生成・web 用 layout 生成物同期 (CI/手動の build 補助) |
 | `supabase/migrations/*.sql`          | forward-only スキーマ (勘定科目→仕訳→会計期間→監査→索引→書込制約→CSV取込)。**applied 済は編集禁止**                             |
 | `supabase/roles/viewer_readonly.sql` | 本番ビューア用 `viewer_ro` (SELECT 専用、将来テーブルにも DEFAULT PRIVILEGES)。`tests/fixtures/readonly.py` から生成            |
 
