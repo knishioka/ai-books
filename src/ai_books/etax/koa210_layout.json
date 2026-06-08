@@ -2,9 +2,9 @@
   "form_id": "KOA210",
   "version": "11.0",
   "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
-  "generated_by": "scripts/etax/build_koa210_layout.py",
+  "generated_by": "scripts/etax/build_etax_layout.py",
   "source": "KOA210-011.xsd (e-tax19.CAB; 国税庁 著作物, raw 非同梱 — manifest.json 参照)",
-  "note": "Derived element tree for the .xtx renderer (#79): tag = ＸＭＬタグ(項目コード), amount=true は gen:kingaku(整数円), repeat=true は maxOccurs>1 の繰返しブロック. leaf は children を持たない。日本語ラベルは field_catalog.json 参照。",
+  "note": "Derived element tree for the .xtx renderer (#79/#103): tag = ＸＭＬタグ(項目コード), amount=true は gen:kingaku(整数円), repeat=true は maxOccurs>1 の繰返しブロック. leaf は children を持たない。日本語ラベルは field_catalog.json 参照。",
   "pages": [
     {
       "tag": "KOA210-1",

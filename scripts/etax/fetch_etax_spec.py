@@ -38,13 +38,15 @@ WANTED = {
     "e-tax19.CAB": ["shotoku/KOA210-011.xsd", "shotoku/KOA220-008.xsd", "shotoku/KOA240-008.xsd"],
 }
 
-# The .xsd closure needed to XSD-validate a generated .xtx (#79): the KOA210 form schema plus the
-# 共通 (general) schemas it import/includes. These are laid out under ``<out>/schema/`` preserving the
+# The .xsd closure needed to XSD-validate a generated .xtx (#79/#103): each 様式 form schema plus the
+# 共通 (general) schemas they import/include. These are laid out under ``<out>/schema/`` preserving the
 # shotoku/ + general/ directory split so the relative schemaLocation paths resolve, and a small
-# validation-harness wrapper (``koa210_doc.xsd``) is written beside them (see WRAPPER_SCHEMA).
+# validation-harness wrapper (``<form>_doc.xsd``) is written beside them per form (see _wrapper_schema).
 SCHEMA_FILES = {
     "e-tax19.CAB": [
         "shotoku/KOA210-011.xsd",
+        "shotoku/KOA220-008.xsd",
+        "shotoku/KOA240-008.xsd",
         "general/General.xsd",
         "general/zeimusho.xsd",
         "general/zeimoku.xsd",
@@ -52,22 +54,32 @@ SCHEMA_FILES = {
     ],
 }
 
-#: Sub-path of ``--out`` that holds the validation-ready .xsd tree (shotoku/ + general/ + wrapper).
+#: Sub-path of ``--out`` that holds the validation-ready .xsd tree (shotoku/ + general/ + wrappers).
 SCHEMA_DIRNAME = "schema"
-#: The validation harness wrapper. KOA210 is a *local* element inside ``KOA210-11-0group`` (the real
-#: 手続 envelope references that group), so it is not directly validatable as a document root. This
-#: wrapper includes the official schema and exposes the group as a global ``KOA210SET`` element; the
-#: validator wraps a generated ``<KOA210>`` in ``<KOA210SET>`` before validating. (Harness only — not
-#: an e-Tax artifact.)
-WRAPPER_SCHEMA = """<?xml version="1.0" encoding="UTF-8"?>
+
+#: Per-form validation-harness inputs: form_id → (schema file under ``shotoku/``, 様式 envelope group).
+#: Each KOA2x0 is a *local* element inside its ``KOA2x0-<v>group`` (the real 手続 envelope references
+#: that group), so it is not directly validatable as a document root. The wrapper includes the official
+#: schema and exposes the group as a global ``KOA2x0SET`` element; the validator wraps a generated
+#: ``<KOA2x0>`` in ``<KOA2x0SET>`` before validating. (Harness only — not an e-Tax artifact.)
+SCHEMA_FORMS = {
+    "KOA210": ("shotoku/KOA210-011.xsd", "KOA210-11-0group"),
+    "KOA220": ("shotoku/KOA220-008.xsd", "KOA220-8-0group"),
+    "KOA240": ("shotoku/KOA240-008.xsd", "KOA240-8-0group"),
+}
+
+
+def _wrapper_schema(form_id: str, schema_file: str, group: str) -> str:
+    """The validation-harness wrapper for one 様式 — exposes its envelope group as ``<form>SET``."""
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   targetNamespace="http://xml.e-tax.nta.go.jp/XSD/shotoku"
   xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"
   elementFormDefault="qualified">
-  <xsd:include schemaLocation="shotoku/KOA210-011.xsd"/>
-  <xsd:element name="KOA210SET">
+  <xsd:include schemaLocation="{schema_file}"/>
+  <xsd:element name="{form_id}SET">
     <xsd:complexType>
-      <xsd:group ref="KOA210-11-0group"/>
+      <xsd:group ref="{group}"/>
     </xsd:complexType>
   </xsd:element>
 </xsd:schema>
@@ -198,8 +210,11 @@ def main() -> None:
             laid_out = extract_cab(cab_path, schema_dir, SCHEMA_FILES[filename], keep_dirs=True)
             for path in laid_out:
                 print(f"  schema    {path.relative_to(args.out)}")
-            (schema_dir / "koa210_doc.xsd").write_text(WRAPPER_SCHEMA, encoding="utf-8")
-            print(f"  schema    {Path(SCHEMA_DIRNAME) / 'koa210_doc.xsd'} (validation wrapper)")
+            for form_id, (schema_file, group) in SCHEMA_FORMS.items():
+                wrapper_name = f"{form_id.lower()}_doc.xsd"
+                wrapper = _wrapper_schema(form_id, schema_file, group)
+                (schema_dir / wrapper_name).write_text(wrapper, encoding="utf-8")
+                print(f"  schema    {Path(SCHEMA_DIRNAME) / wrapper_name} (validation wrapper)")
 
     print(f"\ndone. spec workbooks/xsd under {args.out / 'extracted'}")
     print(f"      .xsd validation tree under {args.out / SCHEMA_DIRNAME} (#79)")
@@ -207,11 +222,16 @@ def main() -> None:
         "next: python scripts/etax/build_field_catalog.py "
         f"--spec-dir {args.out / 'extracted'} --out docs/etax/field_catalog.json"
     )
-    print(
-        "      python scripts/etax/build_koa210_layout.py "
-        f"--xsd {args.out / 'extracted' / 'KOA210-011.xsd'} "
-        "--out src/ai_books/etax/koa210_layout.json"
-    )
+    for form_id, xsd_name in (
+        ("KOA210", "KOA210-011.xsd"),
+        ("KOA220", "KOA220-008.xsd"),
+        ("KOA240", "KOA240-008.xsd"),
+    ):
+        print(
+            "      python scripts/etax/build_etax_layout.py "
+            f"--xsd {args.out / 'extracted' / xsd_name} "
+            f"--out src/ai_books/etax/{form_id.lower()}_layout.json"
+        )
 
 
 if __name__ == "__main__":

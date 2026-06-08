@@ -38,9 +38,10 @@ official schema rejects the file. We need the schema's structure without committ
   `.cache/`, which is **`.gitignore`d**.
 - What **is** committed are **derived facts**, not the 著作物 raw:
   - `docs/etax/field_catalog.json` — field catalog (#76).
-  - `src/ai_books/etax/koa210_layout.json` — the 314-element KOA210 tree (names + nesting + order +
-    repeat + 金額/否) extracted once from `KOA210-011.xsd` by `scripts/etax/build_koa210_layout.py`.
-    The renderer reads the committed layout at runtime; the `.xsd` itself is never in the tree.
+  - `src/ai_books/etax/koa210_layout.json` — the KOA210 element tree (names + nesting + order +
+    repeat + 金額/否) extracted once from `KOA210-011.xsd` by `scripts/etax/build_etax_layout.py`
+    (form-agnostic since #103 — also builds `koa220_layout.json` / `koa240_layout.json`). The renderer
+    reads the committed layout at runtime; the `.xsd` itself is never in the tree.
 
 ### Alternatives not taken
 
@@ -64,7 +65,7 @@ official schema rejects the file. We need the schema's structure without committ
 - Producing/validating the real form requires a network fetch of the spec (CI does this in a
   dedicated `etax-xsd` job, #79). Offline builds rely on the committed derived artifacts only.
 - A re-published 国税庁 spec breaks the checksum by design — someone must refresh
-  `docs/etax/manifest.json` and regenerate `koa210_layout.json`.
+  `docs/etax/manifest.json` and regenerate the 様式 layouts (`koa210/koa220/koa240_layout.json`).
 
 ### Neutral / unchanged
 
@@ -75,7 +76,7 @@ official schema rejects the file. We need the schema's structure without committ
 
 - `src/ai_books/etax/spec.py` — `"2025"` (real KOA210 v11.0) vs `"synthetic"` version keys.
 - `src/ai_books/etax/export.py` — `EtaxFormat` (`XTX` = real 交換ファイル形式), `render_etax_xtx`.
-- `src/ai_books/etax/koa210_layout.json` — committed derived element tree.
+- `src/ai_books/etax/koa210_layout.json` — committed derived element tree (KOA220/240 since #103).
 - `scripts/etax/fetch_etax_spec.py` — on-demand fetch + SHA256 verify against `docs/etax/manifest.json`.
-- `scripts/etax/build_koa210_layout.py` — extracts the layout from `KOA210-011.xsd`.
+- `scripts/etax/build_etax_layout.py` — extracts a 様式 layout from its `.xsd` (KOA210/KOA220/KOA240).
 - `.gitignore` — `.cache/` (国税庁 著作物 取得物は非コミット).

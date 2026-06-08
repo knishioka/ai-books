@@ -30,7 +30,7 @@ import re
 import xml.etree.ElementTree as ET
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
-from functools import lru_cache
+from functools import cache
 from importlib.resources import files
 from typing import Any
 
@@ -605,26 +605,48 @@ def etax_export_snapshot(export: EtaxExport) -> dict[str, Any]:
     }
 
 
-# ── EtaxExport → .xtx (実 e-Tax 交換ファイル形式, KOA210) ───────────────────────────
+# ── EtaxExport → .xtx (実 e-Tax 交換ファイル形式, KOA210 / KOA220 / KOA240) ──────────
 #
 # The .xtx is the official e-Tax 申告データ XML — a *nested* element tree (pages → groups → leaves),
 # not a flat record list. Each 項目コード sits at an exact spot in the 様式; emit it out of order or
 # in the wrong namespace and 国税庁の .xsd rejects the file. The nesting/order/repeat are read from
-# the committed, XSD-derived layout (``koa210_layout.json``, #76/#79) rather than hard-coded, so a
-# 様式 update is a layout regeneration — not a code change. .xtx 形式妥当性は #79 の XSD 検証で機械保証。
+# the committed, XSD-derived layout (``<form>_layout.json``, #76/#79/#103) rather than hard-coded, so
+# a 様式 update is a layout regeneration — not a code change. .xtx 形式妥当性は #79 の XSD 検証で機械保証。
 
 
-@lru_cache(maxsize=1)
-def koa210_layout() -> dict[str, Any]:
-    """The XSD-derived KOA210 element-tree layout (pages → groups → leaves), loaded once.
+#: 様式 (form_id) → its committed, XSD-derived layout JSON (package data under ``ai_books.etax``).
+#: 一般用 (KOA210) / 不動産所得用 (KOA220) / 農業所得用 (KOA240). Each is generated from the official
+#: .xsd by ``scripts/etax/build_etax_layout.py``; the renderer reads them, the spec layer (#103) keys
+#: an EtaxExport to one by its 項目コード family (AMF*/ANF*/APF* — disjoint, see :func:`_select_layout`).
+_LAYOUT_FILES: dict[str, str] = {
+    "KOA210": "koa210_layout.json",
+    "KOA220": "koa220_layout.json",
+    "KOA240": "koa240_layout.json",
+}
 
-    Shipped as package data (``ai_books/etax/koa210_layout.json``), generated from the official
-    ``KOA210-011.xsd`` by ``scripts/etax/build_koa210_layout.py``. Each node is a leaf
-    (``{"tag", "amount"}``, no children) or a group (``{"tag", "children", "repeat"?}``).
+
+@cache
+def form_layout(form_id: str) -> dict[str, Any]:
+    """The XSD-derived element-tree layout for a 様式 (pages → groups → leaves), loaded once.
+
+    ``form_id`` is the e-Tax 様式コード (``KOA210`` 一般用 / ``KOA220`` 不動産所得用 / ``KOA240``
+    農業所得用). Each layout is shipped as package data, generated from the official ``.xsd`` by
+    ``scripts/etax/build_etax_layout.py``. Every node is a leaf (``{"tag", "amount"}``, no children)
+    or a group (``{"tag", "children", "repeat"?}``). Raises ``ValueError`` for an unknown 様式.
     """
-    text = (files("ai_books.etax") / "koa210_layout.json").read_text(encoding="utf-8")
+    try:
+        filename = _LAYOUT_FILES[form_id]
+    except KeyError:
+        known = ", ".join(sorted(_LAYOUT_FILES))
+        raise ValueError(f"no .xtx layout for 様式 {form_id!r} (known: {known})") from None
+    text = (files("ai_books.etax") / filename).read_text(encoding="utf-8")
     loaded: dict[str, Any] = json.loads(text)
     return loaded
+
+
+def koa210_layout() -> dict[str, Any]:
+    """The KOA210 (一般用) layout — thin wrapper over :func:`form_layout` (back-compat)."""
+    return form_layout("KOA210")
 
 
 #: Software identity stamped onto the .xtx root's required ``gen:FormAttribute`` (softNM/sakuseiNM).
@@ -637,6 +659,50 @@ def _layout_codes(nodes: list[dict[str, Any]], out: set[str]) -> None:
         out.add(node["tag"])
         if "children" in node:
             _layout_codes(node["children"], out)
+
+
+def _all_layout_codes(layout: dict[str, Any]) -> set[str]:
+    """Every 項目コード (leaf + group tag) across all pages of a 様式 layout."""
+    codes: set[str] = set()
+    for page in layout["pages"]:
+        _layout_codes(page["children"], codes)
+    return codes
+
+
+@cache
+def _form_codes(form_id: str) -> frozenset[str]:
+    """Every 項目コード of a 様式 layout, cached by form_id (layouts are static package data).
+
+    Caching the code set means :func:`_select_layout` does not re-traverse each layout tree on every
+    render. A ``frozenset`` is returned so the cached value cannot be mutated by callers.
+    """
+    return frozenset(_all_layout_codes(form_layout(form_id)))
+
+
+def _select_layout(export: EtaxExport) -> dict[str, Any]:
+    """Pick the 様式 layout whose 項目コード tree covers ``export``'s records — or fail loud.
+
+    The .xtx renderer is form-agnostic: an :class:`~ai_books.models.EtaxExport` is keyed to a 様式 not
+    by a label but by its 項目コード family, which is **disjoint** across the three forms (一般用 AMF*,
+    不動産 ANF*, 農業 APF* — verified by ``tests/test_etax_xtx.py``). So the layout is the unique one
+    whose code set is a superset of every record's ``item_code``. A record whose 項目コード belongs to
+    no committed layout (e.g. the synthetic 様式's ``PL010``) raises ``ValueError`` rather than being
+    silently dropped (fail loud) — .xtx is only for the real KOA210/KOA220/KOA240 様式.
+    """
+    codes = {record.item_code for record in export.records}
+    matches = [form_id for form_id in _LAYOUT_FILES if codes <= _form_codes(form_id)]
+    if len(matches) == 1:
+        return form_layout(matches[0])
+    if not matches:
+        known: frozenset[str] = frozenset().union(*(_form_codes(f) for f in _LAYOUT_FILES))
+        unknown = ", ".join(sorted(codes - known))
+        raise ValueError(
+            f"cannot render .xtx: 項目コード not in any known 様式 layout ({unknown}); "
+            f".xtx requires a real e-Tax 様式 ({', '.join(_LAYOUT_FILES)}) — "
+            "synthetic/旧様式 outputs CSV/XML only"
+        )
+    # Only reachable for an empty export (∅ ⊆ every layout) — 様式 is ambiguous, refuse to guess.
+    raise ValueError("cannot render .xtx: export has no records, so its 様式 is ambiguous")
 
 
 def _descendant_leaf_codes(node: dict[str, Any]) -> set[str]:
@@ -697,31 +763,22 @@ def _emit_layout_children(
 
 
 def render_etax_xtx(export: EtaxExport) -> str:
-    """Render the e-Tax 取込データ as the real ``.xtx`` (official KOA210 青色申告決算書 XML, #79).
+    """Render the e-Tax 取込データ as the real ``.xtx`` (official 青色申告決算書 XML, #79/#103).
 
-    Places every record's 値 at its 項目コード's spot in the KOA210 element tree (read from the
-    XSD-derived :func:`koa210_layout`), in 様式 (XSD sequence) order, under the
-    ``http://xml.e-tax.nta.go.jp/XSD/shotoku`` 名前空間. The root ``<KOA210>`` carries the required
-    ``VR`` (様式バージョン) and ``gen:FormAttribute`` (softNM / sakuseiNM / sakuseiDay) so the file is
-    schema-valid; ``sakuseiDay`` is the 期末日 (deterministic, not "今日" — golden 安定のため).
+    Places every record's 値 at its 項目コード's spot in the 様式's element tree (read from the
+    XSD-derived :func:`form_layout`), in 様式 (XSD sequence) order, under the
+    ``http://xml.e-tax.nta.go.jp/XSD/shotoku`` 名前空間. The 様式 (KOA210 一般用 / KOA220 不動産所得用 /
+    KOA240 農業所得用) is chosen by :func:`_select_layout` from the records' 項目コード family. The root
+    ``<KOA2x0>`` carries the required ``VR`` (様式バージョン) and ``gen:FormAttribute`` (softNM /
+    sakuseiNM / sakuseiDay) so the file is schema-valid; ``sakuseiDay`` is the 期末日 (deterministic,
+    not "今日" — golden 安定のため).
 
-    Only the real 様式 (``version="2025"`` → KOA210) renders to .xtx: a record whose 項目コード is not
-    in the KOA210 layout (e.g. the synthetic 様式's ``PL010``) raises ``ValueError`` rather than being
-    silently dropped (fail loud). 出力は決定的 (records → 固定木 → 2-space indent)。
+    Only the real 様式 render to .xtx: a record whose 項目コード is in no committed layout (e.g. the
+    synthetic 様式's ``PL010``) raises ``ValueError`` rather than being silently dropped (fail loud).
+    出力は決定的 (records → 固定木 → 2-space indent)。
     """
-    layout = koa210_layout()
+    layout = _select_layout(export)
     namespace = layout["namespace"]
-
-    known: set[str] = set()
-    for page in layout["pages"]:
-        _layout_codes(page["children"], known)
-    unknown = sorted({r.item_code for r in export.records} - known)
-    if unknown:
-        raise ValueError(
-            "cannot render .xtx: 項目コード not in the KOA210 layout "
-            f"({', '.join(unknown)}); .xtx requires the 2025 KOA210 様式 "
-            "(synthetic/旧様式 outputs CSV/XML only)"
-        )
 
     scalar: dict[str, str] = {}
     repeating: dict[str, dict[int, str]] = {}
@@ -733,7 +790,7 @@ def render_etax_xtx(export: EtaxExport) -> str:
 
     ET.register_namespace("", namespace)
     root = ET.Element(
-        f"{{{namespace}}}KOA210",
+        f"{{{namespace}}}{layout['form_id']}",
         {
             "VR": layout["version"],
             "softNM": _XTX_SOFTWARE_NAME,
