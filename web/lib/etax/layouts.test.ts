@@ -9,6 +9,10 @@ const here = fileURLToPath(new URL(".", import.meta.url));
 
 const FORMS = ["koa210", "koa220", "koa240"] as const;
 
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
+
 describe("generated e-Tax layout JSONs stay in sync with the Python package", () => {
   for (const form of FORMS) {
     it(`${form}_layout.json is a byte-for-byte generated copy`, () => {
@@ -18,7 +22,7 @@ describe("generated e-Tax layout JSONs stay in sync with the Python package", ()
         join(here, "..", "..", "..", "src", "ai_books", "etax", file),
         "utf8",
       );
-      expect(webCopy).toBe(source);
+      expect(normalizeLineEndings(webCopy)).toBe(normalizeLineEndings(source));
     });
   }
 });
