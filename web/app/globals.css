@@ -23,31 +23,14 @@
   --warn-bg: rgba(178, 58, 46, 0.07);
   --warn-fg: #9a3326;
   /* type — JP/Latin faces load via a CDN <link> in app/layout.tsx (next/font's
-     build-time fetch fails on the Vercel build env for the CJK faces). These
-     `var(--font-*, "Family")` fallbacks resolve to those CDN-loaded family names. */
-  --font-display: var(
-    --font-shippori-mincho,
-    "Shippori Mincho B1",
-    "Hiragino Mincho ProN",
-    serif
-  );
-  --font-body: var(
-    --font-zen-kaku,
-    "Zen Kaku Gothic New",
-    system-ui,
-    "Hiragino Sans",
-    "Noto Sans JP",
-    sans-serif
-  );
-  --font-num: var(
-    --font-zen-kaku-mono,
-    "Zen Kaku Gothic New",
-    ui-monospace,
-    "SF Mono",
-    menlo,
-    monospace
-  );
-  --font-latin: var(--font-spectral, "Spectral", serif);
+     build-time fetch fails on the Vercel build env for the CJK faces). Direct font
+     stacks: the family names match the <link> css2 request. */
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
+  --font-body:
+    "Zen Kaku Gothic New", system-ui, "Hiragino Sans", "Noto Sans JP",
+    sans-serif;
+  --font-num: "Zen Kaku Gothic New", ui-monospace, "SF Mono", menlo, monospace;
+  --font-latin: "Spectral", serif;
 }
 
 * {
