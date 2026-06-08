@@ -14,25 +14,32 @@ disagree about which side an account's normal balance sits on.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from ai_books import ledger
 from ai_books.models import (
     STATEMENT_CATEGORY_ACCOUNT_TYPE,
     AccountType,
+    AgriculturalIncome,
     BalanceSheet,
     BalanceSheetLine,
     BalanceSheetSection,
+    CropIncomeLine,
+    CultivationCostLine,
     DepreciationLine,
     DepreciationSchedule,
     EntryStatus,
     FinancialStatements,
+    InventoryScheduleLine,
+    LivestockIncomeLine,
     LoanInterestLine,
     ManufacturingCost,
     ManufacturingCostLine,
     ManufacturingCostSection,
+    MiscIncomeLine,
     MonthlySalesPurchases,
     MonthlySalesPurchasesRow,
     MonthlyTrendPoint,
@@ -894,4 +901,290 @@ def assemble_real_estate_income(
         loan_interest_deductible_total=sum(
             (line.deductible_interest for line in loan_lines), Decimal(0)
         ),
+    )
+
+
+# ── 農業所得 (agricultural income) — KOA240 収入側 data-supply (Issue #125) ────────────
+# KOA240's 収入側 内訳 cannot come from the journal alone: a 販売金額 figure is journal-derivable but a
+# 区分 (作物名) / 作付面積 / 収穫量 is not an attribute of any 勘定科目. So the inputs below pair a
+# *journal-derived amount* (the caller sums it — offline reduction or the SQL engine, the same dual path
+# 不動産所得 #124 uses) with the *descriptive metadata* the form needs; this module shapes and reconciles
+# them. A category's 販売金額 / 家事消費 / 雑収入 / 期末農産物棚卸 split that does not foot to its 勘定科目
+# balance is a fail-loud error — the one thing tying the breakdown to the books.
+
+
+class CropIncomeTotals(NamedTuple):
+    """One crop's 農産物の収入の内訳 row: its 販売金額/家事消費 split + descriptive metadata.
+
+    ``account_code`` is the 農産物売上高 勘定科目 (per 田畑/果樹/特殊施設 category) whose balance the crops
+    sharing it must foot to. ``home_consumption`` foots (across crops + livestock) to the 家事消費 account,
+    ``closing_inventory_amount`` to the 農産物 (棚卸資産) account. The rest is metadata the journal lacks.
+    """
+
+    account_code: str
+    category: str
+    crop_name: str
+    planted_area: Decimal
+    harvest_quantity: Decimal
+    opening_inventory_qty: Decimal
+    opening_inventory_amount: Decimal
+    sales_amount: Decimal
+    home_consumption: Decimal
+    closing_inventory_qty: Decimal
+    closing_inventory_amount: Decimal
+
+
+class LivestockIncomeTotals(NamedTuple):
+    """One 畜産物その他 row: journal-derived 販売金額 / 家事消費 paired with 区分 / 飼育・生産頭羽数 meta."""
+
+    account_code: str
+    category_name: str
+    raised_count: Decimal
+    produced_count: Decimal
+    sales_amount: Decimal
+    home_consumption: Decimal
+
+
+class MiscIncomeTotals(NamedTuple):
+    """One 雑収入 row: journal-derived 金額 paired with its 区分 metadata."""
+
+    account_code: str
+    category_name: str
+    amount: Decimal
+
+
+class InventoryScheduleTotals(NamedTuple):
+    """One 未収穫農産物 / 販売用動物 棚卸明細 row (carried; reconciled internally, not journal-pinned)."""
+
+    category_name: str
+    opening_qty: str
+    opening_amount: Decimal
+    closing_qty: str
+    closing_amount: Decimal
+
+
+class CultivationCostTotals(NamedTuple):
+    """One 果樹・牛馬等の育成費用 row (carried). 小計 / 翌年繰越 are derived by the aggregation."""
+
+    name: str
+    opening_carryover: Decimal
+    seedling_cost: Decimal
+    fertilizer_cost: Decimal
+    income_from_growing: Decimal
+    matured_acquisition_cost: Decimal
+    added_to_acquisition_cost: Decimal
+
+
+def _foot_by_account(items: list[Any], amount: Any, balances: Mapping[str, Decimal]) -> list[str]:
+    """Group ``items`` by ``account_code``; return a mismatch message per group not footing to balance."""
+    grouped: dict[str, Decimal] = {}
+    for item in items:
+        grouped[item.account_code] = grouped.get(item.account_code, Decimal(0)) + amount(item)
+    return [
+        f"{code}: 内訳合計 {total} != 勘定科目残高 {balances.get(code, Decimal(0))}"
+        for code, total in grouped.items()
+        if total != balances.get(code, Decimal(0))
+    ]
+
+
+def assemble_agricultural_income(
+    crop_income: list[CropIncomeTotals],
+    livestock_income: list[LivestockIncomeTotals],
+    misc_income: list[MiscIncomeTotals],
+    unharvested: list[InventoryScheduleTotals],
+    sale_animals: list[InventoryScheduleTotals],
+    cultivation: list[CultivationCostTotals],
+    *,
+    balances: Mapping[str, Decimal],
+    home_consumption_account: str,
+    inventory_account: str,
+    fiscal_year: str,
+    start_date: date,
+    end_date: date,
+) -> AgriculturalIncome:
+    """Compose KOA240's 収入側 内訳 from journal-derived amounts + descriptive metadata.
+
+    The journal anchors (every one fail-loud): each 農産物売上高 / 畜産物売上高 / 雑収入(農業) 勘定科目
+    balance must equal the sum of the 販売金額 / 金額 split that references it; the 家事消費 account must
+    equal the 家事消費 sum across crops *and* livestock; the 農産物 (棚卸資産) account must equal the
+    期末棚卸金額 sum. A mismatch is a :class:`ValueError` (the breakdown drifted from the books) — the same
+    fail-loud discipline 不動産所得 (#124) uses. The 棚卸 schedules (未収穫農産物 / 販売用動物) and the
+    育成費用 schedule are carried through and reconciled by
+    :attr:`~ai_books.models.AgriculturalIncome.is_consistent`. ``opening_inventory`` (農産物期首棚卸) is the
+    prior-year carryover, so it is the metadata sum (not a current-year posting). All inputs are expected
+    pre-ordered; the order is preserved so the output is stable.
+    """
+    mismatches = _foot_by_account(crop_income, lambda i: i.sales_amount, balances)
+    mismatches += _foot_by_account(livestock_income, lambda i: i.sales_amount, balances)
+    mismatches += _foot_by_account(misc_income, lambda i: i.amount, balances)
+    home_consumption = sum((i.home_consumption for i in crop_income), Decimal(0)) + sum(
+        (i.home_consumption for i in livestock_income), Decimal(0)
+    )
+    if home_consumption != balances.get(home_consumption_account, Decimal(0)):
+        mismatches.append(
+            f"{home_consumption_account}: 家事消費・事業消費 内訳合計 {home_consumption} != "
+            f"勘定科目残高 {balances.get(home_consumption_account, Decimal(0))}"
+        )
+    closing_inventory = sum((i.closing_inventory_amount for i in crop_income), Decimal(0))
+    if closing_inventory != balances.get(inventory_account, Decimal(0)):
+        mismatches.append(
+            f"{inventory_account}: 農産物期末棚卸 内訳合計 {closing_inventory} != "
+            f"勘定科目残高 {balances.get(inventory_account, Decimal(0))}"
+        )
+    if mismatches:
+        raise ValueError(
+            "agricultural 収入の内訳 does not foot to the ledger balances:\n  - "
+            + "\n  - ".join(mismatches)
+        )
+
+    crop_lines = [
+        CropIncomeLine(
+            account_code=item.account_code,
+            category=item.category,
+            crop_name=item.crop_name,
+            planted_area=item.planted_area,
+            harvest_quantity=item.harvest_quantity,
+            opening_inventory_qty=item.opening_inventory_qty,
+            opening_inventory_amount=item.opening_inventory_amount,
+            sales_amount=item.sales_amount,
+            home_consumption=item.home_consumption,
+            closing_inventory_qty=item.closing_inventory_qty,
+            closing_inventory_amount=item.closing_inventory_amount,
+        )
+        for item in crop_income
+    ]
+    livestock_lines = [
+        LivestockIncomeLine(
+            account_code=item.account_code,
+            category_name=item.category_name,
+            raised_count=item.raised_count,
+            produced_count=item.produced_count,
+            sales_amount=item.sales_amount,
+            home_consumption=item.home_consumption,
+        )
+        for item in livestock_income
+    ]
+    misc_lines = [
+        MiscIncomeLine(
+            account_code=item.account_code,
+            category_name=item.category_name,
+            amount=item.amount,
+        )
+        for item in misc_income
+    ]
+    unharvested_lines = [
+        InventoryScheduleLine(
+            category_name=item.category_name,
+            opening_qty=item.opening_qty,
+            opening_amount=item.opening_amount,
+            closing_qty=item.closing_qty,
+            closing_amount=item.closing_amount,
+        )
+        for item in unharvested
+    ]
+    sale_animal_lines = [
+        InventoryScheduleLine(
+            category_name=item.category_name,
+            opening_qty=item.opening_qty,
+            opening_amount=item.opening_amount,
+            closing_qty=item.closing_qty,
+            closing_amount=item.closing_amount,
+        )
+        for item in sale_animals
+    ]
+    cultivation_lines = [
+        CultivationCostLine(
+            name=item.name,
+            opening_carryover=item.opening_carryover,
+            seedling_cost=item.seedling_cost,
+            fertilizer_cost=item.fertilizer_cost,
+            subtotal=item.opening_carryover + item.seedling_cost + item.fertilizer_cost,
+            income_from_growing=item.income_from_growing,
+            added_to_acquisition_cost=item.added_to_acquisition_cost,
+            matured_acquisition_cost=item.matured_acquisition_cost,
+            carryover_to_next=(
+                item.opening_carryover
+                + item.seedling_cost
+                + item.fertilizer_cost
+                - item.matured_acquisition_cost
+            ),
+        )
+        for item in cultivation
+    ]
+
+    farm_product_sales_total = sum((c.sales_amount for c in crop_lines), Decimal(0))
+    farm_product_home_consumption_total = sum((c.home_consumption for c in crop_lines), Decimal(0))
+    farm_product_opening_inventory_total = sum(
+        (c.opening_inventory_amount for c in crop_lines), Decimal(0)
+    )
+    farm_product_closing_inventory_total = sum(
+        (c.closing_inventory_amount for c in crop_lines), Decimal(0)
+    )
+    livestock_sales_total = sum((s.sales_amount for s in livestock_lines), Decimal(0))
+    livestock_home_consumption_total = sum(
+        (s.home_consumption for s in livestock_lines), Decimal(0)
+    )
+    sales_amount_total = farm_product_sales_total + livestock_sales_total
+    home_consumption_total = farm_product_home_consumption_total + livestock_home_consumption_total
+    misc_income_total = sum((m.amount for m in misc_lines), Decimal(0))
+    subtotal = sales_amount_total + home_consumption_total + misc_income_total
+    opening_inventory_total = farm_product_opening_inventory_total
+    closing_inventory_total = farm_product_closing_inventory_total
+
+    cultivation_seedling_cost_total = sum(
+        (line.seedling_cost for line in cultivation_lines), Decimal(0)
+    )
+    cultivation_fertilizer_cost_total = sum(
+        (line.fertilizer_cost for line in cultivation_lines), Decimal(0)
+    )
+    cultivation_income_from_growing_total = sum(
+        (line.income_from_growing for line in cultivation_lines), Decimal(0)
+    )
+
+    return AgriculturalIncome(
+        fiscal_year=fiscal_year,
+        start_date=start_date,
+        end_date=end_date,
+        crop_income_lines=crop_lines,
+        livestock_income_lines=livestock_lines,
+        misc_income_lines=misc_lines,
+        unharvested_lines=unharvested_lines,
+        sale_animal_lines=sale_animal_lines,
+        cultivation_cost_lines=cultivation_lines,
+        farm_product_sales_total=farm_product_sales_total,
+        farm_product_home_consumption_total=farm_product_home_consumption_total,
+        farm_product_opening_inventory_total=farm_product_opening_inventory_total,
+        farm_product_closing_inventory_total=farm_product_closing_inventory_total,
+        livestock_sales_total=livestock_sales_total,
+        livestock_home_consumption_total=livestock_home_consumption_total,
+        sales_amount_total=sales_amount_total,
+        home_consumption_total=home_consumption_total,
+        misc_income_total=misc_income_total,
+        subtotal=subtotal,
+        opening_inventory_total=opening_inventory_total,
+        closing_inventory_total=closing_inventory_total,
+        gross_income=subtotal - opening_inventory_total + closing_inventory_total,
+        unharvested_opening_total=sum((u.opening_amount for u in unharvested_lines), Decimal(0)),
+        unharvested_closing_total=sum((u.closing_amount for u in unharvested_lines), Decimal(0)),
+        sale_animal_opening_total=sum((a.opening_amount for a in sale_animal_lines), Decimal(0)),
+        sale_animal_closing_total=sum((a.closing_amount for a in sale_animal_lines), Decimal(0)),
+        cultivation_opening_carryover_total=sum(
+            (line.opening_carryover for line in cultivation_lines), Decimal(0)
+        ),
+        cultivation_seedling_cost_total=cultivation_seedling_cost_total,
+        cultivation_fertilizer_cost_total=cultivation_fertilizer_cost_total,
+        cultivation_subtotal_total=sum((line.subtotal for line in cultivation_lines), Decimal(0)),
+        cultivation_income_from_growing_total=cultivation_income_from_growing_total,
+        cultivation_added_to_acquisition_total=sum(
+            (line.added_to_acquisition_cost for line in cultivation_lines), Decimal(0)
+        ),
+        cultivation_matured_acquisition_total=sum(
+            (line.matured_acquisition_cost for line in cultivation_lines), Decimal(0)
+        ),
+        cultivation_carryover_to_next_total=sum(
+            (line.carryover_to_next for line in cultivation_lines), Decimal(0)
+        ),
+        deductible_cultivation_cost=cultivation_seedling_cost_total
+        + cultivation_fertilizer_cost_total
+        - cultivation_income_from_growing_total,
     )

@@ -1,0 +1,173 @@
+{
+  "report": "agricultural_income",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "farm_products": {
+    "lines": [
+      {
+        "account_code": "4310",
+        "category": "田畑",
+        "crop_name": "米",
+        "planted_area": "120.00",
+        "harvest_quantity": "6000.00",
+        "opening_inventory_qty": "400.00",
+        "opening_inventory_amount": "80000.00",
+        "sales_amount": "800000.00",
+        "home_consumption": "50000.00",
+        "closing_inventory_qty": "500.00",
+        "closing_inventory_amount": "100000.00"
+      },
+      {
+        "account_code": "4310",
+        "category": "田畑",
+        "crop_name": "麦",
+        "planted_area": "80.00",
+        "harvest_quantity": "3200.00",
+        "opening_inventory_qty": "200.00",
+        "opening_inventory_amount": "40000.00",
+        "sales_amount": "300000.00",
+        "home_consumption": "20000.00",
+        "closing_inventory_qty": "250.00",
+        "closing_inventory_amount": "50000.00"
+      },
+      {
+        "account_code": "4320",
+        "category": "果樹",
+        "crop_name": "みかん",
+        "planted_area": "60.00",
+        "harvest_quantity": "4000.00",
+        "opening_inventory_qty": "300.00",
+        "opening_inventory_amount": "50000.00",
+        "sales_amount": "400000.00",
+        "home_consumption": "30000.00",
+        "closing_inventory_qty": "360.00",
+        "closing_inventory_amount": "60000.00"
+      },
+      {
+        "account_code": "4330",
+        "category": "特殊施設",
+        "crop_name": "トマト (ハウス)",
+        "planted_area": "20.00",
+        "harvest_quantity": "8000.00",
+        "opening_inventory_qty": "150.00",
+        "opening_inventory_amount": "30000.00",
+        "sales_amount": "500000.00",
+        "home_consumption": "10000.00",
+        "closing_inventory_qty": "200.00",
+        "closing_inventory_amount": "40000.00"
+      }
+    ],
+    "sales_total": "2000000.00",
+    "home_consumption_total": "110000.00",
+    "opening_inventory_total": "200000.00",
+    "closing_inventory_total": "250000.00"
+  },
+  "livestock": {
+    "lines": [
+      {
+        "account_code": "4340",
+        "category_name": "肉用牛",
+        "raised_count": "10.00",
+        "produced_count": "5.00",
+        "sales_amount": "1200000.00",
+        "home_consumption": "0.00"
+      },
+      {
+        "account_code": "4340",
+        "category_name": "鶏卵",
+        "raised_count": "500.00",
+        "produced_count": "0.00",
+        "sales_amount": "600000.00",
+        "home_consumption": "30000.00"
+      }
+    ],
+    "sales_total": "1800000.00",
+    "home_consumption_total": "30000.00"
+  },
+  "misc_income": {
+    "lines": [
+      {
+        "account_code": "4360",
+        "category_name": "共済受取金",
+        "amount": "80000.00"
+      },
+      {
+        "account_code": "4360",
+        "category_name": "作業受託収入",
+        "amount": "120000.00"
+      }
+    ],
+    "total": "200000.00"
+  },
+  "income": {
+    "sales_amount_total": "3800000.00",
+    "home_consumption_total": "140000.00",
+    "misc_income_total": "200000.00",
+    "subtotal": "4140000.00",
+    "opening_inventory_total": "200000.00",
+    "closing_inventory_total": "250000.00",
+    "gross_income": "4190000.00"
+  },
+  "unharvested": {
+    "lines": [
+      {
+        "category_name": "米 (未収穫)",
+        "opening_qty": "10a",
+        "opening_amount": "20000.00",
+        "closing_qty": "12a",
+        "closing_amount": "25000.00"
+      }
+    ],
+    "opening_total": "20000.00",
+    "closing_total": "25000.00"
+  },
+  "sale_animals": {
+    "lines": [
+      {
+        "category_name": "子牛",
+        "opening_qty": "2頭",
+        "opening_amount": "300000.00",
+        "closing_qty": "1頭",
+        "closing_amount": "180000.00"
+      }
+    ],
+    "opening_total": "300000.00",
+    "closing_total": "180000.00"
+  },
+  "cultivation_cost": {
+    "lines": [
+      {
+        "name": "みかん幼木",
+        "opening_carryover": "150000.00",
+        "seedling_cost": "30000.00",
+        "fertilizer_cost": "20000.00",
+        "subtotal": "200000.00",
+        "income_from_growing": "5000.00",
+        "added_to_acquisition_cost": "0.00",
+        "matured_acquisition_cost": "0.00",
+        "carryover_to_next": "200000.00"
+      },
+      {
+        "name": "繁殖牛 (育成中)",
+        "opening_carryover": "200000.00",
+        "seedling_cost": "100000.00",
+        "fertilizer_cost": "10000.00",
+        "subtotal": "310000.00",
+        "income_from_growing": "0.00",
+        "added_to_acquisition_cost": "0.00",
+        "matured_acquisition_cost": "310000.00",
+        "carryover_to_next": "0.00"
+      }
+    ],
+    "opening_carryover_total": "350000.00",
+    "seedling_cost_total": "130000.00",
+    "fertilizer_cost_total": "30000.00",
+    "subtotal_total": "510000.00",
+    "income_from_growing_total": "5000.00",
+    "added_to_acquisition_total": "0.00",
+    "matured_acquisition_total": "310000.00",
+    "carryover_to_next_total": "200000.00",
+    "deductible_cultivation_cost": "155000.00"
+  }
+}

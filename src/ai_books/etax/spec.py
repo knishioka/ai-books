@@ -64,10 +64,11 @@ mistaken for the real 様式.
 
 項目カタログは取得済み (#76 ``field_catalog.json``: KOA220=226 / KOA240=357 項目)。
 :func:`~ai_books.reports.financial_statements_snapshot` は KOA210(一般用) 向けで、不動産賃貸料収入・
-農産物売上等の所得固有データは供給しない。**KOA220 の収入側 data-supply は #124 で実装済**
+農産物売上等の所得固有データは供給しない。**両様式とも収入側 data-supply は実装済**: KOA220 は #124
 (:func:`~ai_books.reports.real_estate_income_snapshot` — 不動産所得の収入の内訳 / 地代家賃の内訳 /
-借入金利子の内訳; 金額は仕訳から集計、契約メタは fixture)。残りは KOA220 の :class:`EtaxFormatSpec`
-登録 + end-to-end ``.xtx`` golden/XSD (stage 4) と、KOA240(農業所得用) の data-supply。engine は
+借入金利子の内訳)、KOA240 は #125 (:func:`~ai_books.reports.agricultural_income_snapshot` — 農産物の収入
+の内訳 / 畜産物その他 / 雑収入 / 収入金額 / 棚卸・育成費用の明細); いずれも金額は仕訳から集計、記述メタは
+fixture。残りは両様式の :class:`EtaxFormatSpec` 登録 + end-to-end ``.xtx`` golden/XSD (stage 4)。engine は
 data-driven のままで、:class:`EtaxFixedSection` (#78) / :class:`EtaxComputedField` (#83 営業外橋渡し) を
 再利用して spec を追加できる。詳細は ``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
 """

@@ -21,6 +21,7 @@ from ai_books.db.repository import AccountRepository, JournalRepository, LedgerR
 from ai_books.etax import etax_export_snapshot
 from ai_books.models import EntryStatus
 from ai_books.reports import (
+    agricultural_income_snapshot,
     balance_sheet_snapshot,
     financial_statements_snapshot,
     general_ledger_snapshot,
@@ -30,8 +31,10 @@ from ai_books.reports import (
     worksheet_snapshot,
 )
 from tests.fixtures.seed_fy import (
+    AG_ENTRIES,
     FY_ENTRIES,
     RE_ENTRIES,
+    agricultural_income_from_db,
     balance_sheet_from_db,
     diff_snapshots,
     etax_export_from_db,
@@ -404,3 +407,29 @@ def test_db_real_estate_income_reconciles(migrated_conn: psycopg.Connection[Any]
     assert re.rent_paid_total == Decimal("240000")
     assert re.loan_year_end_balance_total == Decimal("7500000")
     assert re.loan_interest_total == Decimal("80000")
+
+
+# --- 農業所得 収入側 内訳 (KOA240 data-supply, Issue #125) --------------------
+
+
+def test_db_agricultural_income_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#125): the DB-read 農業所得 収入側 内訳 equals the frozen golden, so the SQL aggregation
+    # (農産物売上高 / 畜産物売上高 / 家事消費 / 雑収入 / 農産物棚卸 残高) and the offline reduction agree.
+    load_fiscal_year(migrated_conn, AG_ENTRIES)
+    actual = agricultural_income_snapshot(agricultural_income_from_db(migrated_conn))
+    expected = load_golden("agricultural_income")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB agricultural income diverged from golden:\n  - " + "\n  - ".join(
+        problems
+    )
+
+
+def test_db_agricultural_income_reconciles(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#125): 各内訳の計が内訳行と一致 + 収入金額が科目残高と整合, over real stored rows.
+    load_fiscal_year(migrated_conn, AG_ENTRIES)
+    ag = agricultural_income_from_db(migrated_conn)
+    assert ag.is_consistent
+    assert ag.sales_amount_total == Decimal("3800000")
+    assert ag.gross_income == Decimal("4190000")
+    assert ag.closing_inventory_total == Decimal("250000")
+    assert ag.misc_income_total == Decimal("200000")

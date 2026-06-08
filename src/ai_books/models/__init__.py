@@ -16,6 +16,14 @@ from .aggregation import (
     TrialBalance,
     TrialBalanceRow,
 )
+from .agricultural import (
+    AgriculturalIncome,
+    CropIncomeLine,
+    CultivationCostLine,
+    InventoryScheduleLine,
+    LivestockIncomeLine,
+    MiscIncomeLine,
+)
 from .audit import AuditLog
 from .base import DomainModel
 from .enums import (
@@ -81,10 +89,13 @@ __all__ = [
     "AccountBalance",
     "AccountLedger",
     "AccountType",
+    "AgriculturalIncome",
     "AuditLog",
     "BalanceSheet",
     "BalanceSheetLine",
     "BalanceSheetSection",
+    "CropIncomeLine",
+    "CultivationCostLine",
     "DepreciationLine",
     "DepreciationSchedule",
     "DomainModel",
@@ -99,6 +110,7 @@ __all__ = [
     "GeneralLedgerAccount",
     "GeneralLedgerRow",
     "ImportSummary",
+    "InventoryScheduleLine",
     "JournalBook",
     "JournalBookEntry",
     "JournalBookLine",
@@ -108,10 +120,12 @@ __all__ = [
     "JournalLine",
     "JournalLineInput",
     "LedgerRow",
+    "LivestockIncomeLine",
     "LoanInterestLine",
     "ManufacturingCost",
     "ManufacturingCostLine",
     "ManufacturingCostSection",
+    "MiscIncomeLine",
     "MonthlySalesPurchases",
     "MonthlySalesPurchasesRow",
     "MonthlyTrend",
