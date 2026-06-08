@@ -1,0 +1,1633 @@
+{
+  "form_id": "KOA210",
+  "version": "11.0",
+  "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+  "generated_by": "scripts/etax/build_etax_layout.py",
+  "source": "KOA210-011.xsd (e-tax19.CAB; 国税庁 著作物, raw 非同梱 — manifest.json 参照)",
+  "note": "Derived element tree for the .xtx renderer (#79/#103): tag = ＸＭＬタグ(項目コード), amount=true は gen:kingaku(整数円), repeat=true は maxOccurs>1 の繰返しブロック. leaf は children を持たない。日本語ラベルは field_catalog.json 参照。",
+  "pages": [
+    {
+      "tag": "KOA210-1",
+      "children": [
+        {
+          "tag": "AMI00000",
+          "amount": false
+        },
+        {
+          "tag": "AMA00000",
+          "amount": false
+        },
+        {
+          "tag": "AMB00000",
+          "children": [
+            {
+              "tag": "AMB00010",
+              "amount": false
+            },
+            {
+              "tag": "AMB00020",
+              "children": [
+                {
+                  "tag": "AMB00030",
+                  "amount": false
+                },
+                {
+                  "tag": "AMB00040",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "AMB00050",
+              "amount": false
+            },
+            {
+              "tag": "AMB00060",
+              "children": [
+                {
+                  "tag": "AMB00070",
+                  "amount": false
+                },
+                {
+                  "tag": "AMB00080",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "AMB00090",
+              "amount": false
+            },
+            {
+              "tag": "AMB00100",
+              "amount": false
+            },
+            {
+              "tag": "AMB00110",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "AMC00000",
+          "children": [
+            {
+              "tag": "AMC00010",
+              "amount": false
+            },
+            {
+              "tag": "AMC00020",
+              "amount": false
+            },
+            {
+              "tag": "AMC00030",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "AME00000",
+          "amount": false
+        },
+        {
+          "tag": "AMF00000",
+          "children": [
+            {
+              "tag": "AMF00010",
+              "children": [
+                {
+                  "tag": "AMF00020",
+                  "children": [
+                    {
+                      "tag": "AMF00030",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMF00040",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF00090",
+                  "children": [
+                    {
+                      "tag": "AMF00100",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF00110",
+                      "children": [
+                        {
+                          "tag": "AMF00120",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00130",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00140",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00150",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00160",
+                          "amount": true
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "AMF00170",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF00180",
+                      "children": [
+                        {
+                          "tag": "AMF00190",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00200",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00210",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00220",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00230",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00240",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00250",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00260",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00270",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00280",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00290",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00300",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00310",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00320",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00330",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00340",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00350",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00355",
+                          "children": [
+                            {
+                              "tag": "AMF00060",
+                              "amount": false
+                            },
+                            {
+                              "tag": "AMF00360",
+                              "amount": true
+                            }
+                          ],
+                          "repeat": true
+                        },
+                        {
+                          "tag": "AMF00370",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMF00380",
+                          "amount": true
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "AMF00390",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF00400",
+                      "children": [
+                        {
+                          "tag": "AMF00410",
+                          "children": [
+                            {
+                              "tag": "AMF00420",
+                              "amount": true
+                            },
+                            {
+                              "tag": "AMF00425",
+                              "children": [
+                                {
+                                  "tag": "AMF00070",
+                                  "amount": false
+                                },
+                                {
+                                  "tag": "AMF00430",
+                                  "amount": true
+                                }
+                              ],
+                              "repeat": true
+                            },
+                            {
+                              "tag": "AMF00440",
+                              "amount": true
+                            }
+                          ]
+                        },
+                        {
+                          "tag": "AMF00450",
+                          "children": [
+                            {
+                              "tag": "AMF00460",
+                              "amount": true
+                            },
+                            {
+                              "tag": "AMF00470",
+                              "amount": true
+                            },
+                            {
+                              "tag": "AMF00475",
+                              "children": [
+                                {
+                                  "tag": "AMF00080",
+                                  "amount": false
+                                },
+                                {
+                                  "tag": "AMF00480",
+                                  "amount": true
+                                }
+                              ],
+                              "repeat": true
+                            },
+                            {
+                              "tag": "AMF00490",
+                              "amount": true
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "AMF00500",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF00505",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMF00510",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF00520",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMF00530",
+                      "amount": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMF00532",
+          "amount": false
+        }
+      ]
+    },
+    {
+      "tag": "KOA210-2",
+      "children": [
+        {
+          "tag": "AMF00538",
+          "amount": false
+        },
+        {
+          "tag": "AMF00540",
+          "children": [
+            {
+              "tag": "AMF00550",
+              "amount": false
+            },
+            {
+              "tag": "AMF00560",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "AMF00580",
+          "children": [
+            {
+              "tag": "AMF00590",
+              "children": [
+                {
+                  "tag": "AMF00600",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00610",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00620",
+              "children": [
+                {
+                  "tag": "AMF00630",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00640",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00650",
+              "children": [
+                {
+                  "tag": "AMF00660",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00670",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00680",
+              "children": [
+                {
+                  "tag": "AMF00690",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00700",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00710",
+              "children": [
+                {
+                  "tag": "AMF00720",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00730",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00740",
+              "children": [
+                {
+                  "tag": "AMF00750",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00760",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00770",
+              "children": [
+                {
+                  "tag": "AMF00780",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00790",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00800",
+              "children": [
+                {
+                  "tag": "AMF00810",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00820",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00830",
+              "children": [
+                {
+                  "tag": "AMF00840",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00850",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00860",
+              "children": [
+                {
+                  "tag": "AMF00870",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00880",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00890",
+              "children": [
+                {
+                  "tag": "AMF00900",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00910",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00920",
+              "children": [
+                {
+                  "tag": "AMF00930",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00940",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00950",
+              "amount": true
+            },
+            {
+              "tag": "AMF00960",
+              "amount": true
+            },
+            {
+              "tag": "AMF00970",
+              "children": [
+                {
+                  "tag": "AMF00980",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00990",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF00993",
+              "children": [
+                {
+                  "tag": "AMF00995",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF00997",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMF01000",
+          "children": [
+            {
+              "tag": "AMF01010",
+              "amount": true
+            },
+            {
+              "tag": "AMF01020",
+              "children": [
+                {
+                  "tag": "AMF01030",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01040",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01050",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF01060",
+              "amount": true
+            }
+          ]
+        },
+        {
+          "tag": "AMF01070",
+          "children": [
+            {
+              "tag": "AMF01080",
+              "children": [
+                {
+                  "tag": "AMF01090",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01100",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01110",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01120",
+                  "children": [
+                    {
+                      "tag": "AMF01130",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01140",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01150",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01160",
+                  "amount": true
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "AMF01170",
+              "children": [
+                {
+                  "tag": "AMF01180",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01190",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01200",
+                  "children": [
+                    {
+                      "tag": "AMF01210",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01220",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01230",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01240",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF01250",
+              "children": [
+                {
+                  "tag": "AMF01260",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01270",
+                  "children": [
+                    {
+                      "tag": "AMF01280",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01290",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01300",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01310",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMF01320",
+          "children": [
+            {
+              "tag": "AMF01330",
+              "children": [
+                {
+                  "tag": "AMF01340",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01350",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01360",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01370",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01380",
+                  "children": [
+                    {
+                      "tag": "AMF01390",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01400",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01410",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01420",
+                  "amount": true
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "AMF01421",
+              "children": [
+                {
+                  "tag": "AMF01422",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01423",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01424",
+                  "children": [
+                    {
+                      "tag": "AMF01425",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01426",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01427",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01428",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF01430",
+              "children": [
+                {
+                  "tag": "AMF01440",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01450",
+                  "children": [
+                    {
+                      "tag": "AMF01460",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01470",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMF01480",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01490",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMF02120",
+          "children": [
+            {
+              "tag": "AMF02130",
+              "children": [
+                {
+                  "tag": "AMF02140",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02150",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "AMF02160",
+              "amount": false
+            },
+            {
+              "tag": "AMF02170",
+              "children": [
+                {
+                  "tag": "AMF02180",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF02190",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF02200",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF02210",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        },
+        {
+          "tag": "AMF01500",
+          "children": [
+            {
+              "tag": "AMF01510",
+              "amount": true
+            },
+            {
+              "tag": "AMF01520",
+              "amount": true
+            },
+            {
+              "tag": "AMF01530",
+              "children": [
+                {
+                  "tag": "AMF01540",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01550",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF01560",
+              "children": [
+                {
+                  "tag": "AMF01570",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01580",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "KOA210-3",
+      "children": [
+        {
+          "tag": "AMF02220",
+          "children": [
+            {
+              "tag": "AMF02230",
+              "children": [
+                {
+                  "tag": "AMF02240",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02250",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02260",
+                  "children": [
+                    {
+                      "tag": "AMF02270",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMF02280",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF02290",
+                  "amount": true
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "AMF02300",
+              "amount": true
+            },
+            {
+              "tag": "AMF02310",
+              "amount": true
+            }
+          ]
+        },
+        {
+          "tag": "AMF02320",
+          "children": [
+            {
+              "tag": "AMF02330",
+              "children": [
+                {
+                  "tag": "AMF02340",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02350",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02360",
+                  "children": [
+                    {
+                      "tag": "AMF02370",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMF02380",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF02390",
+                  "amount": true
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "AMF02400",
+              "amount": true
+            },
+            {
+              "tag": "AMF02410",
+              "amount": true
+            }
+          ]
+        },
+        {
+          "tag": "AMF01590",
+          "children": [
+            {
+              "tag": "AMF01600",
+              "children": [
+                {
+                  "tag": "AMF01610",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01620",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01630",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01640",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01645",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01650",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01660",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01670",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01680",
+                  "children": [
+                    {
+                      "tag": "AMF01690",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMF01720",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01730",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01740",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01750",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01760",
+                  "children": []
+                },
+                {
+                  "tag": "AMF01770",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01780",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01790",
+                  "amount": false
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "AMF01791",
+              "children": [
+                {
+                  "tag": "AMF01792",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01793",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01794",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01795",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01796",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01797",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMF01800",
+              "children": [
+                {
+                  "tag": "AMF01810",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01820",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01830",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01840",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01850",
+                  "amount": true
+                },
+                {
+                  "tag": "AMF01860",
+                  "amount": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMF01870",
+          "children": [
+            {
+              "tag": "AMF01880",
+              "children": [
+                {
+                  "tag": "AMF01890",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF01900",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "AMF01910",
+              "amount": true
+            },
+            {
+              "tag": "AMF01920",
+              "amount": true
+            },
+            {
+              "tag": "AMF01930",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        },
+        {
+          "tag": "AMF02040",
+          "children": [
+            {
+              "tag": "AMF02050",
+              "children": [
+                {
+                  "tag": "AMF02060",
+                  "amount": false
+                },
+                {
+                  "tag": "AMF02070",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "AMF02080",
+              "amount": true
+            },
+            {
+              "tag": "AMF02090",
+              "amount": true
+            },
+            {
+              "tag": "AMF02100",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        },
+        {
+          "tag": "AMF02110",
+          "amount": false
+        }
+      ]
+    },
+    {
+      "tag": "KOA210-4",
+      "children": [
+        {
+          "tag": "AMG00000",
+          "children": [
+            {
+              "tag": "AMG00010",
+              "amount": false
+            },
+            {
+              "tag": "AMG00020",
+              "children": [
+                {
+                  "tag": "AMG00025",
+                  "children": [
+                    {
+                      "tag": "AMG00030",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMG00220",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00420",
+                      "amount": true
+                    }
+                  ],
+                  "repeat": true
+                },
+                {
+                  "tag": "AMG00040",
+                  "children": [
+                    {
+                      "tag": "AMG00050",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMG00060",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00070",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00080",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00090",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00100",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00110",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00120",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00130",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00140",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00150",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00160",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00170",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00180",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00190",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00200",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00210",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00230",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMG00240",
+                  "children": [
+                    {
+                      "tag": "AMG00250",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMG00260",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00270",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00280",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00290",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00300",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00310",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00320",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00330",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00340",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00350",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00360",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00370",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00380",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00390",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00400",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00410",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00430",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00440",
+                      "amount": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "AMG00450",
+              "children": [
+                {
+                  "tag": "AMG00460",
+                  "children": [
+                    {
+                      "tag": "AMG00465",
+                      "children": [
+                        {
+                          "tag": "AMG00470",
+                          "amount": false
+                        },
+                        {
+                          "tag": "AMG00570",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMG00700",
+                          "amount": true
+                        }
+                      ],
+                      "repeat": true
+                    },
+                    {
+                      "tag": "AMG00475",
+                      "children": [
+                        {
+                          "tag": "AMG00480",
+                          "amount": false
+                        },
+                        {
+                          "tag": "AMG00590",
+                          "amount": true
+                        },
+                        {
+                          "tag": "AMG00720",
+                          "amount": true
+                        }
+                      ],
+                      "repeat": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMG00490",
+                  "children": [
+                    {
+                      "tag": "AMG00500",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMG00510",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00520",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00530",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00540",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00550",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00560",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00580",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00600",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00610",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "AMG00620",
+                  "children": [
+                    {
+                      "tag": "AMG00630",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMG00640",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00650",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00660",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00670",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00680",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00690",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00710",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00730",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00740",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00750",
+                      "amount": true
+                    },
+                    {
+                      "tag": "AMG00760",
+                      "amount": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "AMH00000",
+          "children": [
+            {
+              "tag": "AMH00020",
+              "children": [
+                {
+                  "tag": "AMH00030",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00040",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00050",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00060",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00070",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMH00080",
+              "amount": true
+            },
+            {
+              "tag": "AMH00090",
+              "children": [
+                {
+                  "tag": "AMH00100",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00110",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00120",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00130",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00140",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00145",
+                  "children": [
+                    {
+                      "tag": "AMH00010",
+                      "amount": false
+                    },
+                    {
+                      "tag": "AMH00150",
+                      "amount": true
+                    }
+                  ],
+                  "repeat": true
+                },
+                {
+                  "tag": "AMH00160",
+                  "amount": true
+                },
+                {
+                  "tag": "AMH00170",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "AMH00180",
+              "amount": true
+            },
+            {
+              "tag": "AMH00190",
+              "amount": true
+            },
+            {
+              "tag": "AMH00200",
+              "amount": true
+            },
+            {
+              "tag": "AMH00210",
+              "amount": true
+            },
+            {
+              "tag": "AMH00220",
+              "amount": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
