@@ -1,0 +1,1087 @@
+{
+  "form_id": "KOA220",
+  "version": "8.0",
+  "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+  "generated_by": "scripts/etax/build_etax_layout.py",
+  "source": "KOA220-008.xsd (e-tax19.CAB; 国税庁 著作物, raw 非同梱 — manifest.json 参照)",
+  "note": "Derived element tree for the .xtx renderer (#79/#103): tag = ＸＭＬタグ(項目コード), amount=true は gen:kingaku(整数円), repeat=true は maxOccurs>1 の繰返しブロック. leaf は children を持たない。日本語ラベルは field_catalog.json 参照。",
+  "pages": [
+    {
+      "tag": "KOA220-1",
+      "children": [
+        {
+          "tag": "ANH00000",
+          "amount": false
+        },
+        {
+          "tag": "ANA00000",
+          "amount": false
+        },
+        {
+          "tag": "ANB00000",
+          "children": [
+            {
+              "tag": "ANB00010",
+              "amount": false
+            },
+            {
+              "tag": "ANB00020",
+              "children": [
+                {
+                  "tag": "ANB00030",
+                  "amount": false
+                },
+                {
+                  "tag": "ANB00040",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "ANB00050",
+              "amount": false
+            },
+            {
+              "tag": "ANB00060",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "ANC00000",
+          "children": [
+            {
+              "tag": "ANC00010",
+              "amount": false
+            },
+            {
+              "tag": "ANC00020",
+              "amount": false
+            },
+            {
+              "tag": "ANC00030",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "ANE00000",
+          "amount": false
+        },
+        {
+          "tag": "ANF00000",
+          "children": [
+            {
+              "tag": "ANF00010",
+              "children": [
+                {
+                  "tag": "ANF00020",
+                  "children": [
+                    {
+                      "tag": "ANF00030",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANF00040",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00050",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00070",
+                  "children": [
+                    {
+                      "tag": "ANF00080",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00090",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00100",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00110",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00120",
+                  "children": [
+                    {
+                      "tag": "ANF00130",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00140",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00150",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00160",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00170",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00180",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00190",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00195",
+                      "children": [
+                        {
+                          "tag": "ANF00060",
+                          "amount": false
+                        },
+                        {
+                          "tag": "ANF00200",
+                          "amount": true
+                        }
+                      ],
+                      "repeat": true
+                    },
+                    {
+                      "tag": "ANF00210",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00220",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00230",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00240",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00250",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00255",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00260",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00270",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00280",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "ANF00282",
+          "amount": false
+        }
+      ]
+    },
+    {
+      "tag": "KOA220-2",
+      "children": [
+        {
+          "tag": "ANF00288",
+          "amount": false
+        },
+        {
+          "tag": "ANF00290",
+          "children": [
+            {
+              "tag": "ANF00300",
+              "amount": false
+            },
+            {
+              "tag": "ANF00310",
+              "amount": false
+            }
+          ]
+        },
+        {
+          "tag": "ANF00330",
+          "children": [
+            {
+              "tag": "ANF00340",
+              "children": [
+                {
+                  "tag": "ANF00350",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00355",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00360",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00370",
+                  "children": [
+                    {
+                      "tag": "ANF00380",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANF00390",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00400",
+                  "children": [
+                    {
+                      "tag": "ANF00410",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANF00420",
+                      "amount": false
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00430",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00440",
+                  "children": [
+                    {
+                      "tag": "ANF00450",
+                      "children": [
+                        {
+                          "tag": "ANF00460",
+                          "amount": false
+                        },
+                        {
+                          "tag": "ANF00470",
+                          "amount": true
+                        },
+                        {
+                          "tag": "ANF00480",
+                          "amount": false
+                        },
+                        {
+                          "tag": "ANF00490",
+                          "amount": true
+                        },
+                        {
+                          "tag": "ANF00500",
+                          "amount": true
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "ANF00510",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00520",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00530",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00540",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00550",
+                      "amount": true
+                    }
+                  ]
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "ANF00551",
+              "children": [
+                {
+                  "tag": "ANF00552",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00553",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00554",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00555",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00556",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "ANF00560",
+              "children": [
+                {
+                  "tag": "ANF00570",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00580",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00590",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00600",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "ANF00610",
+          "children": [
+            {
+              "tag": "ANF00620",
+              "children": [
+                {
+                  "tag": "ANF00630",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00640",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00650",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00660",
+                  "children": [
+                    {
+                      "tag": "ANF00670",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00680",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00690",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00700",
+                  "amount": true
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "ANF00701",
+              "children": [
+                {
+                  "tag": "ANF00702",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00703",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00704",
+                  "children": [
+                    {
+                      "tag": "ANF00705",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00706",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00707",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00708",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "ANF00710",
+              "children": [
+                {
+                  "tag": "ANF00720",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00730",
+                  "children": [
+                    {
+                      "tag": "ANF00740",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00750",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANF00760",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF00770",
+                  "amount": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "ANF00780",
+          "children": [
+            {
+              "tag": "ANF00790",
+              "amount": false
+            },
+            {
+              "tag": "ANF00800",
+              "amount": false
+            },
+            {
+              "tag": "ANF00810",
+              "children": []
+            },
+            {
+              "tag": "ANF00820",
+              "children": []
+            },
+            {
+              "tag": "ANF00830",
+              "children": [
+                {
+                  "tag": "ANF00840",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00850",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00860",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "ANF00870",
+              "amount": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "tag": "KOA220-3",
+      "children": [
+        {
+          "tag": "ANF00880",
+          "children": [
+            {
+              "tag": "ANF00890",
+              "children": [
+                {
+                  "tag": "ANF00900",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00910",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00920",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00930",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00935",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00940",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF00950",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF00960",
+                  "children": []
+                },
+                {
+                  "tag": "ANF00970",
+                  "children": [
+                    {
+                      "tag": "ANF00980",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANF01010",
+                  "children": []
+                },
+                {
+                  "tag": "ANF01020",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01030",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01040",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01050",
+                  "children": []
+                },
+                {
+                  "tag": "ANF01060",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01070",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01080",
+                  "amount": false
+                }
+              ],
+              "repeat": true
+            },
+            {
+              "tag": "ANF01081",
+              "children": [
+                {
+                  "tag": "ANF01082",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF01083",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01084",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01085",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01086",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01087",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "ANF01090",
+              "children": [
+                {
+                  "tag": "ANF01100",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01110",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01120",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01130",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01140",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01150",
+                  "amount": false
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "ANF01160",
+          "children": [
+            {
+              "tag": "ANF01170",
+              "children": [
+                {
+                  "tag": "ANF01180",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF01190",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "ANF01200",
+              "amount": false
+            },
+            {
+              "tag": "ANF01210",
+              "children": [
+                {
+                  "tag": "ANF01220",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01230",
+                  "amount": true
+                },
+                {
+                  "tag": "ANF01240",
+                  "amount": true
+                }
+              ]
+            },
+            {
+              "tag": "ANF01250",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        },
+        {
+          "tag": "ANF01260",
+          "children": [
+            {
+              "tag": "ANF01270",
+              "children": [
+                {
+                  "tag": "ANF01280",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF01290",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "ANF01300",
+              "amount": true
+            },
+            {
+              "tag": "ANF01310",
+              "amount": true
+            },
+            {
+              "tag": "ANF01320",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        },
+        {
+          "tag": "ANF01330",
+          "children": [
+            {
+              "tag": "ANF01340",
+              "children": [
+                {
+                  "tag": "ANF01350",
+                  "amount": false
+                },
+                {
+                  "tag": "ANF01360",
+                  "amount": false
+                }
+              ]
+            },
+            {
+              "tag": "ANF01370",
+              "amount": true
+            },
+            {
+              "tag": "ANF01380",
+              "amount": true
+            },
+            {
+              "tag": "ANF01390",
+              "amount": true
+            }
+          ],
+          "repeat": true
+        }
+      ]
+    },
+    {
+      "tag": "KOA220-4",
+      "children": [
+        {
+          "tag": "ANG00000",
+          "children": [
+            {
+              "tag": "ANG00010",
+              "amount": false
+            },
+            {
+              "tag": "ANG00020",
+              "children": [
+                {
+                  "tag": "ANG00025",
+                  "children": [
+                    {
+                      "tag": "ANG00030",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00240",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00460",
+                      "amount": true
+                    }
+                  ],
+                  "repeat": true
+                },
+                {
+                  "tag": "ANG00040",
+                  "children": [
+                    {
+                      "tag": "ANG00050",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00060",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00070",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00080",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00090",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00100",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00110",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00120",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00130",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00140",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00150",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00160",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00170",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00180",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00190",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00200",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00210",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00220",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00230",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00250",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANG00260",
+                  "children": [
+                    {
+                      "tag": "ANG00270",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00280",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00290",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00300",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00310",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00320",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00330",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00340",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00350",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00360",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00370",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00380",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00390",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00400",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00410",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00420",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00430",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00440",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00450",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00470",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00480",
+                      "amount": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "ANG00490",
+              "children": [
+                {
+                  "tag": "ANG00495",
+                  "children": [
+                    {
+                      "tag": "ANG00500",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00560",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00640",
+                      "amount": true
+                    }
+                  ],
+                  "repeat": true
+                },
+                {
+                  "tag": "ANG00510",
+                  "children": [
+                    {
+                      "tag": "ANG00520",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00530",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00540",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00550",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00570",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00580",
+                      "amount": true
+                    }
+                  ]
+                },
+                {
+                  "tag": "ANG00590",
+                  "children": [
+                    {
+                      "tag": "ANG00600",
+                      "amount": false
+                    },
+                    {
+                      "tag": "ANG00610",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00620",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00630",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00650",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00660",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00670",
+                      "amount": true
+                    },
+                    {
+                      "tag": "ANG00680",
+                      "amount": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "ANG00690",
+              "amount": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

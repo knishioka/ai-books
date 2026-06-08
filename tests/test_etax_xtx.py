@@ -13,12 +13,15 @@ Two layers, mirroring the issue's ACs:
 
 from __future__ import annotations
 
+import datetime
 import xml.etree.ElementTree as ET
+from typing import Any
 
 import pytest
 
 from ai_books.etax import build_etax_export, export_etax, parse_etax_format, render_etax_xtx
-from ai_books.etax.export import EtaxFormat
+from ai_books.etax.export import EtaxFormat, form_layout
+from ai_books.models import EtaxExport, EtaxRecord, EtaxValueKind
 from tests.etax_xsd import skip_reason, validate_xtx, xsd_available
 from tests.fixtures.seed_fy import etax_export_from_dataset, load_golden
 from tests.fixtures.seed_fy.reports import financial_statements_from_dataset
@@ -30,6 +33,47 @@ _requires_xsd = pytest.mark.skipif(not xsd_available(), reason=skip_reason())
 def _q(tag: str) -> str:
     """Qualify a 項目コード with the shotoku namespace for ElementTree lookups."""
     return f"{{{_NS}}}{tag}"
+
+
+def _layout_leaves(form_id: str) -> list[str]:
+    """Every leaf 項目コード in a 様式 layout, in document order (for synthetic exports)."""
+    leaves: list[str] = []
+
+    def walk(nodes: list[dict[str, Any]]) -> None:
+        for node in nodes:
+            if "children" in node:
+                walk(node["children"])
+            else:
+                leaves.append(node["tag"])
+
+    for page in form_layout(form_id)["pages"]:
+        walk(page["children"])
+    return leaves
+
+
+def _minimal_export(form_id: str) -> EtaxExport:
+    """A minimal valid :class:`EtaxExport` for ``form_id`` — one 金額 leaf from its own layout.
+
+    Lets the renderer/XSD be exercised for KOA220/KOA240 before their EtaxFormatSpec exists (#103
+    stage 4): the .xtx layer keys off 項目コード, not a registered spec.
+    """
+    leaf = _layout_leaves(form_id)[0]
+    return EtaxExport(
+        format_version="2025",
+        form_id=form_id,
+        fiscal_year="2025",
+        start_date=datetime.date(2025, 1, 1),
+        end_date=datetime.date(2025, 12, 31),
+        records=[
+            EtaxRecord(
+                form=form_id,
+                item_code=leaf,
+                label="テスト金額",
+                kind=EtaxValueKind.AMOUNT,
+                value="12345",
+            )
+        ],
+    )
 
 
 # --- rendering / structure ------------------------------------------------------
@@ -95,11 +139,40 @@ def test_export_etax_dispatches_xtx_format() -> None:
     assert "<KOA210" in out
 
 
-def test_xtx_rejects_non_koa210_spec() -> None:
-    # 合成様式 (PL010…) は KOA210 layout に無いコードなので .xtx には落とせない (fail loud).
+def test_xtx_rejects_codes_in_no_known_layout() -> None:
+    # 合成様式 (PL010…) はどの 様式 layout にも無いコードなので .xtx には落とせない (fail loud).
     synthetic = build_etax_export(financial_statements_from_dataset(), version="synthetic")
-    with pytest.raises(ValueError, match="not in the KOA210 layout"):
+    with pytest.raises(ValueError, match="not in any known 様式 layout"):
         render_etax_xtx(synthetic)
+
+
+# --- 様式別 layout 選択 (KOA210 / KOA220 / KOA240) — Issue #103 -------------------
+
+
+def test_form_layouts_have_disjoint_code_families() -> None:
+    # .xtx 様式の自動選択 (_select_layout) は 項目コードが様式間で重複しないことに依存する.
+    a, b, c = (set(_layout_leaves(f)) for f in ("KOA210", "KOA220", "KOA240"))
+    assert a & b == set()
+    assert a & c == set()
+    assert b & c == set()
+
+
+def test_form_layout_rejects_unknown_form() -> None:
+    with pytest.raises(ValueError, match=r"no \.xtx layout for 様式"):
+        form_layout("KOA999")
+
+
+@pytest.mark.parametrize(
+    ("form_id", "version"),
+    [("KOA210", "11.0"), ("KOA220", "8.0"), ("KOA240", "8.0")],
+)
+def test_xtx_selects_layout_by_code_family(form_id: str, version: str) -> None:
+    # 項目コード族から様式を判定し、ルートタグ・VR(様式版) をその様式のものにする.
+    root = ET.fromstring(render_etax_xtx(_minimal_export(form_id)))
+    assert root.tag == _q(form_id)
+    assert root.attrib["VR"] == version
+    assert root.attrib["softNM"]
+    assert root.attrib["sakuseiDay"] == "2025-12-31"
 
 
 def test_xtx_overflow_emits_named_additional_rows(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,6 +222,15 @@ def test_generated_xtx_passes_official_xsd() -> None:
     # AC: 生成 .xtx が 国税庁 .xsd のスキーマ検証を pass.
     errors = validate_xtx(render_etax_xtx(etax_export_from_dataset()))
     assert errors == [], f"unexpected XSD errors: {errors}"
+
+
+@_requires_xsd
+@pytest.mark.parametrize("form_id", ["KOA220", "KOA240"])
+def test_other_form_layout_passes_official_xsd(form_id: str) -> None:
+    # #103: spec 登録前でも、新規 layout から生成した最小 .xtx がその様式の公式 .xsd を pass する
+    # (= layout の入れ子/順序/名前空間/版が様式定義と一致していることの機械保証).
+    errors = validate_xtx(render_etax_xtx(_minimal_export(form_id)))
+    assert errors == [], f"unexpected XSD errors for {form_id}: {errors}"
 
 
 @_requires_xsd

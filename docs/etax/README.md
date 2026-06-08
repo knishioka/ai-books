@@ -53,16 +53,22 @@
 
 ### 様式別 spec 実装状況
 
-| 帳票       | EtaxFormatSpec | .xtx | 備考                                                                 |
-| ---------- | -------------- | ---- | -------------------------------------------------------------------- |
-| **KOA210** | ✅ `2025`      | ✅   | 一般用。営業外マッピング方針も確定 (利子割引料→AMF00330 橋渡し, #83) |
-| **KOA220** | ⏳ 未登録      | ⏳   | 不動産所得用。**収入側 data-supply 不在**のため follow-up へ分離     |
-| **KOA240** | ⏳ 未登録      | ⏳   | 農業所得用。同上                                                     |
+| 帳票       | EtaxFormatSpec | .xtx layout | 備考                                                                            |
+| ---------- | -------------- | ----------- | ------------------------------------------------------------------------------- |
+| **KOA210** | ✅ `2025`      | ✅          | 一般用。営業外マッピング方針も確定 (利子割引料→AMF00330 橋渡し, #83)            |
+| **KOA220** | ⏳ 未登録      | ✅ (#103)   | 不動産所得用。様式別 layout + renderer 対応済。**spec/収入側 data-supply 待ち** |
+| **KOA240** | ⏳ 未登録      | ✅ (#103)   | 農業所得用。同上                                                                |
 
-KOA220/240 は項目カタログこそ取得済み (`field_catalog.json`) だが、現行の `FinancialStatements`
+**#103 で完了したこと (stage 3)**: `.xtx` レンダラ (`render_etax_xtx`) を様式別 layout に対応させ、
+KOA220-008 / KOA240-008 の XSD 由来 layout (`koa220_layout.json` / `koa240_layout.json`) を追加した。
+レンダラは EtaxExport の項目コード族 (一般用 `AMF*` / 不動産 `ANF*` / 農業 `APF*` は様式間で重複なし)
+から様式を自動判定し、各様式の最小 `.xtx` が**公式 .xsd を pass** することを CI で機械保証する。
+KOA210 は不変 (golden / XSD とも green)。
+
+**残り (follow-up)**: KOA220/240 はまだ `EtaxFormatSpec` 未登録で、現行の `FinancialStatements`
 snapshot は**一般事業 (一般用) のデータのみ**を供給し、不動産賃貸料収入・農産物売上等の所得固有
 データの供給経路を持たない。spec を登録するだけでは収入側が空の様式しか出力できないため、**不動産/
-農業所得ドメインの data-supply 設計 (モデル + 集計 + seed/golden) を伴う follow-up** として分離した
+農業所得ドメインの data-supply 設計 (モデル + 集計 + seed/golden) を伴う follow-up** として分離する
 (#83 の判断)。engine は data-driven のままで、`EtaxFixedSection` (#78) / `EtaxComputedField` (#83) を
 再利用できる。
 
@@ -77,9 +83,13 @@ uv run python scripts/etax/fetch_etax_spec.py --out .cache/etax
 uv run python scripts/etax/build_field_catalog.py \
     --spec-dir .cache/etax/extracted --out docs/etax/field_catalog.json
 
-# 3. .xsd から KOA210 レイアウト (.xtx renderer 用) を再生成 (committed と一致するはず, #79)
-uv run python scripts/etax/build_koa210_layout.py \
+# 3. .xsd から各様式レイアウト (.xtx renderer 用) を再生成 (committed と一致するはず, #79/#103)
+uv run python scripts/etax/build_etax_layout.py \
     --xsd .cache/etax/extracted/KOA210-011.xsd --out src/ai_books/etax/koa210_layout.json
+uv run python scripts/etax/build_etax_layout.py \
+    --xsd .cache/etax/extracted/KOA220-008.xsd --out src/ai_books/etax/koa220_layout.json
+uv run python scripts/etax/build_etax_layout.py \
+    --xsd .cache/etax/extracted/KOA240-008.xsd --out src/ai_books/etax/koa240_layout.json
 ```
 
 `.cache/` は生成物 (国税庁 著作物を含む) であり commit しないこと。SHA256 不一致時はスクリプトが
@@ -87,24 +97,28 @@ uv run python scripts/etax/build_koa210_layout.py \
 
 ## .xtx (実 e-Tax 交換ファイル) 出力と XSD 検証 (#79)
 
-`ai_books.etax.export.render_etax_xtx`(MCP は `export_etax(format="xtx")`)は 決算書 を実様式
-**KOA210 青色申告決算書(一般用) の XML ツリー**(.xtx)として描画する。項目コードの**入れ子・順序・
-繰返し**は、上記 step 3 で .xsd から導出した committed な派生物 `src/ai_books/etax/koa210_layout.json`
-が定義する(コードに様式をハードコードしない — 様式改定はレイアウト再生成だけで追従)。ルート
-`<KOA210>` は `VR`(様式バージョン)と `gen:FormAttribute`(softNM/sakuseiNM/sakuseiDay)を持ち、
+`ai_books.etax.export.render_etax_xtx`(MCP は `export_etax(format="xtx")`)は 決算書 を実様式の
+XML ツリー(.xtx)として描画する。項目コードの**入れ子・順序・繰返し**は、上記 step 3 で .xsd から
+導出した committed な派生物 `src/ai_books/etax/{koa210,koa220,koa240}_layout.json` が様式別に定義する
+(コードに様式をハードコードしない — 様式改定はレイアウト再生成だけで追従, #79/#103)。レンダラは
+EtaxExport の項目コード族(一般用 `AMF*` / 不動産 `ANF*` / 農業 `APF*` は様式間で重複なし)から様式を
+自動判定し、対応する layout を選ぶ。どの様式 layout にも無い項目コードは fail loud で拒否する。ルート
+`<KOA2x0>` は `VR`(様式バージョン)と `gen:FormAttribute`(softNM/sakuseiNM/sakuseiDay)を持ち、
 名前空間は `http://xml.e-tax.nta.go.jp/XSD/shotoku`。
 
-**形式妥当性 (.xsd) の機械検証**: `tests/test_etax_xtx.py` が生成 .xtx を国税庁の
-`KOA210-011.xsd`(+ 共通 `General.xsd` クロージャ)で検証し、名前空間/必須属性/桁あふれ等の形式不正を
-機械検出する(検証は純Python の `xmlschema`、外部バイナリ非依存)。.xsd は 著作物のため非同梱なので、
+**形式妥当性 (.xsd) の機械検証**: `tests/test_etax_xtx.py` が生成 .xtx を国税庁の各様式 .xsd
+(`KOA210-011.xsd` / `KOA220-008.xsd` / `KOA240-008.xsd`、いずれも + 共通 `General.xsd` クロージャ)で
+検証し、名前空間/必須属性/桁あふれ等の形式不正を機械検出する(検証は純Python の `xmlschema`、外部
+バイナリ非依存)。KOA220/240 は spec 登録前 (#103) でも layout から生成した最小 .xtx が公式 .xsd を
+pass することを検証し、layout の入れ子/順序/版が様式定義と一致していることを担保する。.xsd は 著作物のため非同梱なので、
 **取得済みのとき(`.cache/etax/schema/`)のみ検証が走り**、未取得なら skip する(DB 連携テストが
 `AI_BOOKS_DB_URL` 未設定で skip するのと同じ作法)。CI の **`etax-xsd` ジョブ**が毎 PR で取得→検証する
 ため、形式ゲートは CI で常時 live。ローカルは step 1 を一度実行すれば `./scripts/test.sh -k etax` で
 検証込みになる。スキーマの場所は `AI_BOOKS_ETAX_SCHEMA_DIR` で上書き可。
 
-> 注: KOA210 は `KOA210-11-0group` 内の **局所要素**(実 手続 電文がこのグループを参照する)で、文書
-> ルートとして直接は検証できない。取得スクリプトが薄い検証用ラッパ `koa210_doc.xsd`(group を大域
-> 要素 `KOA210SET` として公開)を併せて書き出し、検証時に生成 `<KOA210>` を `<KOA210SET>` で包む。
+> 注: 各 KOA2x0 は `KOA2x0-<版>group` 内の **局所要素**(実 手続 電文がこのグループを参照する)で、文書
+> ルートとして直接は検証できない。取得スクリプトが様式ごとに薄い検証用ラッパ `{koa210,koa220,koa240}_doc.xsd`
+> (group を大域要素 `KOA2x0SET` として公開)を併せて書き出し、検証時に生成 `<KOA2x0>` を `<KOA2x0SET>` で包む。
 > 完全な送信用 .xtx 電文(共通部・識別情報・手続)への封入と e-Taxソフト WEB版での実取込確認は **#80**
 > (人間)で行う(手順・チェックリストは [`handoff-runbook.md`](./handoff-runbook.md))。本 Issue (#79)
 > は **様式データの形式妥当性**を機械保証する最終ゲート。

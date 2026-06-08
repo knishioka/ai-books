@@ -277,8 +277,8 @@ jobs:
     # Fetch the official 国税庁 所得税関係 .xsd (checksum-verified, NOT committed — 著作物) and run the
     # .xtx schema-validation suite so "生成 .xtx が .xsd 検証を pass / 形式不正を機械検出" (#79) is a hard
     # gate on every PR. The tests skip when the .xsd is absent (so verify / test.sh stay green without
-    # a fetch); this job is where they actually run. Also regenerates the committed koa210_layout.json
-    # from the fetched .xsd and fails on drift (the renderer's nesting must track the official 様式).
+    # a fetch); this job is where they actually run. Also regenerates the committed 様式 layouts
+    # (KOA210/KOA220/KOA240) from the fetched .xsd and fails on drift (renderer nesting must track 様式).
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -305,13 +305,16 @@ jobs:
       - name: Fetch + verify official e-Tax .xsd
         run: uv run python scripts/etax/fetch_etax_spec.py --out .cache/etax
 
-      - name: Assert committed KOA210 layout matches the official .xsd (no drift)
+      - name: Assert committed 様式 layouts match the official .xsd (no drift)
         run: |
           set -euo pipefail
-          uv run python scripts/etax/build_koa210_layout.py \
-            --xsd .cache/etax/extracted/KOA210-011.xsd \
-            --out /tmp/koa210_layout.json
-          diff -u src/ai_books/etax/koa210_layout.json /tmp/koa210_layout.json
+          for form in KOA210-011 KOA220-008 KOA240-008; do
+            id="${form%%-*}"
+            uv run python scripts/etax/build_etax_layout.py \
+              --xsd ".cache/etax/extracted/${form}.xsd" \
+              --out "/tmp/${id,,}_layout.json"
+            diff -u "src/ai_books/etax/${id,,}_layout.json" "/tmp/${id,,}_layout.json"
+          done
 
       - name: Run .xtx XSD validation suite
         run: PYTHONPATH=. uv run pytest -q tests/test_etax_xtx.py

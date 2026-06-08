@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Derive the KOA210 element-tree *layout* from the official XSD — Issue #79.
+"""Derive a 青色申告決算書 様式 element-tree *layout* from its official XSD — Issues #79 / #103.
 
 The .xtx renderer (:func:`ai_books.etax.export.render_etax_xtx`) must place each 項目コード at its
 exact spot in the e-Tax 様式's **nested** element tree (pages → groups → leaves), in XSD sequence
-order, or the official schema rejects the file. Rather than hard-coding that 314-element tree in
-Python, this script extracts it once from the official ``KOA210-011.xsd`` into a small, committed
-**derived** artifact (``src/ai_books/etax/koa210_layout.json``) the renderer reads at runtime.
+order, or the official schema rejects the file. Rather than hard-coding those trees in Python, this
+script extracts each one once from the official ``.xsd`` into a small, committed **derived** artifact
+(``src/ai_books/etax/<form>_layout.json``) the renderer reads at runtime.
 
-Like ``field_catalog.json`` (#76), the layout is *derived facts* (element names + nesting + order +
+It is form-agnostic: the 様式 identity (form_id / 版 / 名前空間 / ページ複合型) is read from the XSD
+itself, so the same script builds KOA210 (一般用 v11.0), KOA220 (不動産所得用 v8.0) and KOA240
+(農業所得用 v8.0) — the three forms share the page-typed envelope ``KOA<form>-<n>-<vmaj>-<vmin>type``.
+
+Like ``field_catalog.json`` (#76), a layout is *derived facts* (element names + nesting + order +
 repeat + 金額/否), not the 国税庁 著作物 raw — so it is committed while the .xsd itself is not. The
 .xsd is fetched on demand by ``fetch_etax_spec.py``; re-run this script after a 様式 update to refresh
 the layout.
@@ -15,7 +19,7 @@ the layout.
 Usage::
 
     python scripts/etax/fetch_etax_spec.py --out .cache/etax            # get the .xsd first
-    python scripts/etax/build_koa210_layout.py \
+    python scripts/etax/build_etax_layout.py \
         --xsd .cache/etax/extracted/KOA210-011.xsd \
         --out src/ai_books/etax/koa210_layout.json
 """
@@ -24,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -31,11 +36,11 @@ from typing import Any
 XSD_NS = "http://www.w3.org/2001/XMLSchema"
 _NS = {"x": XSD_NS}
 
-#: The form's 名前空間 and 版 — the renderer stamps these onto the .xtx root.
-FORM_NAMESPACE = "http://xml.e-tax.nta.go.jp/XSD/shotoku"
-FORM_VERSION = "11.0"
 #: e-Tax 金額 type — a leaf carrying this type is rendered as 整数円 (others as text/コード).
 KINGAKU_TYPE = "gen:kingaku"
+
+#: The 様式 envelope group, e.g. ``KOA210-11-0group`` / ``KOA220-8-0group`` — names the form & 版.
+_GROUP_RE = re.compile(r"^(?P<form>KOA\d+)-(?P<vmaj>\d+)-(?P<vmin>\d+)group$")
 
 
 def _build_named_complex_types(root: ET.Element) -> dict[str, ET.Element]:
@@ -83,40 +88,55 @@ def _walk(node: ET.Element, named: dict[str, ET.Element]) -> list[dict[str, Any]
     return children
 
 
+def _form_identity(root: ET.Element) -> tuple[str, str, str]:
+    """Read ``(form_id, version, namespace)`` from the XSD's 様式 envelope group + targetNamespace.
+
+    The envelope group is named ``KOA<form>-<vmaj>-<vmin>group`` (e.g. ``KOA210-11-0group``); the
+    page complexTypes that hang off it are ``KOA<form>-<n>-<vmaj>-<vmin>type``. Deriving identity
+    from the schema (not flags) keeps the layout a faithful function of the official .xsd.
+    """
+    namespace = root.get("targetNamespace")
+    if not namespace:
+        raise SystemExit("XSD has no targetNamespace")
+    for group in root.findall("x:group", _NS):
+        match = _GROUP_RE.match(group.get("name", ""))
+        if match:
+            form_id = match.group("form")
+            version = f"{match.group('vmaj')}.{match.group('vmin')}"
+            return form_id, version, namespace
+    raise SystemExit("could not find the 様式 envelope group (KOA<form>-<vmaj>-<vmin>group) in XSD")
+
+
 def build_layout(xsd_path: Path) -> dict[str, Any]:
-    """Parse ``KOA210-011.xsd`` into the renderer's layout dict (pages → groups → leaves)."""
+    """Parse a 青色申告決算書 ``.xsd`` into the renderer's layout dict (pages → groups → leaves)."""
     root = ET.parse(xsd_path).getroot()
     named = _build_named_complex_types(root)
+    form_id, version, namespace = _form_identity(root)
+    vmaj, vmin = version.split(".")
+    page_re = re.compile(rf"^{re.escape(form_id)}-(\d+)-{vmaj}-{vmin}type$")
+    page_numbers = sorted(int(match.group(1)) for name in named if (match := page_re.match(name)))
+    if not page_numbers:
+        raise SystemExit(f"no page complexTypes ({form_id}-<n>-{vmaj}-{vmin}type) found in XSD")
     pages = [
-        {"tag": f"KOA210-{page}", "children": _walk(named[f"KOA210-{page}-11-0type"], named)}
-        for page in (1, 2, 3, 4)
+        {
+            "tag": f"{form_id}-{page}",
+            "children": _walk(named[f"{form_id}-{page}-{vmaj}-{vmin}type"], named),
+        }
+        for page in page_numbers
     ]
     return {
-        "form_id": "KOA210",
-        "version": FORM_VERSION,
-        "namespace": FORM_NAMESPACE,
-        "generated_by": "scripts/etax/build_koa210_layout.py",
-        "source": "KOA210-011.xsd (e-tax19.CAB; 国税庁 著作物, raw 非同梱 — manifest.json 参照)",
+        "form_id": form_id,
+        "version": version,
+        "namespace": namespace,
+        "generated_by": "scripts/etax/build_etax_layout.py",
+        "source": f"{xsd_path.name} (e-tax19.CAB; 国税庁 著作物, raw 非同梱 — manifest.json 参照)",
         "note": (
-            "Derived element tree for the .xtx renderer (#79): tag = ＸＭＬタグ(項目コード), "
+            "Derived element tree for the .xtx renderer (#79/#103): tag = ＸＭＬタグ(項目コード), "
             "amount=true は gen:kingaku(整数円), repeat=true は maxOccurs>1 の繰返しブロック. "
             "leaf は children を持たない。日本語ラベルは field_catalog.json 参照。"
         ),
         "pages": pages,
     }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--xsd", required=True, type=Path, help="path to KOA210-011.xsd")
-    parser.add_argument("--out", required=True, type=Path, help="output layout JSON path")
-    args = parser.parse_args()
-
-    layout = build_layout(args.xsd)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(layout, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    leaves = _count_leaves(layout["pages"])
-    print(f"wrote {args.out}  ({leaves} leaf 項目, 4 pages)")
 
 
 def _count_leaves(nodes: list[dict[str, Any]]) -> int:
@@ -128,6 +148,22 @@ def _count_leaves(nodes: list[dict[str, Any]]) -> int:
         else:
             total += 1
     return total
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--xsd", required=True, type=Path, help="path to a KOA2x0-0xx.xsd")
+    parser.add_argument("--out", required=True, type=Path, help="output layout JSON path")
+    args = parser.parse_args()
+
+    layout = build_layout(args.xsd)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(layout, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    leaves = _count_leaves(layout["pages"])
+    pages = len(layout["pages"])
+    print(
+        f"wrote {args.out}  ({layout['form_id']} v{layout['version']}, {leaves} leaf 項目, {pages} pages)"
+    )
 
 
 if __name__ == "__main__":
