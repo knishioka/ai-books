@@ -26,10 +26,12 @@ from ai_books.reports import (
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
+    real_estate_income_snapshot,
     worksheet_snapshot,
 )
 from tests.fixtures.seed_fy import (
     FY_ENTRIES,
+    RE_ENTRIES,
     balance_sheet_from_db,
     diff_snapshots,
     etax_export_from_db,
@@ -39,6 +41,7 @@ from tests.fixtures.seed_fy import (
     load_fiscal_year,
     load_golden,
     profit_and_loss_from_db,
+    real_estate_income_from_db,
     trial_balance_from_db,
     trial_balance_snapshot,
     worksheet_from_db,
@@ -375,3 +378,29 @@ def test_db_etax_xtx_passes_official_xsd(migrated_conn: psycopg.Connection[Any])
     load_fiscal_year(migrated_conn)
     errors = validate_xtx(render_etax_xtx(etax_export_from_db(migrated_conn)))
     assert errors == [], f"DB .xtx failed official XSD: {errors}"
+
+
+# --- 不動産所得 収入側 内訳 (KOA220 data-supply, Issue #124) --------------------
+
+
+def test_db_real_estate_income_matches_golden(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#124): the DB-read 不動産所得 収入側 内訳 equals the frozen golden, so the SQL aggregation
+    # (受取家賃 / 地代家賃 / 借入金 残高) and the offline reduction agree — the 二経路一致.
+    load_fiscal_year(migrated_conn, RE_ENTRIES)
+    actual = real_estate_income_snapshot(real_estate_income_from_db(migrated_conn))
+    expected = load_golden("real_estate_income")
+    problems = diff_snapshots(expected, actual)
+    assert problems == [], "DB real estate income diverged from golden:\n  - " + "\n  - ".join(
+        problems
+    )
+
+
+def test_db_real_estate_income_reconciles(migrated_conn: psycopg.Connection[Any]) -> None:
+    # AC (#124): 各内訳の計が内訳行と一致 + 本年中の収入金額が受取家賃残高と整合, over real stored rows.
+    load_fiscal_year(migrated_conn, RE_ENTRIES)
+    re = real_estate_income_from_db(migrated_conn)
+    assert re.is_consistent
+    assert re.gross_income == Decimal("2260000")
+    assert re.rent_paid_total == Decimal("240000")
+    assert re.loan_year_end_balance_total == Decimal("7500000")
+    assert re.loan_interest_total == Decimal("80000")

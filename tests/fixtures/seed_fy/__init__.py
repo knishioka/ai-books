@@ -50,6 +50,14 @@ from .golden import (
     write_golden,
 )
 from .loader import LoadResult, load_fiscal_year
+from .real_estate import (
+    LOAN_LENDERS,
+    RE_ENTRIES,
+    RENT_PAID_PAYEES,
+    RENTAL_PROPERTIES,
+    real_estate_income_from_dataset,
+    real_estate_income_from_db,
+)
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
     balance_sheet_from_dataset,
@@ -83,8 +91,12 @@ __all__ = [
     "FY_ENTRIES",
     "FY_START",
     "GOLDEN_REPORTS",
+    "LOAN_LENDERS",
     "MONTHLY_TREND_ACCOUNTS",
     "ONE_SIDED_FY",
+    "RENTAL_PROPERTIES",
+    "RENT_PAID_PAYEES",
+    "RE_ENTRIES",
     "LoadResult",
     "SeedEntry",
     "SeedLine",
@@ -109,6 +121,8 @@ __all__ = [
     "monthly_trend_snapshot",
     "profit_and_loss_from_dataset",
     "profit_and_loss_from_db",
+    "real_estate_income_from_dataset",
+    "real_estate_income_from_db",
     "referenced_codes",
     "trial_balance_from_dataset",
     "trial_balance_from_db",

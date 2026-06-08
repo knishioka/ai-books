@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from ai_books import aggregation
 from ai_books.models import AccountType, EntrySide
 from ai_books.reports import (
     balance_sheet_snapshot,
@@ -21,11 +22,15 @@ from ai_books.reports import (
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
+    real_estate_income_snapshot,
     worksheet_snapshot,
 )
 from tests.fixtures.seed_fy import (
+    FY_END,
     FY_ENTRIES,
+    FY_START,
     MONTHLY_TREND_ACCOUNTS,
+    RE_ENTRIES,
     SeedEntry,
     SeedLine,
     balance_sheet_from_dataset,
@@ -37,6 +42,7 @@ from tests.fixtures.seed_fy import (
     monthly_trend_from_dataset,
     monthly_trend_snapshot,
     profit_and_loss_from_dataset,
+    real_estate_income_from_dataset,
     trial_balance_from_dataset,
     trial_balance_snapshot,
     validate_dataset,
@@ -409,3 +415,72 @@ def test_financial_statements_depreciation_ties_to_fixed_assets_and_pl() -> None
     }
     assert bs_fixed["1530"] == depreciation["1530"].closing_book_value
     assert bs_fixed["1550"] == depreciation["1550"].closing_book_value
+
+
+# --- 不動産所得 収入側 内訳 (KOA220 data-supply, Issue #124) ----------------------
+
+
+def test_real_estate_dataset_is_consistent_and_balances() -> None:
+    # The landlord dataset is a separate FY2025 scenario; it validates and its books balance.
+    validate_dataset(RE_ENTRIES)
+    assert trial_balance_from_dataset(RE_ENTRIES).is_balanced
+
+
+def test_committed_real_estate_income_golden_is_up_to_date() -> None:
+    # AC (#124): the 不動産所得 収入側 内訳 golden matches the dataset reduction (offline source).
+    fresh = real_estate_income_snapshot(real_estate_income_from_dataset())
+    problems = diff_snapshots(load_golden("real_estate_income"), fresh)
+    assert problems == [], (
+        "golden/real_estate_income.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update real_estate_income`:\n  - "
+        + "\n  - ".join(problems)
+    )
+
+
+def test_real_estate_income_breakdowns_reconcile() -> None:
+    # AC (#124): 各内訳の計が内訳行と一致 — the composed self-check ties every 計 back to its rows.
+    re = real_estate_income_from_dataset()
+    assert re.is_consistent
+    # 物件ごとの本年中の収入金額 (賃貸料 + 礼金/権利金/更新料 + 名義書換料); 保証金敷金 は収入外.
+    by_code = {line.account_code: line for line in re.rental_income_lines}
+    assert by_code["4210"].income_subtotal == Decimal("1300000")  # 賃貸料1,200,000 + 礼金100,000
+    assert by_code["4220"].income_subtotal == Decimal("960000")  # 賃貸料900,000 + 更新料60,000
+    assert re.gross_income == Decimal("2260000")
+    assert re.deposit_total == Decimal("200000")  # 保証金敷金 (収入金額には含めない)
+    # 地代家賃 / 借入金利子 の内訳.
+    assert re.rent_paid_total == re.rent_paid_deductible_total == Decimal("240000")
+    assert re.loan_year_end_balance_total == Decimal("7500000")  # 期首8,000,000 - 返済500,000
+    assert re.loan_interest_total == re.loan_interest_deductible_total == Decimal("80000")
+
+
+def test_real_estate_income_total_ties_to_rental_account_balances() -> None:
+    # AC (#124): 本年中の収入金額 = 受取家賃 勘定科目残高 — the contract split cannot drift from the
+    # books (this is exactly what the dataset↔db dual path then pins independently).
+    balances = {row.code: row.balance for row in trial_balance_from_dataset(RE_ENTRIES).rows}
+    for line in real_estate_income_from_dataset().rental_income_lines:
+        assert line.income_subtotal == balances[line.account_code]
+
+
+def test_assemble_real_estate_income_rejects_split_that_does_not_foot() -> None:
+    # AC (#124): a contract split that does not foot to the 受取家賃 balance is a fail-loud error.
+    bad = aggregation.RentalIncomeTotals(
+        account_code="4210",
+        income_total=Decimal("1300000"),
+        property_type="貸家",
+        usage="住宅用",
+        location="x",
+        tenant_address="x",
+        tenant_name="x",
+        contract_start_month=1,
+        contract_end_month=12,
+        rent_annual=Decimal("1000000"),  # 内訳合計 1,000,000 != 残高 1,300,000
+        key_money=Decimal("0"),
+        right_money=Decimal("0"),
+        renewal_fee=Decimal("0"),
+        name_change_other=Decimal("0"),
+        deposit=Decimal("0"),
+    )
+    with pytest.raises(ValueError, match="受取家賃"):
+        aggregation.assemble_real_estate_income(
+            [bad], [], [], fiscal_year="FY2025", start_date=FY_START, end_date=FY_END
+        )
