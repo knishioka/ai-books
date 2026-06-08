@@ -60,15 +60,16 @@ The earlier *synthetic* (非公式・教育用) layout is kept off the 年度 ax
 ``"synthetic"`` version key so its mapping/validation/golden machinery still runs without being
 mistaken for the real 様式.
 
-## KOA220(不動産所得用) / KOA240(農業所得用) — 未登録 (data-supply 待ち)
+## KOA220(不動産所得用) / KOA240(農業所得用) — 未登録 (spec 登録待ち)
 
-項目カタログは取得済み (#76 ``field_catalog.json``: KOA220=226 / KOA240=357 項目) だが、現行の
-:func:`~ai_books.reports.financial_statements_snapshot` は **一般事業 (一般用) のデータのみ**を供給し、
-不動産賃貸料収入・農産物売上等の所得固有データの供給経路を持たない。spec を足すだけでは収入側が空の
-様式しか出ないため、**不動産/農業所得ドメインの data-supply (モデル + 集計 + seed/golden) を伴う
-follow-up** として #83 から分離した。engine は data-driven のままで、:class:`EtaxFixedSection` (#78) /
-:class:`EtaxComputedField` (#83 営業外橋渡し) を再利用して spec を追加できる。詳細は
-``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
+項目カタログは取得済み (#76 ``field_catalog.json``: KOA220=226 / KOA240=357 項目)。
+:func:`~ai_books.reports.financial_statements_snapshot` は KOA210(一般用) 向けで、不動産賃貸料収入・
+農産物売上等の所得固有データは供給しない。**KOA220 の収入側 data-supply は #124 で実装済**
+(:func:`~ai_books.reports.real_estate_income_snapshot` — 不動産所得の収入の内訳 / 地代家賃の内訳 /
+借入金利子の内訳; 金額は仕訳から集計、契約メタは fixture)。残りは KOA220 の :class:`EtaxFormatSpec`
+登録 + end-to-end ``.xtx`` golden/XSD (stage 4) と、KOA240(農業所得用) の data-supply。engine は
+data-driven のままで、:class:`EtaxFixedSection` (#78) / :class:`EtaxComputedField` (#83 営業外橋渡し) を
+再利用して spec を追加できる。詳細は ``docs/etax/README.md`` の「様式別 spec 実装状況」を参照。
 """
 
 from __future__ import annotations

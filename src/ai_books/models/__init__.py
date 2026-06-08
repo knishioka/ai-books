@@ -51,6 +51,12 @@ from .journal import (
 )
 from .period import FiscalYear, Period
 from .query import AccountBalance, AccountLedger, JournalEntryPage, LedgerRow
+from .real_estate import (
+    LoanInterestLine,
+    RealEstateIncome,
+    RentalIncomeLine,
+    RentPaidLine,
+)
 from .report import (
     BalanceSheet,
     BalanceSheetLine,
@@ -102,6 +108,7 @@ __all__ = [
     "JournalLine",
     "JournalLineInput",
     "LedgerRow",
+    "LoanInterestLine",
     "ManufacturingCost",
     "ManufacturingCostLine",
     "ManufacturingCostSection",
@@ -114,6 +121,9 @@ __all__ = [
     "ProfitAndLoss",
     "ProfitAndLossLine",
     "ProfitAndLossSection",
+    "RealEstateIncome",
+    "RentPaidLine",
+    "RentalIncomeLine",
     "StatementCategory",
     "TrialBalance",
     "TrialBalanceRow",

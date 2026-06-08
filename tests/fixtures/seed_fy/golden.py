@@ -34,11 +34,13 @@ from ai_books.reports import (
     general_ledger_snapshot,
     journal_book_snapshot,
     profit_and_loss_snapshot,
+    real_estate_income_snapshot,
     worksheet_snapshot,
 )
 
 from .dataset import FISCAL_YEAR, SeedEntry
 from .edge_cases import EDGE_DATASETS
+from .real_estate import real_estate_income_from_dataset
 from .reports import (
     MONTHLY_TREND_ACCOUNTS,
     balance_sheet_from_dataset,
@@ -194,6 +196,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "etax_xtx": (
         "etax_xtx.json",
         etax_xtx_snapshot,
+    ),
+    "real_estate_income": (
+        "real_estate_income.json",
+        lambda: real_estate_income_snapshot(real_estate_income_from_dataset()),
     ),
 }
 

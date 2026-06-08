@@ -33,6 +33,7 @@ from ai_books.models import (
     ProfitAndLoss,
     ProfitAndLossLine,
     ProfitAndLossSection,
+    RealEstateIncome,
     StatementCategory,
     Worksheet,
     WorksheetRow,
@@ -700,5 +701,137 @@ def financial_statements_text(fs: FinancialStatements) -> str:
     lines.append("")
     lines.append("■ 4面 ")
     lines.append(balance_sheet_text(fs.balance_sheet).rstrip("\n"))
+
+    return "\n".join(lines) + "\n"
+
+
+# --- 不動産所得 収入側 内訳 (KOA220 data-supply, Issue #124) ----------------------
+
+
+def real_estate_income_snapshot(re: RealEstateIncome) -> dict[str, Any]:
+    """Turn a :class:`~ai_books.models.RealEstateIncome` into its canonical JSON shape.
+
+    The three 収入側 内訳 (不動産所得の収入の内訳 / 地代家賃の内訳 / 借入金利子の内訳) are nested in
+    form order, each followed by its 計. Amounts are fixed-point strings (浮動小数禁止); this is the shape
+    the golden harness freezes and KOA220's :class:`~ai_books.etax.spec.EtaxFormatSpec` (stage 4) reads.
+    """
+    return {
+        "report": "real_estate_income",
+        "fiscal_year": re.fiscal_year,
+        "start_date": re.start_date.isoformat(),
+        "end_date": re.end_date.isoformat(),
+        "rental_income": {
+            "lines": [
+                {
+                    "account_code": line.account_code,
+                    "property_type": line.property_type,
+                    "usage": line.usage,
+                    "location": line.location,
+                    "tenant_address": line.tenant_address,
+                    "tenant_name": line.tenant_name,
+                    "contract_start_month": line.contract_start_month,
+                    "contract_end_month": line.contract_end_month,
+                    "rent_annual": money(line.rent_annual),
+                    "key_money": money(line.key_money),
+                    "right_money": money(line.right_money),
+                    "renewal_fee": money(line.renewal_fee),
+                    "name_change_other": money(line.name_change_other),
+                    "deposit": money(line.deposit),
+                    "income_subtotal": money(line.income_subtotal),
+                }
+                for line in re.rental_income_lines
+            ],
+            "rent_annual_total": money(re.rent_annual_total),
+            "key_right_renewal_total": money(re.key_right_renewal_total),
+            "name_change_other_total": money(re.name_change_other_total),
+            "deposit_total": money(re.deposit_total),
+            "gross_income": money(re.gross_income),
+        },
+        "rent_paid": {
+            "lines": [
+                {
+                    "account_code": line.account_code,
+                    "payee_address": line.payee_address,
+                    "payee_name": line.payee_name,
+                    "leased_property": line.leased_property,
+                    "right_money": money(line.right_money),
+                    "renewal_fee": money(line.renewal_fee),
+                    "rent": money(line.rent),
+                    "deductible_expense": money(line.deductible_expense),
+                }
+                for line in re.rent_paid_lines
+            ],
+            "rent_total": money(re.rent_paid_total),
+            "deductible_total": money(re.rent_paid_deductible_total),
+        },
+        "loan_interest": {
+            "lines": [
+                {
+                    "payee_address": line.payee_address,
+                    "payee_name": line.payee_name,
+                    "year_end_balance": money(line.year_end_balance),
+                    "interest_paid": money(line.interest_paid),
+                    "deductible_interest": money(line.deductible_interest),
+                }
+                for line in re.loan_interest_lines
+            ],
+            "year_end_balance_total": money(re.loan_year_end_balance_total),
+            "interest_total": money(re.loan_interest_total),
+            "deductible_total": money(re.loan_interest_deductible_total),
+        },
+    }
+
+
+def real_estate_income_text(re: RealEstateIncome) -> str:
+    """Render the 不動産所得 収入側 内訳 as 整形テキスト for human inspection (KOA220 収入側)."""
+    lines: list[str] = [
+        "青色申告決算書(不動産所得用) 収入側 内訳 (KOA220 data-supply)",
+        f"  会計年度: {re.fiscal_year} ({re.start_date.isoformat()} 〜 {re.end_date.isoformat()})",
+        "",
+        "■ 不動産所得の収入の内訳",
+    ]
+    for line in re.rental_income_lines:
+        lines.append(
+            f"    {line.account_code} {line.location} (用途 {line.usage}) "
+            f"賃借人 {line.tenant_name}  "
+            f"契約 {line.contract_start_month}月〜{line.contract_end_month}月"
+        )
+        lines.append(
+            f"      賃貸料年額 {money(line.rent_annual)}  礼金 {money(line.key_money)}  "
+            f"権利金 {money(line.right_money)}  更新料 {money(line.renewal_fee)}  "
+            f"名義書換料その他 {money(line.name_change_other)}  保証金敷金 {money(line.deposit)}"
+        )
+    lines.append(
+        f"    計  賃貸料年額 {money(re.rent_annual_total)}  "
+        f"礼金権利金更新料 {money(re.key_right_renewal_total)}  "
+        f"名義書換料その他 {money(re.name_change_other_total)}  "
+        f"保証金敷金 {money(re.deposit_total)}  → 収入金額 {money(re.gross_income)}"
+    )
+
+    lines.append("")
+    lines.append("■ 地代家賃の内訳")
+    for rent in re.rent_paid_lines:
+        lines.append(
+            f"    {rent.payee_name} ({rent.leased_property})  賃借料 {money(rent.rent)}  "
+            f"必要経費算入額 {money(rent.deductible_expense)}"
+        )
+    lines.append(
+        f"    計  賃借料 {money(re.rent_paid_total)}  "
+        f"必要経費算入額 {money(re.rent_paid_deductible_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 借入金利子の内訳")
+    for loan in re.loan_interest_lines:
+        lines.append(
+            f"    {loan.payee_name}  期末借入金残高 {money(loan.year_end_balance)}  "
+            f"本年中の借入金利子 {money(loan.interest_paid)}  "
+            f"必要経費算入額 {money(loan.deductible_interest)}"
+        )
+    lines.append(
+        f"    計  期末借入金残高 {money(re.loan_year_end_balance_total)}  "
+        f"借入金利子 {money(re.loan_interest_total)}  "
+        f"必要経費算入額 {money(re.loan_interest_deductible_total)}"
+    )
 
     return "\n".join(lines) + "\n"

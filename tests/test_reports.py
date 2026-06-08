@@ -41,6 +41,8 @@ from ai_books.reports import (
     money,
     profit_and_loss_snapshot,
     profit_and_loss_text,
+    real_estate_income_snapshot,
+    real_estate_income_text,
     worksheet_csv,
     worksheet_snapshot,
     worksheet_text,
@@ -51,6 +53,7 @@ from tests.fixtures.seed_fy import (
     general_ledger_from_dataset,
     journal_book_from_dataset,
     profit_and_loss_from_dataset,
+    real_estate_income_from_dataset,
     worksheet_from_dataset,
 )
 
@@ -365,3 +368,30 @@ def test_financial_statements_text_lays_out_every_face() -> None:
     # The nested PL/BS bodies are present.
     assert "損益計算書" in text
     assert "貸借対照表" in text
+
+
+# --- 不動産所得 収入側 内訳 (KOA220 data-supply, Issue #124) ----------------------
+
+
+def test_real_estate_income_snapshot_shape() -> None:
+    snapshot = real_estate_income_snapshot(real_estate_income_from_dataset())
+    assert snapshot["report"] == "real_estate_income"
+    income = snapshot["rental_income"]
+    # Per-property rows carry the contract metadata the journal cannot, plus fixed-point amounts.
+    first = income["lines"][0]
+    assert first["account_code"] == "4210"
+    assert first["tenant_name"] == "賃借 一郎"
+    assert first["income_subtotal"] == "1300000.00"
+    assert income["gross_income"] == "2260000.00"
+    # The other two breakdowns are present with their footings.
+    assert snapshot["rent_paid"]["rent_total"] == "240000.00"
+    assert snapshot["loan_interest"]["year_end_balance_total"] == "7500000.00"
+
+
+def test_real_estate_income_text_lists_each_breakdown() -> None:
+    text = real_estate_income_text(real_estate_income_from_dataset())
+    assert "不動産所得の収入の内訳" in text
+    assert "地代家賃の内訳" in text
+    assert "借入金利子の内訳" in text
+    assert "賃借 一郎" in text
+    assert "収入金額 2260000.00" in text

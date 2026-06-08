@@ -1,0 +1,79 @@
+{
+  "report": "real_estate_income",
+  "fiscal_year": "FY2025",
+  "start_date": "2025-01-01",
+  "end_date": "2025-12-31",
+  "rental_income": {
+    "lines": [
+      {
+        "account_code": "4210",
+        "property_type": "貸家",
+        "usage": "住宅用",
+        "location": "東京都杉並区○○1-2-3 甲アパート101",
+        "tenant_address": "東京都杉並区○○4-5-6",
+        "tenant_name": "賃借 一郎",
+        "contract_start_month": 1,
+        "contract_end_month": 12,
+        "rent_annual": "1200000.00",
+        "key_money": "100000.00",
+        "right_money": "0.00",
+        "renewal_fee": "0.00",
+        "name_change_other": "0.00",
+        "deposit": "200000.00",
+        "income_subtotal": "1300000.00"
+      },
+      {
+        "account_code": "4220",
+        "property_type": "貸事務所",
+        "usage": "住宅用以外",
+        "location": "東京都中野区△△7-8-9 乙ビル2F",
+        "tenant_address": "東京都新宿区△△10-11-12",
+        "tenant_name": "乙商事株式会社",
+        "contract_start_month": 4,
+        "contract_end_month": 3,
+        "rent_annual": "900000.00",
+        "key_money": "0.00",
+        "right_money": "0.00",
+        "renewal_fee": "60000.00",
+        "name_change_other": "0.00",
+        "deposit": "0.00",
+        "income_subtotal": "960000.00"
+      }
+    ],
+    "rent_annual_total": "2100000.00",
+    "key_right_renewal_total": "160000.00",
+    "name_change_other_total": "0.00",
+    "deposit_total": "200000.00",
+    "gross_income": "2260000.00"
+  },
+  "rent_paid": {
+    "lines": [
+      {
+        "account_code": "7250",
+        "payee_address": "東京都杉並区○○1-2-0",
+        "payee_name": "底地 地主丙",
+        "leased_property": "甲アパートの底地",
+        "right_money": "0.00",
+        "renewal_fee": "0.00",
+        "rent": "240000.00",
+        "deductible_expense": "240000.00"
+      }
+    ],
+    "rent_total": "240000.00",
+    "deductible_total": "240000.00"
+  },
+  "loan_interest": {
+    "lines": [
+      {
+        "payee_address": "東京都千代田区□□1-1-1",
+        "payee_name": "○○銀行 △△支店",
+        "year_end_balance": "7500000.00",
+        "interest_paid": "80000.00",
+        "deductible_interest": "80000.00"
+      }
+    ],
+    "year_end_balance_total": "7500000.00",
+    "interest_total": "80000.00",
+    "deductible_total": "80000.00"
+  }
+}

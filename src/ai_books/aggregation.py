@@ -29,6 +29,7 @@ from ai_books.models import (
     DepreciationSchedule,
     EntryStatus,
     FinancialStatements,
+    LoanInterestLine,
     ManufacturingCost,
     ManufacturingCostLine,
     ManufacturingCostSection,
@@ -39,6 +40,9 @@ from ai_books.models import (
     ProfitAndLoss,
     ProfitAndLossLine,
     ProfitAndLossSection,
+    RealEstateIncome,
+    RentalIncomeLine,
+    RentPaidLine,
     StatementCategory,
     TrialBalance,
     TrialBalanceRow,
@@ -723,4 +727,171 @@ def assemble_financial_statements(
         depreciation=_assemble_depreciation_schedule(profit_and_loss, fixed_assets),
         balance_sheet=balance_sheet,
         manufacturing_cost=_assemble_manufacturing_cost(profit_and_loss),
+    )
+
+
+# ── 不動産所得 (real-estate income) — KOA220 収入側 data-supply (Issue #124) ──────────
+# KOA220's 収入側 内訳 cannot come from the journal alone: a 賃貸料 figure is journal-derivable but a
+# 賃借人 / 賃貸契約期間 / 物件 is not an attribute of any 勘定科目. So the inputs below pair a
+# *journal-derived amount* (the caller sums it — offline reduction or the SQL engine, the same dual path
+# 減価償却 uses) with the *contract metadata* the form needs; this module just shapes and reconciles them.
+# A property's contract split that does not foot to its 受取家賃 journal balance is a fail-loud error, the
+# one thing tying the contract breakdown to the books.
+
+
+class RentalIncomeTotals(NamedTuple):
+    """One rented property's 受取家賃 journal balance paired with its contract metadata/split.
+
+    ``income_total`` is the journal balance of ``account_code`` (本年中の収入金額); the contract split
+    (``rent_annual`` + ``key_money`` + ``right_money`` + ``renewal_fee`` + ``name_change_other``) must
+    foot to it, or :func:`assemble_real_estate_income` raises. ``deposit`` (保証金・敷金) is a returnable
+    deposit carried for the form but excluded from income.
+    """
+
+    account_code: str
+    income_total: Decimal
+    property_type: str
+    usage: str
+    location: str
+    tenant_address: str
+    tenant_name: str
+    contract_start_month: int
+    contract_end_month: int
+    rent_annual: Decimal
+    key_money: Decimal
+    right_money: Decimal
+    renewal_fee: Decimal
+    name_change_other: Decimal
+    deposit: Decimal
+
+
+class RentPaidTotals(NamedTuple):
+    """One 地代家賃 支払先's journal-derived 賃借料 / 必要経費算入額 paired with contract metadata."""
+
+    account_code: str
+    payee_address: str
+    payee_name: str
+    leased_property: str
+    right_money: Decimal
+    renewal_fee: Decimal
+    rent: Decimal  # 賃借料 (journal, gross)
+    deductible_expense: Decimal  # 必要経費算入額 (journal, after 家事按分)
+
+
+class LoanInterestTotals(NamedTuple):
+    """One lender's journal-derived 期末借入金残高 / 借入金利子 paired with its 支払先 metadata."""
+
+    payee_address: str
+    payee_name: str
+    year_end_balance: Decimal  # 期末現在の借入金等の金額 (journal)
+    interest_paid: Decimal  # 本年中の借入金利子 (journal)
+    deductible_interest: Decimal  # 左のうち必要経費算入額 (journal)
+
+
+def assemble_real_estate_income(
+    rental_income: list[RentalIncomeTotals],
+    rent_paid: list[RentPaidTotals],
+    loan_interest: list[LoanInterestTotals],
+    *,
+    fiscal_year: str,
+    start_date: date,
+    end_date: date,
+) -> RealEstateIncome:
+    """Compose KOA220's 収入側 内訳 from journal-derived amounts + contract metadata.
+
+    Each rental property's income columns must foot to its 受取家賃 journal balance (本年中の収入金額);
+    a mismatch is a :class:`ValueError` (the contract breakdown drifted from the books) — the same
+    fail-loud discipline the 様式 spec uses for an 未分類 科目. The 地代家賃 / 借入金利子 breakdowns carry
+    their journal amounts straight through. Every column footing is summed here so
+    :attr:`~ai_books.models.RealEstateIncome.is_consistent` ties the 計 rows back to the 内訳.
+
+    ``rental_income`` / ``rent_paid`` / ``loan_interest`` are expected pre-ordered (the caller orders by
+    勘定科目コード / 支払先); the order is preserved so the output is stable.
+    """
+    mismatches = [
+        f"{item.account_code}: 収入内訳 {item.rent_annual + item.key_money + item.right_money + item.renewal_fee + item.name_change_other}"
+        f" != 受取家賃 残高 {item.income_total}"
+        for item in rental_income
+        if item.rent_annual
+        + item.key_money
+        + item.right_money
+        + item.renewal_fee
+        + item.name_change_other
+        != item.income_total
+    ]
+    if mismatches:
+        raise ValueError(
+            "real-estate 収入の内訳 does not foot to the 受取家賃 ledger balance:\n  - "
+            + "\n  - ".join(mismatches)
+        )
+
+    rental_lines = [
+        RentalIncomeLine(
+            account_code=item.account_code,
+            property_type=item.property_type,
+            usage=item.usage,
+            location=item.location,
+            tenant_address=item.tenant_address,
+            tenant_name=item.tenant_name,
+            contract_start_month=item.contract_start_month,
+            contract_end_month=item.contract_end_month,
+            rent_annual=item.rent_annual,
+            key_money=item.key_money,
+            right_money=item.right_money,
+            renewal_fee=item.renewal_fee,
+            name_change_other=item.name_change_other,
+            deposit=item.deposit,
+        )
+        for item in rental_income
+    ]
+    rent_paid_lines = [
+        RentPaidLine(
+            account_code=item.account_code,
+            payee_address=item.payee_address,
+            payee_name=item.payee_name,
+            leased_property=item.leased_property,
+            right_money=item.right_money,
+            renewal_fee=item.renewal_fee,
+            rent=item.rent,
+            deductible_expense=item.deductible_expense,
+        )
+        for item in rent_paid
+    ]
+    loan_lines = [
+        LoanInterestLine(
+            payee_address=item.payee_address,
+            payee_name=item.payee_name,
+            year_end_balance=item.year_end_balance,
+            interest_paid=item.interest_paid,
+            deductible_interest=item.deductible_interest,
+        )
+        for item in loan_interest
+    ]
+
+    rent_annual_total = sum((line.rent_annual for line in rental_lines), Decimal(0))
+    key_right_renewal_total = sum(
+        (line.key_money + line.right_money + line.renewal_fee for line in rental_lines), Decimal(0)
+    )
+    name_change_other_total = sum((line.name_change_other for line in rental_lines), Decimal(0))
+    return RealEstateIncome(
+        fiscal_year=fiscal_year,
+        start_date=start_date,
+        end_date=end_date,
+        rental_income_lines=rental_lines,
+        rent_paid_lines=rent_paid_lines,
+        loan_interest_lines=loan_lines,
+        rent_annual_total=rent_annual_total,
+        key_right_renewal_total=key_right_renewal_total,
+        name_change_other_total=name_change_other_total,
+        deposit_total=sum((line.deposit for line in rental_lines), Decimal(0)),
+        gross_income=rent_annual_total + key_right_renewal_total + name_change_other_total,
+        rent_paid_total=sum((line.rent for line in rent_paid_lines), Decimal(0)),
+        rent_paid_deductible_total=sum(
+            (line.deductible_expense for line in rent_paid_lines), Decimal(0)
+        ),
+        loan_year_end_balance_total=sum((line.year_end_balance for line in loan_lines), Decimal(0)),
+        loan_interest_total=sum((line.interest_paid for line in loan_lines), Decimal(0)),
+        loan_interest_deductible_total=sum(
+            (line.deductible_interest for line in loan_lines), Decimal(0)
+        ),
     )
