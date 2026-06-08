@@ -27,9 +27,9 @@
      stacks: the family names match the <link> css2 request. */
   --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", serif;
   --font-body:
-    "Zen Kaku Gothic New", system-ui, "Hiragino Sans", "Noto Sans JP",
+    "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui,
     sans-serif;
-  --font-num: "Zen Kaku Gothic New", ui-monospace, "SF Mono", menlo, monospace;
+  --font-num: "Zen Kaku Gothic New", "SF Mono", Menlo, ui-monospace, monospace;
   --font-latin: "Spectral", serif;
 }
 
