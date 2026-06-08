@@ -47,6 +47,7 @@ export default async function MonthlyTrendPage({
           start: year.start_date,
           end: year.end_date,
           status: "posted",
+          carryForward: false,
         })
       : {
           report: "monthly_trend" as const,

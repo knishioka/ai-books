@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { buildEtaxExport, etaxExportSnapshot } from "../lib/etax/export";
+import { buildSampleEtaxSnapshot } from "../lib/etax/sample";
 import { fetchBalanceSheet } from "../lib/reports/balance-sheet";
 import { fetchFinancialStatements } from "../lib/reports/financial-statements";
 import { fetchGeneralLedger } from "../lib/reports/general-ledger";
@@ -42,10 +43,39 @@ const GOLDEN_DIR = join(
 const FISCAL_YEAR = "FY2025";
 const START = "2025-01-01";
 const END = "2025-12-31";
+const KOA220_FISCAL_YEAR = {
+  name: "FY2023-KOA220",
+  start_date: "2023-01-01",
+  end_date: "2023-12-31",
+};
+const KOA240_FISCAL_YEAR = {
+  name: "FY2024-KOA240",
+  start_date: "2024-01-01",
+  end_date: "2024-12-31",
+};
 const MONTHLY_TREND_ACCOUNTS = ["1141", "1160", "4110", "7250"];
 
 function loadGolden(name: string): unknown {
   return JSON.parse(readFileSync(join(GOLDEN_DIR, `${name}.json`), "utf-8"));
+}
+
+function relabelGolden(
+  name: string,
+  fiscalYear: { name: string; start_date: string; end_date: string },
+): unknown {
+  const golden = loadGolden(name);
+  if (!isObject(golden)) return golden;
+  return {
+    ...golden,
+    fiscal_year: fiscalYear.name,
+    start_date: fiscalYear.start_date,
+    end_date: fiscalYear.end_date,
+  };
+}
+
+function balanceSheetGolden(): unknown {
+  const golden = loadGolden("balance_sheet");
+  return isObject(golden) ? { ...golden, as_of: END } : golden;
 }
 
 /** Path-tagged structural diff (empty ⇒ identical), mirroring the Python golden harness. */
@@ -103,7 +133,12 @@ async function main(): Promise<void> {
     [
       "trial_balance",
       () =>
-        fetchTrialBalance(sql, { fiscalYear: FISCAL_YEAR, status: "posted" }),
+        fetchTrialBalance(sql, {
+          fiscalYear: FISCAL_YEAR,
+          start: START,
+          asOf: END,
+          status: "posted",
+        }),
     ],
     [
       "monthly_trend",
@@ -114,6 +149,7 @@ async function main(): Promise<void> {
           start: START,
           end: END,
           status: "posted",
+          carryForward: false,
         }),
     ],
     [
@@ -123,7 +159,12 @@ async function main(): Promise<void> {
     [
       "general_ledger",
       () =>
-        fetchGeneralLedger(sql, { start: START, end: END, status: "posted" }),
+        fetchGeneralLedger(sql, {
+          start: START,
+          end: END,
+          status: "posted",
+          carryForward: false,
+        }),
     ],
     [
       "profit_and_loss",
@@ -135,7 +176,10 @@ async function main(): Promise<void> {
           status: "posted",
         }),
     ],
-    ["balance_sheet", () => fetchBalanceSheet(sql, { status: "posted" })],
+    [
+      "balance_sheet",
+      () => fetchBalanceSheet(sql, { start: START, asOf: END, status: "posted" }),
+    ],
     [
       "worksheet",
       () =>
@@ -170,12 +214,28 @@ async function main(): Promise<void> {
           ),
         ),
     ],
+    [
+      "etax_export_koa220",
+      () => buildSampleEtaxSnapshot(sql, KOA220_FISCAL_YEAR),
+    ],
+    [
+      "etax_export_koa240",
+      () => buildSampleEtaxSnapshot(sql, KOA240_FISCAL_YEAR),
+    ],
   ];
 
   let failed = 0;
   for (const [name, build] of cases) {
     const actual = await build();
-    const problems = diff(loadGolden(name), actual);
+    const expected =
+      name === "etax_export_koa220"
+        ? relabelGolden(name, KOA220_FISCAL_YEAR)
+        : name === "etax_export_koa240"
+          ? relabelGolden(name, KOA240_FISCAL_YEAR)
+          : name === "balance_sheet"
+            ? balanceSheetGolden()
+          : loadGolden(name);
+    const problems = diff(expected, actual);
     if (problems.length === 0) {
       console.log(`✓ ${name}`);
     } else {

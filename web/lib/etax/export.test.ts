@@ -9,6 +9,7 @@ import {
   renderEtax,
   renderEtaxCsv,
   renderEtaxXml,
+  renderEtaxXtx,
   type EtaxExport,
 } from "./export";
 
@@ -227,13 +228,103 @@ describe("buildEtaxExport — validation", () => {
 });
 
 describe("parseEtaxFormat", () => {
-  it("accepts csv and xml", () => {
+  it("accepts csv, xml, and xtx", () => {
     expect(parseEtaxFormat("csv")).toBe("csv");
     expect(parseEtaxFormat("xml")).toBe("xml");
+    expect(parseEtaxFormat("xtx")).toBe("xtx");
   });
 
   it("throws on an unknown format", () => {
     expect(() => parseEtaxFormat("pdf")).toThrowError(/format must be one of/);
+  });
+});
+
+describe("renderEtaxXtx", () => {
+  it("renders real form exports with the XSD-derived layout", () => {
+    const xtx = renderEtaxXtx(buildEtaxExport(validSnapshot()));
+    expect(xtx).toContain("<KOA210");
+    expect(xtx).toContain('VR="11.0"');
+    expect(xtx).toContain("<AMF00100>420000</AMF00100>");
+  });
+
+  it("renders KOA220 and KOA240 sample exports through their own layouts", () => {
+    const koa220 = renderEtaxXtx(
+      buildEtaxExport(
+        ({
+          fiscal_year: "FY2023-KOA220",
+          start_date: "2023-01-01",
+          end_date: "2023-12-31",
+          rental_income: {
+            lines: [
+              {
+                rent_annual: "120000.00",
+                key_money: "0.00",
+                right_money: "0.00",
+                renewal_fee: "0.00",
+                name_change_other: "0.00",
+                deposit: "0.00",
+              },
+            ],
+            rent_annual_total: "120000.00",
+            key_right_renewal_total: "0.00",
+            name_change_other_total: "0.00",
+            deposit_total: "0.00",
+          },
+          rent_paid: { lines: [] },
+          loan_interest: { lines: [] },
+        }) as any,
+        "2025-KOA220",
+      ),
+    );
+    const koa240 = renderEtaxXtx(
+      buildEtaxExport(
+        ({
+          fiscal_year: "FY2024-KOA240",
+          start_date: "2024-01-01",
+          end_date: "2024-12-31",
+          farm_products: {
+            lines: [],
+            opening_inventory_total: "0.00",
+            sales_total: "0.00",
+            home_consumption_total: "0.00",
+            closing_inventory_total: "0.00",
+          },
+          livestock: {
+            lines: [],
+            sales_total: "0.00",
+            home_consumption_total: "0.00",
+          },
+          misc_income: { lines: [], total: "0.00" },
+          income: {
+            sales_amount_total: "0.00",
+            home_consumption_total: "0.00",
+            misc_income_total: "0.00",
+            subtotal: "0.00",
+            opening_inventory_total: "0.00",
+            closing_inventory_total: "0.00",
+            gross_income: "0.00",
+          },
+          unharvested: { lines: [] },
+          sale_animals: { lines: [] },
+          cultivation_cost: {
+            lines: [],
+            opening_carryover_total: "0.00",
+            seedling_cost_total: "0.00",
+            fertilizer_cost_total: "0.00",
+            subtotal_total: "0.00",
+            income_from_growing_total: "0.00",
+            added_to_acquisition_total: "0.00",
+            matured_acquisition_total: "0.00",
+            carryover_to_next_total: "0.00",
+          },
+        }) as any,
+        "2025-KOA240",
+      ),
+    );
+    expect(koa220).toContain("<KOA220");
+    expect(koa220).toContain("<ANF00570>120000</ANF00570>");
+    expect(koa240).toContain("<KOA240");
+    expect(koa240).toContain("<APF00180>0</APF00180>");
   });
 });
 
