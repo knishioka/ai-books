@@ -53,3 +53,4 @@ coverage.json
 # Claude Code / AI エージェント (共有は .claude/settings.json のみ commit する)
 .claude/settings.local.json
 .claude/worktrees/
+.vercel
