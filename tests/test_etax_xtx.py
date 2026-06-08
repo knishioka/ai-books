@@ -229,6 +229,9 @@ def test_generated_xtx_passes_official_xsd() -> None:
 def test_other_form_layout_passes_official_xsd(form_id: str) -> None:
     # #103: spec 登録前でも、新規 layout から生成した最小 .xtx がその様式の公式 .xsd を pass する
     # (= layout の入れ子/順序/名前空間/版が様式定義と一致していることの機械保証).
+    # _requires_xsd は KOA210 の有無のみを見るため、対象様式の .xsd 未取得時は個別に skip する.
+    if not xsd_available(form_id):
+        pytest.skip(f"official {form_id} .xsd not fetched")
     errors = validate_xtx(render_etax_xtx(_minimal_export(form_id)))
     assert errors == [], f"unexpected XSD errors for {form_id}: {errors}"
 

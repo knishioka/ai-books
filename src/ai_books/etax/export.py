@@ -669,6 +669,16 @@ def _all_layout_codes(layout: dict[str, Any]) -> set[str]:
     return codes
 
 
+@cache
+def _form_codes(form_id: str) -> frozenset[str]:
+    """Every 項目コード of a 様式 layout, cached by form_id (layouts are static package data).
+
+    Caching the code set means :func:`_select_layout` does not re-traverse each layout tree on every
+    render. A ``frozenset`` is returned so the cached value cannot be mutated by callers.
+    """
+    return frozenset(_all_layout_codes(form_layout(form_id)))
+
+
 def _select_layout(export: EtaxExport) -> dict[str, Any]:
     """Pick the 様式 layout whose 項目コード tree covers ``export``'s records — or fail loud.
 
@@ -680,15 +690,11 @@ def _select_layout(export: EtaxExport) -> dict[str, Any]:
     silently dropped (fail loud) — .xtx is only for the real KOA210/KOA220/KOA240 様式.
     """
     codes = {record.item_code for record in export.records}
-    matches = [
-        layout
-        for form_id in _LAYOUT_FILES
-        if codes <= _all_layout_codes(layout := form_layout(form_id))
-    ]
+    matches = [form_id for form_id in _LAYOUT_FILES if codes <= _form_codes(form_id)]
     if len(matches) == 1:
-        return matches[0]
+        return form_layout(matches[0])
     if not matches:
-        known = set().union(*(_all_layout_codes(form_layout(f)) for f in _LAYOUT_FILES))
+        known: frozenset[str] = frozenset().union(*(_form_codes(f) for f in _LAYOUT_FILES))
         unknown = ", ".join(sorted(codes - known))
         raise ValueError(
             f"cannot render .xtx: 項目コード not in any known 様式 layout ({unknown}); "
