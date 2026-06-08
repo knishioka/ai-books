@@ -95,6 +95,9 @@ CHART_OF_ACCOUNTS: tuple[SeedAccount, ...] = (
     _acct("1160", "売掛金", _C.CURRENT_ASSETS),
     _acct("1170", "有価証券", _C.CURRENT_ASSETS),
     _acct("1180", "商品", _C.CURRENT_ASSETS),
+    # 農業所得 (KOA240) の農産物棚卸資産。期末棚卸高金額を科目残高として集計できるようにする
+    # (#125 data-supply; 区分/作付面積/数量 等の内訳メタは別途 fixture)。
+    _acct("1185", "農産物", _C.CURRENT_ASSETS),
     _acct("1190", "前払金", _C.CURRENT_ASSETS),
     _acct("1200", "貸付金", _C.CURRENT_ASSETS),
     # 仮払金 — 相手科目未確定の出金を一時退避する suspense 科目 (#14 CSV 取込)。
@@ -129,6 +132,16 @@ CHART_OF_ACCOUNTS: tuple[SeedAccount, ...] = (
     # 集計できるようにする (#124 data-supply; 賃借人/契約期間 等の内訳メタは別途 fixture)。
     _acct("4210", "受取家賃(住宅用)", _C.SALES),
     _acct("4220", "受取家賃(住宅用以外)", _C.SALES),
+    # 農業所得 (KOA240) の収入。農産物は田畑/果樹/特殊施設のカテゴリごとに分け、販売金額を科目残高
+    # として集計できるようにする (#125 data-supply; 区分/作付面積/収穫量 等の内訳メタは別途 fixture)。
+    # 家事消費・事業消費 / 雑収入 / 期末農産物棚卸高 も収入の構成要素として科目残高で供給する。
+    _acct("4310", "農産物売上高(田畑)", _C.SALES),
+    _acct("4320", "農産物売上高(果樹)", _C.SALES),
+    _acct("4330", "農産物売上高(特殊施設)", _C.SALES),
+    _acct("4340", "畜産物売上高", _C.SALES),
+    _acct("4350", "家事消費・事業消費", _C.SALES),
+    _acct("4360", "雑収入(農業)", _C.SALES),
+    _acct("4370", "期末農産物棚卸高", _C.SALES),
     # ── 売上原価 ────────────────────────────────────────────────────
     _acct("5110", "期首商品棚卸高", _C.COST_OF_GOODS_SOLD),
     _acct("5120", "仕入高", _C.COST_OF_GOODS_SOLD),

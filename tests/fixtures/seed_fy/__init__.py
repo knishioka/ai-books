@@ -22,6 +22,17 @@ from __future__ import annotations
 
 from ai_books.models import TrialBalance, TrialBalanceRow
 
+from .agricultural import (
+    AG_ENTRIES,
+    CROPS,
+    CULTIVATION_COSTS,
+    LIVESTOCK,
+    MISC_INCOME,
+    SALE_ANIMALS,
+    UNHARVESTED,
+    agricultural_income_from_dataset,
+    agricultural_income_from_db,
+)
 from .dataset import (
     FISCAL_YEAR,
     FY_END,
@@ -81,7 +92,10 @@ from .reports import (
 )
 
 __all__ = [
+    "AG_ENTRIES",
+    "CROPS",
     "CROSS_MONTH_ADJUSTMENT_FY",
+    "CULTIVATION_COSTS",
     "EDGE_DATASETS",
     "EDGE_GOLDEN_REPORTS",
     "EMPTY_FY",
@@ -91,17 +105,23 @@ __all__ = [
     "FY_ENTRIES",
     "FY_START",
     "GOLDEN_REPORTS",
+    "LIVESTOCK",
     "LOAN_LENDERS",
+    "MISC_INCOME",
     "MONTHLY_TREND_ACCOUNTS",
     "ONE_SIDED_FY",
     "RENTAL_PROPERTIES",
     "RENT_PAID_PAYEES",
     "RE_ENTRIES",
+    "SALE_ANIMALS",
+    "UNHARVESTED",
     "LoadResult",
     "SeedEntry",
     "SeedLine",
     "TrialBalance",
     "TrialBalanceRow",
+    "agricultural_income_from_dataset",
+    "agricultural_income_from_db",
     "balance_sheet_from_dataset",
     "balance_sheet_from_db",
     "diff_snapshots",

@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Any
 
 from ai_books.models import (
+    AgriculturalIncome,
     BalanceSheet,
     BalanceSheetSection,
     DepreciationSchedule,
@@ -833,5 +834,234 @@ def real_estate_income_text(re: RealEstateIncome) -> str:
         f"借入金利子 {money(re.loan_interest_total)}  "
         f"必要経費算入額 {money(re.loan_interest_deductible_total)}"
     )
+
+    return "\n".join(lines) + "\n"
+
+
+# --- 農業所得 収入側 内訳 (KOA240 data-supply, Issue #125) ------------------------
+
+
+def agricultural_income_snapshot(ag: AgriculturalIncome) -> dict[str, Any]:
+    """Turn an :class:`~ai_books.models.AgriculturalIncome` into its canonical JSON shape.
+
+    The 収入側 内訳 (農産物の収入の内訳 / 畜産物その他 / 雑収入 / 収入金額 / 未収穫農産物 / 販売用動物 /
+    果樹・牛馬等の育成費用) are nested in form order, each followed by its 計. Amounts are fixed-point strings
+    (浮動小数禁止); this is the shape the golden harness freezes and KOA240's
+    :class:`~ai_books.etax.spec.EtaxFormatSpec` (stage 4) reads.
+    """
+    return {
+        "report": "agricultural_income",
+        "fiscal_year": ag.fiscal_year,
+        "start_date": ag.start_date.isoformat(),
+        "end_date": ag.end_date.isoformat(),
+        "farm_products": {
+            "lines": [
+                {
+                    "account_code": line.account_code,
+                    "category": line.category,
+                    "crop_name": line.crop_name,
+                    "planted_area": money(line.planted_area),
+                    "harvest_quantity": money(line.harvest_quantity),
+                    "opening_inventory_qty": money(line.opening_inventory_qty),
+                    "opening_inventory_amount": money(line.opening_inventory_amount),
+                    "sales_amount": money(line.sales_amount),
+                    "home_consumption": money(line.home_consumption),
+                    "closing_inventory_qty": money(line.closing_inventory_qty),
+                    "closing_inventory_amount": money(line.closing_inventory_amount),
+                }
+                for line in ag.crop_income_lines
+            ],
+            "sales_total": money(ag.farm_product_sales_total),
+            "home_consumption_total": money(ag.farm_product_home_consumption_total),
+            "opening_inventory_total": money(ag.farm_product_opening_inventory_total),
+            "closing_inventory_total": money(ag.farm_product_closing_inventory_total),
+        },
+        "livestock": {
+            "lines": [
+                {
+                    "account_code": line.account_code,
+                    "category_name": line.category_name,
+                    "raised_count": money(line.raised_count),
+                    "produced_count": money(line.produced_count),
+                    "sales_amount": money(line.sales_amount),
+                    "home_consumption": money(line.home_consumption),
+                }
+                for line in ag.livestock_income_lines
+            ],
+            "sales_total": money(ag.livestock_sales_total),
+            "home_consumption_total": money(ag.livestock_home_consumption_total),
+        },
+        "misc_income": {
+            "lines": [
+                {
+                    "account_code": line.account_code,
+                    "category_name": line.category_name,
+                    "amount": money(line.amount),
+                }
+                for line in ag.misc_income_lines
+            ],
+            "total": money(ag.misc_income_total),
+        },
+        "income": {
+            "sales_amount_total": money(ag.sales_amount_total),
+            "home_consumption_total": money(ag.home_consumption_total),
+            "misc_income_total": money(ag.misc_income_total),
+            "subtotal": money(ag.subtotal),
+            "opening_inventory_total": money(ag.opening_inventory_total),
+            "closing_inventory_total": money(ag.closing_inventory_total),
+            "gross_income": money(ag.gross_income),
+        },
+        "unharvested": {
+            "lines": [
+                {
+                    "category_name": line.category_name,
+                    "opening_qty": line.opening_qty,
+                    "opening_amount": money(line.opening_amount),
+                    "closing_qty": line.closing_qty,
+                    "closing_amount": money(line.closing_amount),
+                }
+                for line in ag.unharvested_lines
+            ],
+            "opening_total": money(ag.unharvested_opening_total),
+            "closing_total": money(ag.unharvested_closing_total),
+        },
+        "sale_animals": {
+            "lines": [
+                {
+                    "category_name": line.category_name,
+                    "opening_qty": line.opening_qty,
+                    "opening_amount": money(line.opening_amount),
+                    "closing_qty": line.closing_qty,
+                    "closing_amount": money(line.closing_amount),
+                }
+                for line in ag.sale_animal_lines
+            ],
+            "opening_total": money(ag.sale_animal_opening_total),
+            "closing_total": money(ag.sale_animal_closing_total),
+        },
+        "cultivation_cost": {
+            "lines": [
+                {
+                    "name": line.name,
+                    "opening_carryover": money(line.opening_carryover),
+                    "seedling_cost": money(line.seedling_cost),
+                    "fertilizer_cost": money(line.fertilizer_cost),
+                    "subtotal": money(line.subtotal),
+                    "income_from_growing": money(line.income_from_growing),
+                    "added_to_acquisition_cost": money(line.added_to_acquisition_cost),
+                    "matured_acquisition_cost": money(line.matured_acquisition_cost),
+                    "carryover_to_next": money(line.carryover_to_next),
+                }
+                for line in ag.cultivation_cost_lines
+            ],
+            "opening_carryover_total": money(ag.cultivation_opening_carryover_total),
+            "seedling_cost_total": money(ag.cultivation_seedling_cost_total),
+            "fertilizer_cost_total": money(ag.cultivation_fertilizer_cost_total),
+            "subtotal_total": money(ag.cultivation_subtotal_total),
+            "income_from_growing_total": money(ag.cultivation_income_from_growing_total),
+            "added_to_acquisition_total": money(ag.cultivation_added_to_acquisition_total),
+            "matured_acquisition_total": money(ag.cultivation_matured_acquisition_total),
+            "carryover_to_next_total": money(ag.cultivation_carryover_to_next_total),
+            "deductible_cultivation_cost": money(ag.deductible_cultivation_cost),
+        },
+    }
+
+
+def agricultural_income_text(ag: AgriculturalIncome) -> str:
+    """Render the 農業所得 収入側 内訳 as 整形テキスト for human inspection (KOA240 収入側)."""
+    lines: list[str] = [
+        "青色申告決算書(農業所得用) 収入側 内訳 (KOA240 data-supply)",
+        f"  会計年度: {ag.fiscal_year} ({ag.start_date.isoformat()} 〜 {ag.end_date.isoformat()})",
+        "",
+        "■ 農産物の収入の内訳",
+    ]
+    for line in ag.crop_income_lines:
+        lines.append(
+            f"    [{line.category}] {line.crop_name} (作付面積 {money(line.planted_area)} / "
+            f"収穫量 {money(line.harvest_quantity)})"
+        )
+        lines.append(
+            f"      販売金額 {money(line.sales_amount)}  "
+            f"家事消費等 {money(line.home_consumption)}  "
+            f"期首棚卸 {money(line.opening_inventory_amount)}  "
+            f"期末棚卸 {money(line.closing_inventory_amount)}"
+        )
+    lines.append(
+        f"    計  販売金額 {money(ag.farm_product_sales_total)}  "
+        f"家事消費等 {money(ag.farm_product_home_consumption_total)}  "
+        f"期首棚卸 {money(ag.farm_product_opening_inventory_total)}  "
+        f"期末棚卸 {money(ag.farm_product_closing_inventory_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 畜産物その他")
+    for stock in ag.livestock_income_lines:
+        lines.append(
+            f"    {stock.category_name} (飼育 {money(stock.raised_count)} / "
+            f"生産 {money(stock.produced_count)})  "
+            f"販売金額 {money(stock.sales_amount)}  家事消費等 {money(stock.home_consumption)}"
+        )
+    lines.append(
+        f"    計  販売金額 {money(ag.livestock_sales_total)}  "
+        f"家事消費等 {money(ag.livestock_home_consumption_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 雑収入")
+    for misc in ag.misc_income_lines:
+        lines.append(f"    {misc.category_name}  {money(misc.amount)}")
+    lines.append(f"    計  {money(ag.misc_income_total)}")
+
+    lines.append("")
+    lines.append("■ 収入金額")
+    lines.append(
+        f"    販売金額 {money(ag.sales_amount_total)}  "
+        f"家事消費等 {money(ag.home_consumption_total)}  "
+        f"雑収入 {money(ag.misc_income_total)}  → 小計 {money(ag.subtotal)}"
+    )
+    lines.append(
+        f"    - 農産物期首棚卸 {money(ag.opening_inventory_total)}  "
+        f"+ 農産物期末棚卸 {money(ag.closing_inventory_total)}  "
+        f"→ 収入金額 {money(ag.gross_income)}"
+    )
+
+    lines.append("")
+    lines.append("■ 未収穫農産物")
+    for u in ag.unharvested_lines:
+        lines.append(
+            f"    {u.category_name}  期首 {u.opening_qty} {money(u.opening_amount)}  "
+            f"期末 {u.closing_qty} {money(u.closing_amount)}"
+        )
+    lines.append(
+        f"    計  期首 {money(ag.unharvested_opening_total)}  "
+        f"期末 {money(ag.unharvested_closing_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 販売用動物")
+    for a in ag.sale_animal_lines:
+        lines.append(
+            f"    {a.category_name}  期首 {a.opening_qty} {money(a.opening_amount)}  "
+            f"期末 {a.closing_qty} {money(a.closing_amount)}"
+        )
+    lines.append(
+        f"    計  期首 {money(ag.sale_animal_opening_total)}  "
+        f"期末 {money(ag.sale_animal_closing_total)}"
+    )
+
+    lines.append("")
+    lines.append("■ 果樹・牛馬等の育成費用の計算")
+    for c in ag.cultivation_cost_lines:
+        lines.append(
+            f"    {c.name}  前年繰越 {money(c.opening_carryover)}  "
+            f"本年投下 {money(c.seedling_cost + c.fertilizer_cost)}  小計 {money(c.subtotal)}  "
+            f"成熟取得価額 {money(c.matured_acquisition_cost)}  翌年繰越 {money(c.carryover_to_next)}"
+        )
+    lines.append(
+        f"    計  小計 {money(ag.cultivation_subtotal_total)}  "
+        f"成熟取得価額 {money(ag.cultivation_matured_acquisition_total)}  "
+        f"翌年繰越 {money(ag.cultivation_carryover_to_next_total)}"
+    )
+    lines.append(f"    経費から差し引く育成費用 {money(ag.deductible_cultivation_cost)}")
 
     return "\n".join(lines) + "\n"

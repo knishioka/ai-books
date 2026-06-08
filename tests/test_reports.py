@@ -28,6 +28,8 @@ from ai_books.models import (
     StatementCategory,
 )
 from ai_books.reports import (
+    agricultural_income_snapshot,
+    agricultural_income_text,
     balance_sheet_snapshot,
     balance_sheet_text,
     financial_statements_snapshot,
@@ -48,6 +50,7 @@ from ai_books.reports import (
     worksheet_text,
 )
 from tests.fixtures.seed_fy import (
+    agricultural_income_from_dataset,
     balance_sheet_from_dataset,
     financial_statements_from_dataset,
     general_ledger_from_dataset,
@@ -395,3 +398,41 @@ def test_real_estate_income_text_lists_each_breakdown() -> None:
     assert "借入金利子の内訳" in text
     assert "賃借 一郎" in text
     assert "収入金額 2260000.00" in text
+
+
+# --- 農業所得 収入側 内訳 (KOA240 data-supply, Issue #125) ----------------------
+
+
+def test_agricultural_income_snapshot_shape() -> None:
+    snapshot = agricultural_income_snapshot(agricultural_income_from_dataset())
+    assert snapshot["report"] == "agricultural_income"
+    farm = snapshot["farm_products"]
+    # Per-crop rows carry the descriptive metadata the journal cannot, plus fixed-point amounts.
+    first = farm["lines"][0]
+    assert first["account_code"] == "4310"
+    assert first["crop_name"] == "米"
+    assert first["sales_amount"] == "800000.00"
+    assert (
+        farm["sales_total"] == "2000000.00"
+    )  # 農産物計 (田畑1,100,000 + 果樹400,000 + 特殊施設500,000)
+    # 収入金額 ブロックの計算 (小計 - 期首棚卸 + 期末棚卸).
+    income = snapshot["income"]
+    assert income["sales_amount_total"] == "3800000.00"
+    assert income["subtotal"] == "4140000.00"
+    assert income["gross_income"] == "4190000.00"
+    # The other breakdowns are present with their footings.
+    assert snapshot["livestock"]["sales_total"] == "1800000.00"
+    assert snapshot["misc_income"]["total"] == "200000.00"
+    assert snapshot["cultivation_cost"]["deductible_cultivation_cost"] == "155000.00"
+
+
+def test_agricultural_income_text_lists_each_breakdown() -> None:
+    text = agricultural_income_text(agricultural_income_from_dataset())
+    assert "農産物の収入の内訳" in text
+    assert "畜産物その他" in text
+    assert "雑収入" in text
+    assert "未収穫農産物" in text
+    assert "販売用動物" in text
+    assert "果樹・牛馬等の育成費用の計算" in text
+    assert "米" in text
+    assert "収入金額 4190000.00" in text

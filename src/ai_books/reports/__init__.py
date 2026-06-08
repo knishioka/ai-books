@@ -22,6 +22,8 @@ the way out.
 from __future__ import annotations
 
 from .format import (
+    agricultural_income_snapshot,
+    agricultural_income_text,
     balance_sheet_snapshot,
     balance_sheet_text,
     financial_statements_snapshot,
@@ -43,6 +45,8 @@ from .format import (
 )
 
 __all__ = [
+    "agricultural_income_snapshot",
+    "agricultural_income_text",
     "balance_sheet_snapshot",
     "balance_sheet_text",
     "financial_statements_snapshot",

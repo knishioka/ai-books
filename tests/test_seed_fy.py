@@ -17,6 +17,7 @@ import pytest
 from ai_books import aggregation
 from ai_books.models import AccountType, EntrySide
 from ai_books.reports import (
+    agricultural_income_snapshot,
     balance_sheet_snapshot,
     financial_statements_snapshot,
     general_ledger_snapshot,
@@ -26,6 +27,7 @@ from ai_books.reports import (
     worksheet_snapshot,
 )
 from tests.fixtures.seed_fy import (
+    AG_ENTRIES,
     FY_END,
     FY_ENTRIES,
     FY_START,
@@ -33,6 +35,7 @@ from tests.fixtures.seed_fy import (
     RE_ENTRIES,
     SeedEntry,
     SeedLine,
+    agricultural_income_from_dataset,
     balance_sheet_from_dataset,
     diff_snapshots,
     financial_statements_from_dataset,
@@ -483,4 +486,96 @@ def test_assemble_real_estate_income_rejects_split_that_does_not_foot() -> None:
     with pytest.raises(ValueError, match="受取家賃"):
         aggregation.assemble_real_estate_income(
             [bad], [], [], fiscal_year="FY2025", start_date=FY_START, end_date=FY_END
+        )
+
+
+# --- 農業所得 収入側 内訳 (KOA240 data-supply, Issue #125) ----------------------
+
+
+def test_agricultural_dataset_is_consistent_and_balances() -> None:
+    # The farmer dataset is a separate FY2025 scenario; it validates and its books balance.
+    validate_dataset(AG_ENTRIES)
+    assert trial_balance_from_dataset(AG_ENTRIES).is_balanced
+
+
+def test_committed_agricultural_income_golden_is_up_to_date() -> None:
+    # AC (#125): the 農業所得 収入側 内訳 golden matches the dataset reduction (offline source).
+    fresh = agricultural_income_snapshot(agricultural_income_from_dataset())
+    problems = diff_snapshots(load_golden("agricultural_income"), fresh)
+    assert problems == [], (
+        "golden/agricultural_income.json is stale; regenerate with "
+        "`python -m tests.fixtures.seed_fy --update agricultural_income`:\n  - "
+        + "\n  - ".join(problems)
+    )
+
+
+def test_agricultural_income_breakdowns_reconcile() -> None:
+    # AC (#125): 各内訳の計が内訳行と一致 — the composed self-check ties every 計 back to its rows.
+    ag = agricultural_income_from_dataset()
+    assert ag.is_consistent
+    # 農産物計 (田畑/果樹/特殊施設 を foot) と畜産物その他.
+    assert ag.farm_product_sales_total == Decimal("2000000")
+    assert ag.livestock_sales_total == Decimal("1800000")
+    assert ag.sales_amount_total == Decimal("3800000")
+    assert ag.home_consumption_total == Decimal("140000")  # 農産物110,000 + 畜産物30,000
+    assert ag.misc_income_total == Decimal("200000")
+    # 収入金額 計 = 小計 - 期首棚卸 + 期末棚卸.
+    assert ag.subtotal == Decimal("4140000")
+    assert ag.opening_inventory_total == Decimal("200000")  # 前年繰越メタ
+    assert ag.closing_inventory_total == Decimal("250000")  # 農産物 1185 残高
+    assert ag.gross_income == Decimal("4190000")
+    # 育成費用の計算 (carried) は内部で整合.
+    assert ag.cultivation_subtotal_total == Decimal("510000")
+    assert ag.cultivation_carryover_to_next_total == Decimal("200000")
+    assert ag.deductible_cultivation_cost == Decimal("155000")
+
+
+def test_agricultural_income_total_ties_to_account_balances() -> None:
+    # AC (#125): 販売金額/家事消費/雑収入/期末棚卸 = 勘定科目残高 — the split cannot drift from the books.
+    balances = {row.code: row.balance for row in trial_balance_from_dataset(AG_ENTRIES).rows}
+    ag = agricultural_income_from_dataset()
+    # 田畑 (4310) / 果樹 (4320) / 特殊施設 (4330) の販売金額計が各売上科目残高に foot する.
+    by_account: dict[str, Decimal] = {}
+    for line in ag.crop_income_lines:
+        by_account[line.account_code] = (
+            by_account.get(line.account_code, Decimal(0)) + line.sales_amount
+        )
+    assert by_account["4310"] == balances["4310"] == Decimal("1100000")
+    assert by_account["4320"] == balances["4320"] == Decimal("400000")
+    assert by_account["4330"] == balances["4330"] == Decimal("500000")
+    assert ag.livestock_sales_total == balances["4340"] == Decimal("1800000")
+    assert ag.home_consumption_total == balances["4350"] == Decimal("140000")
+    assert ag.misc_income_total == balances["4360"] == Decimal("200000")
+    assert ag.closing_inventory_total == balances["1185"] == Decimal("250000")
+
+
+def test_assemble_agricultural_income_rejects_split_that_does_not_foot() -> None:
+    # AC (#125): a category split that does not foot to its 勘定科目 balance is a fail-loud error.
+    bad = aggregation.CropIncomeTotals(
+        account_code="4310",
+        category="田畑",
+        crop_name="米",
+        planted_area=Decimal("120"),
+        harvest_quantity=Decimal("6000"),
+        opening_inventory_qty=Decimal("0"),
+        opening_inventory_amount=Decimal("0"),
+        sales_amount=Decimal("999999"),  # 内訳合計 999,999 != 残高 800,000
+        home_consumption=Decimal("0"),
+        closing_inventory_qty=Decimal("0"),
+        closing_inventory_amount=Decimal("0"),
+    )
+    with pytest.raises(ValueError, match="4310"):
+        aggregation.assemble_agricultural_income(
+            [bad],
+            [],
+            [],
+            [],
+            [],
+            [],
+            balances={"4310": Decimal("800000")},
+            home_consumption_account="4350",
+            inventory_account="1185",
+            fiscal_year="FY2025",
+            start_date=FY_START,
+            end_date=FY_END,
         )

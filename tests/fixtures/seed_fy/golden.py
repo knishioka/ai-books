@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 from ai_books.etax import etax_export_snapshot, render_etax_xtx
 from ai_books.reports import (
+    agricultural_income_snapshot,
     balance_sheet_snapshot,
     financial_statements_snapshot,
     general_ledger_snapshot,
@@ -38,6 +39,7 @@ from ai_books.reports import (
     worksheet_snapshot,
 )
 
+from .agricultural import agricultural_income_from_dataset
 from .dataset import FISCAL_YEAR, SeedEntry
 from .edge_cases import EDGE_DATASETS
 from .real_estate import real_estate_income_from_dataset
@@ -200,6 +202,10 @@ GOLDEN_REPORTS: dict[str, tuple[str, Callable[[], dict[str, Any]]]] = {
     "real_estate_income": (
         "real_estate_income.json",
         lambda: real_estate_income_snapshot(real_estate_income_from_dataset()),
+    ),
+    "agricultural_income": (
+        "agricultural_income.json",
+        lambda: agricultural_income_snapshot(agricultural_income_from_dataset()),
     ),
 }
 
