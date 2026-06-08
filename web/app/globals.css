@@ -665,11 +665,74 @@ td.muted,
 }
 
 /* ── etax ───────────────────────────────────────────────────────────────── */
+.etax-handoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.42fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--rule-strong);
+  border-left: 4px solid var(--shu);
+  background: rgba(250, 246, 236, 0.72);
+}
+.etax-handoff h2 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.45rem;
+}
+.etax-handoff p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+.etax-handoff code {
+  font-family: var(--font-num);
+  font-size: 0.9em;
+}
+.etax-form-meta {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+}
+.etax-form-meta div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: baseline;
+}
+.etax-form-meta dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.etax-form-meta dd {
+  margin: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
 .etax-downloads {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+}
+.download-button.primary {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--sheet);
+}
+.download-button.primary:hover {
+  border-color: var(--shu);
+  background: var(--shu);
+  color: var(--sheet);
+}
+
+@media (max-width: 760px) {
+  .etax-handoff {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── empty / footer ─────────────────────────────────────────────────────── */

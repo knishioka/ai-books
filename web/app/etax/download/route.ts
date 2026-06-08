@@ -55,7 +55,10 @@ export async function GET(request: Request): Promise<Response> {
       format === "csv"
         ? "text/csv; charset=utf-8"
         : "application/xml; charset=utf-8";
-    const filename = `etax_${fiscalYear.name}.${format}`;
+    const filename =
+      format === "xml"
+        ? `etax_${fiscalYear.name}.xtx`
+        : `etax_${fiscalYear.name}.${format}`;
     return new Response(body, {
       status: 200,
       headers: {
