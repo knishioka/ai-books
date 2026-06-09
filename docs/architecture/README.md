@@ -102,7 +102,7 @@ layout へ渡す。各 page は `loadReport()` 経由で `web/lib/reports/*` の
 
 | パス                                 | 責務                                                                                                                            |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/verify.sh`                  | 検証エントリポイント (lint/format/typecheck/test)。`--json` で構造化出力 → [§AGENTS#verification](../../AGENTS.md#verification) |
+| `scripts/verify.sh`                  | 検証エントリポイント (lint/format/typecheck/e-Tax layout sync/test)。`--json` で構造化出力、`--web` で web lint/typecheck/unit test も実行 → [§AGENTS#verification](../../AGENTS.md#verification) |
 | `scripts/test.sh`                    | 実 Postgres で全テスト。`--web`/`--pooler`/`--all`/`--down` ([§3.3](#33-scriptstestsh---all-とブロック対応))                    |
 | `scripts/check_coverage.py`          | `coverage.json` から line/branch を**個別に**ゲート (単一 `--cov-fail-under` では混合値しか見えない)                            |
 | `scripts/seed_verify_db.py`          | golden クロスチェック用に FY2025 fixture を migrate + seed                                                                      |
@@ -169,7 +169,7 @@ layout へ渡す。各 page は `loadReport()` 経由で `web/lib/reports/*` の
 
 | ジョブ              | 実行                                                               | 保証                                             |
 | ------------------- | ------------------------------------------------------------------ | ------------------------------------------------ |
-| `verify`            | `verify.sh` (matrix 3.12/3.13) + DB 連携 pytest + カバレッジゲート | Python 全テスト pass + line≥80/branch≥70         |
+| `verify`            | `verify.sh` (matrix 3.12/3.13) + DB 連携 pytest + カバレッジゲート | Python 全テスト pass + e-Tax layout sync + line≥80/branch≥70 |
 | `web`               | lint/typecheck + `npm run test:coverage` + build                   | web ユニット層 (vitest) + v8 カバレッジゲート    |
 | `web-vercel-build`  | `web/` だけを隔離して `npm ci && npm run build`                    | Vercel Root=web で repo-root 参照なし            |
 | `web-golden`        | Postgres + seed + `npm run verify:golden`                          | ビューア数値 = Python golden (byte 一致)         |
@@ -189,6 +189,7 @@ layout へ渡す。各 page は `loadReport()` 経由で `web/lib/reports/*` の
 | Python full suite + coverage gate (直結) | `verify`             |
 | Web unit layer + coverage gate (vitest)  | `web`                |
 | Web Vercel parity build                  | `web-vercel-build`   |
+| e-Tax layout sync check                  | `verify` / local     |
 | Viewer golden cross-check (直結)         | `web-golden`         |
 | Pooler safety + golden (pgbouncer 越し)  | `pooler`             |
 

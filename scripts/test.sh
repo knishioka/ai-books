@@ -19,11 +19,12 @@
 # PASS/FAIL summary — the Python full suite (incl. MCP #50/#56, property #57, read-only
 # role #54) with the coverage gate (#58), the pgbouncer pooler safety suite + viewer
 # golden through the pooler (#52), the web unit layer + its coverage gate (#55/#58),
-# the isolated Vercel-parity web build (#140), and the viewer golden cross-check
-# against a directly-connected Postgres. Unlike the other modes it does NOT stop at
-# the first failure: every block runs so the summary shows the full picture, and the
-# script exits non-zero if any block failed. This mirrors the CI jobs (verify / web /
-# web-vercel-build / web-golden / pooler); see README "CI ↔ local guarantee mapping".
+# the isolated Vercel-parity web build (#140), the e-Tax layout sync check, and the
+# viewer golden cross-check against a directly-connected Postgres. Unlike the other
+# modes it does NOT stop at the first failure: every block runs so the summary shows
+# the full picture, and the script exits non-zero if any block failed. This mirrors
+# the CI jobs (verify / web / web-vercel-build / web-golden / pooler); see README
+# "CI ↔ local guarantee mapping".
 #
 # --pooler reproduces Supabase's production pooler (pgbouncer, transaction mode): it
 # brings up the extra `pgbouncer` compose service in front of `db`, points
@@ -208,6 +209,12 @@ if [[ "$ALL" == true ]]; then
     bash scripts/verify_web_vercel_build.sh
   }
 
+  block_etax_layout_sync() {
+    # The Python e-Tax layout JSONs are the SSOT; the web copies must be generated
+    # byte-for-byte copies so Vercel's isolated root cannot drift silently.
+    uv run python scripts/etax/sync_web_layouts.py --check
+  }
+
   block_web_golden() {
     # Seed FY2025 through the production write path on the DIRECT connection, then
     # assert the viewer's numbers reproduce the report-layer golden byte-for-byte.
@@ -217,11 +224,32 @@ if [[ "$ALL" == true ]]; then
   }
 
   block_pooler() {
-    # Route the Python pooler safety suite over the original FY2025 golden fixture,
-    # then add the extra public viewer samples before the web golden check.
+    # Route the Python pooler safety suite over the original FY2025 golden fixture.
+    # --all runs the direct viewer golden first, which seeds KOA220/KOA240 public
+    # samples into the shared DB. Remove only those fixed synthetic sample entries
+    # before the pooler safety tests so the FY2025 golden is not polluted.
     (
       export AI_BOOKS_DB_URL="$AI_BOOKS_POOLER_URL"
-      PYTHONPATH=. uv run python scripts/seed_verify_db.py --fy2025-only &&
+      uv run python - <<'PY' &&
+from ai_books import db
+
+with db.connect() as conn:
+    with conn.transaction():
+        conn.execute(
+            """
+            DELETE FROM journal_entries
+            WHERE voucher_no LIKE 'RE2025-%'
+               OR voucher_no LIKE 'AG2025-%'
+            """
+        )
+        conn.execute(
+            """
+            DELETE FROM fiscal_years
+            WHERE name IN ('FY2023-KOA220', 'FY2024-KOA240')
+            """
+        )
+PY
+        PYTHONPATH=. uv run python scripts/seed_verify_db.py --fy2025-only &&
         uv run pytest -q tests/test_pooler_db.py &&
         PYTHONPATH=. uv run python scripts/seed_verify_db.py &&
         { cd web && npm run verify:golden; }
@@ -231,6 +259,7 @@ if [[ "$ALL" == true ]]; then
   run_block "Python full suite + coverage gate (direct DB)" block_python
   run_block "Web unit layer + coverage gate (vitest)" block_web_unit
   run_block "Web Vercel parity build (isolated web root)" block_web_vercel_build
+  run_block "e-Tax layout sync check (Python SSOT -> web)" block_etax_layout_sync
   run_block "Viewer golden cross-check (direct DB)" block_web_golden
   run_block "Pooler safety suite + golden (through pgbouncer)" block_pooler
 

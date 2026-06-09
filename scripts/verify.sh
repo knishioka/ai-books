@@ -5,6 +5,7 @@
 # Usage:
 #   ./scripts/verify.sh           # human-readable (text)
 #   ./scripts/verify.sh --json    # structured output (CI / Codex)
+#   ./scripts/verify.sh --web     # also run web lint/typecheck/unit tests
 #
 # Exit codes: 0 all pass / n/a, 1 one or more fail, 2 environment error.
 
@@ -15,6 +16,7 @@ BUILD_CMD=""
 LINT_CMD="uv run ruff check ."
 FORMAT_CMD="uv run ruff format --check ."
 TYPECHECK_CMD="uv run mypy src tests"
+ETAX_LAYOUT_CMD="uv run python scripts/etax/sync_web_layouts.py --check"
 
 # Coverage (#58). Always *measure* (term-missing for humans; xml + json as CI artifacts),
 # but only *gate* on the AGENTS.md targets (line 80 / branch 70) when a live DB is configured.
@@ -31,13 +33,30 @@ else
 fi
 
 JSON_MODE=0
-[[ "${1:-}" == "--json" ]] && JSON_MODE=1
+RUN_WEB=0
+for arg in "$@"; do
+  case "$arg" in
+    --json) JSON_MODE=1 ;;
+    --web) RUN_WEB=1 ;;
+    *)
+      echo "error: unknown argument: $arg" >&2
+      echo "usage: ./scripts/verify.sh [--json] [--web]" >&2
+      exit 2
+      ;;
+  esac
+done
+WEB_CMD=""
+if [[ $RUN_WEB -eq 1 ]]; then
+  WEB_CMD="cd web && { [[ -d node_modules ]] || npm ci; } && npm run lint && npm run typecheck && npm run test:coverage"
+fi
 
 RESULT_BUILD=""
 RESULT_LINT=""
 RESULT_FORMAT=""
 RESULT_TYPECHECK=""
+RESULT_ETAX_LAYOUT=""
 RESULT_TEST=""
+RESULT_WEB=""
 FAILURES_JSON=""
 ANY_FAIL=0
 
@@ -76,12 +95,14 @@ run_step build RESULT_BUILD "$BUILD_CMD"
 run_step lint RESULT_LINT "$LINT_CMD"
 run_step format RESULT_FORMAT "$FORMAT_CMD"
 run_step typecheck RESULT_TYPECHECK "$TYPECHECK_CMD"
+run_step etax_layout RESULT_ETAX_LAYOUT "$ETAX_LAYOUT_CMD"
 run_step test RESULT_TEST "$TEST_CMD"
+run_step web RESULT_WEB "$WEB_CMD"
 
 if [[ $JSON_MODE -eq 1 ]]; then
-  printf '{"build":"%s","lint":"%s","format":"%s","typecheck":"%s","test":"%s","failures":[%s]}\n' \
-    "$RESULT_BUILD" "$RESULT_LINT" "$RESULT_FORMAT" "$RESULT_TYPECHECK" "$RESULT_TEST" \
-    "$FAILURES_JSON"
+  printf '{"build":"%s","lint":"%s","format":"%s","typecheck":"%s","etax_layout":"%s","test":"%s","web":"%s","failures":[%s]}\n' \
+    "$RESULT_BUILD" "$RESULT_LINT" "$RESULT_FORMAT" "$RESULT_TYPECHECK" "$RESULT_ETAX_LAYOUT" \
+    "$RESULT_TEST" "$RESULT_WEB" "$FAILURES_JSON"
 fi
 
 if [[ $ANY_FAIL -eq 1 ]]; then
