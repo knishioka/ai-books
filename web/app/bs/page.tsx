@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function BalanceSheetPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, (sql, year) =>
+  const result = await loadReport("balance-sheet", fy, (sql, year) =>
     fetchBalanceSheet(sql, {
       start: year.start_date,
       asOf: year.end_date,

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { sanitizedViewerHeaders } from "@/lib/auth/request-context";
 import { getSupabaseAuthEnv } from "@/lib/auth/env";
 
 /**
@@ -32,7 +33,9 @@ export interface SessionResult {
 export async function updateSession(
   request: NextRequest,
 ): Promise<SessionResult> {
-  let response = NextResponse.next({ request });
+  let response = NextResponse.next({
+    request: { headers: sanitizedViewerHeaders(request.headers) },
+  });
 
   const env = getSupabaseAuthEnv();
   if (!env) {
@@ -48,7 +51,13 @@ export async function updateSession(
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
-        response = NextResponse.next({ request });
+        const oldResponse = response;
+        response = NextResponse.next({
+          request: { headers: sanitizedViewerHeaders(request.headers) },
+        });
+        for (const cookie of oldResponse.cookies.getAll()) {
+          response.cookies.set(cookie);
+        }
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }

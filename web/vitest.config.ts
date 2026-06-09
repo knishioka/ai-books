@@ -45,6 +45,7 @@ export default defineConfig({
         // Pure auth-gate decision logic (#108). `lib/auth/env.ts` and `lib/supabase/*`
         // read env / import `server-only`, so they belong to runtime, not this layer.
         "lib/auth/allowlist.ts",
+        "lib/auth/request-context.ts",
       ],
       exclude: [
         "lib/reports/fiscal-year.ts",

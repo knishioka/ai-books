@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function TrialBalancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, (sql, year) =>
+  const result = await loadReport("trial-balance", fy, (sql, year) =>
     fetchTrialBalance(sql, {
       fiscalYear: year.name,
       start: year.start_date,

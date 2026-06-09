@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FiscalYear } from "./fiscal-year";
 
 const mocks = vi.hoisted(() => ({
-  resolveFiscalYear: vi.fn(),
   sql: undefined as Sql | undefined,
 }));
 
 vi.mock("server-only", () => ({}));
+
+vi.mock("next/cache", () => ({
+  unstable_cache:
+    <T extends (...args: never[]) => unknown>(fn: T) =>
+    fn,
+}));
 
 vi.mock("../db", () => ({
   tryQuery: async <T>(query: (sql: Sql) => Promise<T>) => {
@@ -17,10 +22,6 @@ vi.mock("../db", () => ({
     }
     return { ok: true, data: await query(mocks.sql) };
   },
-}));
-
-vi.mock("./fiscal-year", () => ({
-  resolveFiscalYear: mocks.resolveFiscalYear,
 }));
 
 import { loadReport } from "./context";
@@ -55,7 +56,6 @@ describe("loadReport", () => {
   };
 
   beforeEach(() => {
-    mocks.resolveFiscalYear.mockReset();
     mocks.sql = undefined;
   });
 
@@ -64,7 +64,7 @@ describe("loadReport", () => {
     mocks.sql = fake.sql;
     const build = vi.fn(async () => "report");
 
-    const result = await loadReport(undefined, build);
+    const result = await loadReport("test-report", undefined, build);
 
     expect(result).toEqual({
       ok: true,
@@ -74,22 +74,34 @@ describe("loadReport", () => {
         data: "report",
       },
     });
-    expect(mocks.resolveFiscalYear).not.toHaveBeenCalled();
     expect(build).toHaveBeenCalledWith(fake.sql, latestFiscalYear);
     expect(fake.queryCount()).toBe(1);
   });
 
-  it("delegates requested fiscal years to the existing resolver", async () => {
+  it("uses a requested fiscal year from the already listed years", async () => {
     const fake = fakeSql([latestFiscalYear, olderFiscalYear]);
     mocks.sql = fake.sql;
-    mocks.resolveFiscalYear.mockResolvedValue(olderFiscalYear);
     const build = vi.fn(async () => "report");
 
-    const result = await loadReport("FY2024", build);
+    const result = await loadReport("test-report", "FY2024", build);
 
     expect(result.ok).toBe(true);
-    expect(mocks.resolveFiscalYear).toHaveBeenCalledWith(fake.sql, "FY2024");
     expect(build).toHaveBeenCalledWith(fake.sql, olderFiscalYear);
+    expect(fake.queryCount()).toBe(1);
+  });
+
+  it("returns an error for bounded but unknown requested fiscal years", async () => {
+    const fake = fakeSql([latestFiscalYear]);
+    mocks.sql = fake.sql;
+    const build = vi.fn(async () => "report");
+
+    const result = await loadReport("test-report", "FY2024", build);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "会計年度 FY2024 は登録されていません。",
+    });
+    expect(build).not.toHaveBeenCalled();
     expect(fake.queryCount()).toBe(1);
   });
 });

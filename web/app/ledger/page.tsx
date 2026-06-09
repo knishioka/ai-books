@@ -2,6 +2,7 @@ import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
 import { loadReport } from "@/lib/reports/context";
+import { normalizeAccountCodeParam } from "@/lib/reports/filters";
 import {
   fetchGeneralLedger,
   type GeneralLedgerAccountSnapshot,
@@ -17,35 +18,39 @@ interface AccountOption {
 export default async function LedgerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string; account?: string }>;
+  searchParams: Promise<{ fy?: string | string[]; account?: string | string[] }>;
 }) {
   const { fy, account } = await searchParams;
-  const accountCode = account && account !== "" ? account : null;
+  const accountCode = normalizeAccountCodeParam(account);
 
-  const result = await loadReport(fy, async (sql, year) => {
-    const ledger = await fetchGeneralLedger(sql, {
-      accountCode,
-      start: year.start_date,
-      end: year.end_date,
-      status: "posted",
-      carryForward: false,
-    });
-    const accountOptions = await sql<AccountOption[]>`
-      SELECT a.code, a.name
-      FROM accounts a
-      WHERE EXISTS (
-        SELECT 1
-        FROM journal_lines jl
-        JOIN journal_entries je ON je.id = jl.entry_id
-        WHERE jl.account_id = a.id
-          AND je.entry_date >= ${year.start_date}::date
-          AND je.entry_date <= ${year.end_date}::date
-          AND je.status <> 'voided'::entry_status
-      )
-      ORDER BY a.code
-    `;
-    return { ledger, accountOptions };
-  });
+  const result = await loadReport(
+    `ledger:${accountCode ?? "__all__"}`,
+    fy,
+    async (sql, year) => {
+      const ledger = await fetchGeneralLedger(sql, {
+        accountCode,
+        start: year.start_date,
+        end: year.end_date,
+        status: "posted",
+        carryForward: false,
+      });
+      const accountOptions = await sql<AccountOption[]>`
+        SELECT a.code, a.name
+        FROM accounts a
+        WHERE EXISTS (
+          SELECT 1
+          FROM journal_lines jl
+          JOIN journal_entries je ON je.id = jl.entry_id
+          WHERE jl.account_id = a.id
+            AND je.entry_date >= ${year.start_date}::date
+            AND je.entry_date <= ${year.end_date}::date
+            AND je.status <> 'voided'::entry_status
+        )
+        ORDER BY a.code
+      `;
+      return { ledger, accountOptions };
+    },
+  );
   if (!result.ok) return <ErrorBanner error={result.error} />;
 
   const { data, fiscalYear, fiscalYears } = result.data;

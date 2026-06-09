@@ -11,10 +11,10 @@ const EMPTY = "";
 export default async function JournalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, (sql, year) =>
+  const result = await loadReport("journal", fy, (sql, year) =>
     fetchJournalBook(sql, {
       start: year.start_date,
       end: year.end_date,
