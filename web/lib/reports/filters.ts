@@ -7,10 +7,25 @@
  */
 
 const ACCOUNT_CODE_PARAM = /^[0-9A-Za-z_-]{1,32}$/;
+const FISCAL_YEAR_PARAM = /^FY[0-9]{4}$/;
+
+export type QueryParamValue = string | string[] | null | undefined;
+
+function firstQueryParamValue(value: QueryParamValue): string | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  return first && first !== "" ? first : null;
+}
 
 export function normalizeAccountCodeParam(
-  value: string | null | undefined,
+  value: QueryParamValue,
 ): string | null {
-  if (!value) return null;
-  return ACCOUNT_CODE_PARAM.test(value) ? value : null;
+  const normalized = firstQueryParamValue(value);
+  return normalized && ACCOUNT_CODE_PARAM.test(normalized) ? normalized : null;
+}
+
+export function normalizeFiscalYearParam(
+  value: QueryParamValue,
+): string | null {
+  const normalized = firstQueryParamValue(value);
+  return normalized && FISCAL_YEAR_PARAM.test(normalized) ? normalized : null;
 }

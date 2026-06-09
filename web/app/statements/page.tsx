@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function StatementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
   const result = await loadReport("statements", fy, (sql, year) =>

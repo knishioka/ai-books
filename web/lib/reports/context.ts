@@ -14,6 +14,7 @@ import { unstable_cache } from "next/cache";
 import type { Sql } from "postgres";
 
 import { tryQuery, type ConnectionResult } from "../db";
+import { normalizeFiscalYearParam, type QueryParamValue } from "./filters";
 import { resolveFiscalYear, type FiscalYear } from "./fiscal-year";
 
 export const REPORT_REVALIDATE_SECONDS = 60;
@@ -31,27 +32,45 @@ export interface ReportContext<T> {
  */
 export function loadReport<T>(
   reportKey: string,
-  requestedYear: string | undefined,
+  requestedYear: QueryParamValue,
   build: (sql: Sql, fiscalYear: FiscalYear) => Promise<T>,
 ): Promise<ConnectionResult<ReportContext<T>>> {
+  const normalizedYear = normalizeFiscalYearParam(requestedYear);
   return unstable_cache(
-    () =>
-      tryQuery(async (sql) => {
-        const fiscalYears = await sql<FiscalYear[]>`
-          SELECT name, start_date::text AS start_date, end_date::text AS end_date
-          FROM fiscal_years
-          ORDER BY start_date DESC
-        `;
-        const fiscalYear = await resolveFiscalYear(sql, requestedYear);
-        if (!fiscalYear) {
-          throw new Error(
-            "会計年度がまだ登録されていません。MCP 経由で仕訳を登録し、fiscal_years をシードしてください。",
-          );
-        }
-        const data = await build(sql, fiscalYear);
-        return { fiscalYear, fiscalYears, data };
-      }),
-    ["ai-books-report", reportKey, requestedYear ?? "__default__"],
+    () => loadReportData(normalizedYear, build),
+    ["ai-books-report", reportKey, normalizedYear ?? "__default__"],
     { revalidate: REPORT_REVALIDATE_SECONDS },
-  )();
+  )().catch((err: unknown) => ({
+    ok: false,
+    error: err instanceof Error ? err.message : "Unknown database error.",
+  }));
+}
+
+async function loadReportData<T>(
+  normalizedYear: string | null,
+  build: (sql: Sql, fiscalYear: FiscalYear) => Promise<T>,
+): Promise<ConnectionResult<ReportContext<T>>> {
+  const result = await tryQuery(async (sql) => {
+    const fiscalYears = await sql<FiscalYear[]>`
+      SELECT name, start_date::text AS start_date, end_date::text AS end_date
+      FROM fiscal_years
+      ORDER BY start_date DESC
+    `;
+    const fiscalYear = normalizedYear
+      ? (fiscalYears.find((year) => year.name === normalizedYear) ?? null)
+      : await resolveFiscalYear(sql);
+    if (!fiscalYear) {
+      throw new Error(
+        normalizedYear
+          ? `会計年度 ${normalizedYear} は登録されていません。`
+          : "会計年度がまだ登録されていません。MCP 経由で仕訳を登録し、fiscal_years をシードしてください。",
+      );
+    }
+    const data = await build(sql, fiscalYear);
+    return { fiscalYear, fiscalYears, data };
+  });
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+  return result;
 }

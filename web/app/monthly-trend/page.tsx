@@ -15,7 +15,7 @@ interface AccountOption {
 export default async function MonthlyTrendPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string; account?: string }>;
+  searchParams: Promise<{ fy?: string | string[]; account?: string | string[] }>;
 }) {
   const { fy, account } = await searchParams;
   const accountCode = normalizeAccountCodeParam(account);

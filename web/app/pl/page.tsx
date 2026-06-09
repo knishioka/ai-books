@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfitAndLossPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
   const result = await loadReport("profit-and-loss", fy, (sql, year) =>

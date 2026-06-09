@@ -11,7 +11,7 @@ const EMPTY = "";
 export default async function JournalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fy?: string }>;
+  searchParams: Promise<{ fy?: string | string[] }>;
 }) {
   const { fy } = await searchParams;
   const result = await loadReport("journal", fy, (sql, year) =>

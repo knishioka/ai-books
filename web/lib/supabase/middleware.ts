@@ -51,9 +51,13 @@ export async function updateSession(
         for (const { name, value } of cookiesToSet) {
           request.cookies.set(name, value);
         }
+        const oldResponse = response;
         response = NextResponse.next({
           request: { headers: sanitizedViewerHeaders(request.headers) },
         });
+        for (const cookie of oldResponse.cookies.getAll()) {
+          response.cookies.set(cookie);
+        }
         for (const { name, value, options } of cookiesToSet) {
           response.cookies.set(name, value, options);
         }
