@@ -21,12 +21,14 @@ import postgres from "postgres";
 
 import { buildEtaxExport, etaxExportSnapshot } from "../lib/etax/export";
 import { buildSampleEtaxSnapshot } from "../lib/etax/sample";
+import { fetchAgriculturalIncome } from "../lib/reports/agricultural-income";
 import { fetchBalanceSheet } from "../lib/reports/balance-sheet";
 import { fetchFinancialStatements } from "../lib/reports/financial-statements";
 import { fetchGeneralLedger } from "../lib/reports/general-ledger";
 import { fetchJournalBook } from "../lib/reports/journal-book";
 import { fetchMonthlyTrend } from "../lib/reports/monthly-trend";
 import { fetchProfitAndLoss } from "../lib/reports/profit-and-loss";
+import { fetchRealEstateIncome } from "../lib/reports/real-estate-income";
 import { fetchTrialBalance } from "../lib/reports/trial-balance";
 import { fetchWorksheet } from "../lib/reports/worksheet";
 
@@ -201,6 +203,26 @@ async function main(): Promise<void> {
         }),
     ],
     [
+      "real_estate_income",
+      () =>
+        fetchRealEstateIncome(sql, {
+          fiscalYear: KOA220_FISCAL_YEAR.name,
+          start: KOA220_FISCAL_YEAR.start_date,
+          end: KOA220_FISCAL_YEAR.end_date,
+          status: "posted",
+        }),
+    ],
+    [
+      "agricultural_income",
+      () =>
+        fetchAgriculturalIncome(sql, {
+          fiscalYear: KOA240_FISCAL_YEAR.name,
+          start: KOA240_FISCAL_YEAR.start_date,
+          end: KOA240_FISCAL_YEAR.end_date,
+          status: "posted",
+        }),
+    ],
+    [
       "etax_export",
       async () =>
         etaxExportSnapshot(
@@ -230,8 +252,12 @@ async function main(): Promise<void> {
     const expected =
       name === "etax_export_koa220"
         ? relabelGolden(name, KOA220_FISCAL_YEAR)
+        : name === "real_estate_income"
+          ? relabelGolden(name, KOA220_FISCAL_YEAR)
         : name === "etax_export_koa240"
           ? relabelGolden(name, KOA240_FISCAL_YEAR)
+          : name === "agricultural_income"
+            ? relabelGolden(name, KOA240_FISCAL_YEAR)
           : name === "balance_sheet"
             ? balanceSheetGolden()
           : loadGolden(name);

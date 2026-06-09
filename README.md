@@ -40,10 +40,11 @@ uv run pre-commit install          # enable pre-commit hooks (first time only)
 uv run python -m ai_books.server   # starts MCP server on stdio
 ```
 
-Run the verification suite (lint / format / typecheck / test):
+Run the verification suite (lint / format / typecheck / e-Tax layout sync / test):
 
 ```bash
 ./scripts/verify.sh
+./scripts/verify.sh --web     # also run web lint/typecheck/unit tests
 ```
 
 AI agents (Claude Code) can invoke the **`/verify`**, **`/test`** and **`/test-all`** slash
@@ -154,9 +155,9 @@ without a running database; CI runs it against a Postgres service container.
 
 ### Running the full test suite locally
 
-`./scripts/verify.sh` runs lint/format/typecheck/pytest but **skips the DB-backed
-tests** (about half the suite) unless `AI_BOOKS_DB_URL` is set. To run _everything_
-locally you only need Postgres — not the full `supabase start` stack. Tests use
+`./scripts/verify.sh` runs lint/format/typecheck/e-Tax layout sync/pytest but
+**skips the DB-backed tests** (about half the suite) unless `AI_BOOKS_DB_URL` is set.
+To run _everything_ locally you only need Postgres — not the full `supabase start` stack. Tests use
 plain Postgres and isolate each test in a throwaway schema, so a single lightweight
 container ([`compose.yaml`](./compose.yaml), `postgres:17-alpine`) is reused across
 runs:
@@ -183,8 +184,9 @@ any block failed:
 | Python full suite + coverage gate (direct DB)    | All DB-backed pytest (MCP, property-based, read-only role) + the line 80 / branch 70 gate               | #50/#56/#57/#54/#58 |
 | Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                    | #55/#58             |
 | Web Vercel parity build (isolated web root)      | Production build passes with only `web/` visible, catching repo-root reads such as `../src`             | #140                |
-| Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
+| e-Tax layout sync check                          | Python-side layout SSOT and committed web layout copies remain byte-for-byte in sync                    | #154                |
 | Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
+| Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
 
 ##### CI ↔ local guarantee mapping
 
@@ -197,10 +199,11 @@ two together cover every CI job:
 | Python full suite + coverage gate                           | `verify` (3.12 / 3.13)    |
 | Web unit layer + coverage gate                              | `web`                     |
 | Web Vercel parity build                                     | `web-vercel-build`        |
-| Viewer golden cross-check (direct DB)                       | `web-golden`              |
+| e-Tax layout sync check                                     | `verify` / local          |
 | Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
+| Viewer golden cross-check (direct DB)                       | `web-golden`              |
 | e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
-| `./scripts/verify.sh` (lint/format/typecheck) + secret scan | `pre-commit` / `gitleaks` |
+| `./scripts/verify.sh` (lint/format/typecheck/layout sync) + secret scan | `pre-commit` / `gitleaks` |
 
 ###### Remote-auth boundary tests (#110)
 
