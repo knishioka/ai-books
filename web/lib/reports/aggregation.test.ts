@@ -319,10 +319,11 @@ describe("fetchFinancialStatements", () => {
       let kind: string;
       if (query.includes("a.account_type IN ('revenue', 'expense')")) {
         kind = "profit-and-loss";
-      } else if (query.includes("a.statement_category = 'sales'")) {
-        kind = "monthly-sales";
-      } else if (query.includes("a.name LIKE")) {
-        kind = "monthly-purchases";
+      } else if (
+        query.includes("a.statement_category = 'sales'") &&
+        query.includes("a.name LIKE")
+      ) {
+        kind = "monthly-sales-purchases";
       } else if (query.includes("a.statement_category = 'fixed_assets'")) {
         kind = "depreciation";
       } else {
@@ -345,8 +346,7 @@ describe("fetchFinancialStatements", () => {
     expect(started).toEqual([
       "profit-and-loss",
       "balance-sheet",
-      "monthly-sales",
-      "monthly-purchases",
+      "monthly-sales-purchases",
     ]);
     expect(started).not.toContain("depreciation");
 
@@ -355,14 +355,12 @@ describe("fetchFinancialStatements", () => {
     expect(started).toEqual([
       "profit-and-loss",
       "balance-sheet",
-      "monthly-sales",
-      "monthly-purchases",
+      "monthly-sales-purchases",
       "depreciation",
     ]);
 
     pending.get("balance-sheet")!([]);
-    pending.get("monthly-sales")!([]);
-    pending.get("monthly-purchases")!([]);
+    pending.get("monthly-sales-purchases")!([]);
     pending.get("depreciation")!([]);
 
     await expect(fsPromise).resolves.toMatchObject({
@@ -430,12 +428,25 @@ describe("fetchFinancialStatements", () => {
         credit_total: "200000.00",
       },
     ];
-    const salesMonths = [
-      { month: "2025-01", debit_total: "0.00", credit_total: "100000.00" },
-      { month: "2025-03", debit_total: "0.00", credit_total: "320000.00" },
-    ];
-    const purchaseMonths = [
-      { month: "2025-02", debit_total: "50000.00", credit_total: "0.00" },
+    const monthlyRows = [
+      {
+        month: "2025-01",
+        is_sales: true,
+        debit_total: "0.00",
+        credit_total: "100000.00",
+      },
+      {
+        month: "2025-03",
+        is_sales: true,
+        debit_total: "0.00",
+        credit_total: "320000.00",
+      },
+      {
+        month: "2025-02",
+        is_sales: false,
+        debit_total: "50000.00",
+        credit_total: "0.00",
+      },
     ];
     const depreciationRows = [
       {
@@ -448,13 +459,7 @@ describe("fetchFinancialStatements", () => {
       },
     ];
 
-    const sql = fakeSql(
-      plRows,
-      bsRows,
-      salesMonths,
-      purchaseMonths,
-      depreciationRows,
-    );
+    const sql = fakeSql(plRows, bsRows, monthlyRows, depreciationRows);
     const fs = await fetchFinancialStatements(sql, {
       fiscalYear: "FY2025",
       start: "2025-01-01",
