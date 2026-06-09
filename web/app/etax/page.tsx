@@ -104,9 +104,9 @@ export default async function EtaxPage({
           <tbody>
             {exported.records.map((record, index) => (
               <tr key={`${record.item_code}-${record.row ?? ""}-${index}`}>
-                <th scope="row">{record.form}</th>
+                <td>{record.form}</td>
                 <td className="code">{record.item_code}</td>
-                <td>{record.label}</td>
+                <th scope="row">{record.label}</th>
                 <td className="num muted">{record.row ?? ""}</td>
                 <td className="code">{record.account_code ?? ""}</td>
                 <td className="muted">{record.kind}</td>

@@ -93,10 +93,8 @@ export default async function WorksheetPage({
           <tbody>
             {ws.rows.map((row) => (
               <tr key={row.code}>
-                <th scope="row" className="code">
-                  {row.code}
-                </th>
-                <td>{row.name}</td>
+                <td className="code">{row.code}</td>
+                <th scope="row">{row.name}</th>
                 <td className="num">
                   <Amount value={row.trial_debit} />
                 </td>

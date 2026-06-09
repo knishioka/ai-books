@@ -60,10 +60,8 @@ export default async function TrialBalancePage({
           <tbody>
             {tb.rows.map((row) => (
               <tr key={row.code}>
-                <th scope="row" className="code">
-                  {row.code}
-                </th>
-                <td>{row.name}</td>
+                <td className="code">{row.code}</td>
+                <th scope="row">{row.name}</th>
                 <td className="num">
                   <Amount value={row.debit_total} />
                 </td>

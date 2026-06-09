@@ -16,10 +16,8 @@ function Section({ section }: { section: ProfitAndLossSectionSnapshot }) {
       </tr>
       {section.lines.map((line) => (
         <tr key={line.code}>
-          <th scope="row" className="code">
-            {line.code}
-          </th>
-          <td>{line.name}</td>
+          <td className="code">{line.code}</td>
+          <th scope="row">{line.name}</th>
           <td className="num">
             <Amount value={line.amount} />
           </td>
@@ -108,10 +106,8 @@ export function ProfitAndLossTable({ pl }: { pl: ProfitAndLossSnapshot }) {
             </tr>
             {pl.unclassified.map((line) => (
               <tr key={line.code}>
-                <th scope="row" className="code">
-                  {line.code}
-                </th>
-                <td>{line.name}</td>
+                <td className="code">{line.code}</td>
+                <th scope="row">{line.name}</th>
                 <td className="num">
                   <Amount value={line.amount} />
                 </td>

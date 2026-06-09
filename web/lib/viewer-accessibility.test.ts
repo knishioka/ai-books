@@ -77,5 +77,24 @@ describe("viewer accessibility markup", () => {
 
     expect(css).toContain(":focus-visible");
     expect(css).toContain('a[aria-current="page"]');
+    expect(css).toContain(".sr-only");
+  });
+
+  it("keeps account codes styled as data cells and account names as row headers", () => {
+    const accountTableFiles = [
+      "app/page.tsx",
+      "app/trial-balance/page.tsx",
+      "app/worksheet/page.tsx",
+      "components/pl-table.tsx",
+      "components/bs-tables.tsx",
+      "app/statements/page.tsx",
+    ];
+
+    for (const file of accountTableFiles) {
+      const source = readWebFile(file);
+
+      expect(source).toContain('td className="code"');
+      expect(source).not.toContain('th scope="row" className="code"');
+    }
   });
 });

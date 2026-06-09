@@ -120,10 +120,8 @@ export default async function StatementsPage({
             <tbody>
               {fs.depreciation.lines.map((line) => (
                 <tr key={line.code}>
-                  <th scope="row" className="code">
-                    {line.code}
-                  </th>
-                  <td>{line.name}</td>
+                  <td className="code">{line.code}</td>
+                  <th scope="row">{line.name}</th>
                   <td className="num">
                     <Amount value={line.acquisition_cost} />
                   </td>
@@ -220,10 +218,8 @@ function ManufacturingSection({
       </tr>
       {section.lines.map((line) => (
         <tr key={line.code}>
-          <th scope="row" className="code">
-            {line.code}
-          </th>
-          <td>{line.name}</td>
+          <td className="code">{line.code}</td>
+          <th scope="row">{line.name}</th>
           <td className="num">
             <Amount value={line.amount} />
           </td>

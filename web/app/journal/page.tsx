@@ -98,7 +98,11 @@ function EntryRows({
           className={lineIndex === 0 ? "journal-entry-start" : undefined}
         >
           <th scope="row" className="nowrap">
-            {lineIndex === 0 ? entry.entry_date : EMPTY}
+            {lineIndex === 0 ? (
+              entry.entry_date
+            ) : (
+              <span className="sr-only">{entry.entry_date}</span>
+            )}
           </th>
           <td className="code">
             {lineIndex === 0 ? (entry.voucher_no ?? "—") : EMPTY}

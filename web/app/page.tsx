@@ -77,10 +77,8 @@ export default async function Home() {
                 <tbody>
                   {result.data.map((account) => (
                     <tr key={account.code}>
-                      <th scope="row" className="code">
-                        {account.code}
-                      </th>
-                      <td>{account.name}</td>
+                      <td className="code">{account.code}</td>
+                      <th scope="row">{account.name}</th>
                       <td>{ACCOUNT_TYPE_LABEL[account.account_type]}</td>
                       <td className="muted">
                         {account.normal_balance === "debit" ? "借方" : "貸方"}
