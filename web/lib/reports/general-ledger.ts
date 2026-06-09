@@ -119,11 +119,8 @@ function buildAccountLedger(
 ): GeneralLedgerAccountSnapshot {
   let running = opening;
   const rows: GeneralLedgerRowSnapshot[] = lineRows.map((row) => {
-    running += signedDelta(
-      row.side,
-      account.normal_balance,
-      parseMoney(row.amount),
-    );
+    const amount = parseMoney(row.amount);
+    running += signedDelta(row.side, account.normal_balance, amount);
     return {
       entry_date: row.entry_date,
       voucher_no: row.voucher_no,
@@ -131,7 +128,7 @@ function buildAccountLedger(
       line_description: row.line_description,
       counter_accounts: counterAccounts(row),
       side: row.side,
-      amount: formatMoney(parseMoney(row.amount)),
+      amount: formatMoney(amount),
       running_balance: formatMoney(running),
     };
   });
@@ -212,9 +209,12 @@ function groupByAccount<T extends { account_id: string }>(
 ): Map<string, T[]> {
   const grouped = new Map<string, T[]>();
   for (const row of rows) {
-    const accountRows = grouped.get(row.account_id) ?? [];
-    accountRows.push(row);
-    grouped.set(row.account_id, accountRows);
+    const accountRows = grouped.get(row.account_id);
+    if (accountRows === undefined) {
+      grouped.set(row.account_id, [row]);
+    } else {
+      accountRows.push(row);
+    }
   }
   return grouped;
 }
@@ -302,7 +302,11 @@ async function wholeBookAccounts(
   `;
   const linesByAccount = groupByAccount(lineRows);
 
-  const entryIds = [...new Set(lineRows.map((row) => row.entry_id))];
+  const entryIdSet = new Set<string>();
+  for (const row of lineRows) {
+    entryIdSet.add(row.entry_id);
+  }
+  const entryIds = [...entryIdSet];
   const entryLinesByEntry = new Map<string, EntryLineRow[]>();
   if (entryIds.length > 0) {
     const entryLines = await sql<EntryLineRow[]>`
