@@ -249,18 +249,22 @@ async function main(): Promise<void> {
   let failed = 0;
   for (const [name, build] of cases) {
     const actual = await build();
-    const expected =
-      name === "etax_export_koa220"
-        ? relabelGolden(name, KOA220_FISCAL_YEAR)
-        : name === "real_estate_income"
-          ? relabelGolden(name, KOA220_FISCAL_YEAR)
-        : name === "etax_export_koa240"
-          ? relabelGolden(name, KOA240_FISCAL_YEAR)
-          : name === "agricultural_income"
-            ? relabelGolden(name, KOA240_FISCAL_YEAR)
-          : name === "balance_sheet"
-            ? balanceSheetGolden()
-          : loadGolden(name);
+    let expected: unknown;
+    switch (name) {
+      case "etax_export_koa220":
+      case "real_estate_income":
+        expected = relabelGolden(name, KOA220_FISCAL_YEAR);
+        break;
+      case "etax_export_koa240":
+      case "agricultural_income":
+        expected = relabelGolden(name, KOA240_FISCAL_YEAR);
+        break;
+      case "balance_sheet":
+        expected = balanceSheetGolden();
+        break;
+      default:
+        expected = loadGolden(name);
+    }
     const problems = diff(expected, actual);
     if (problems.length === 0) {
       console.log(`✓ ${name}`);

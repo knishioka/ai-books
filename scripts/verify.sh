@@ -47,7 +47,7 @@ for arg in "$@"; do
 done
 WEB_CMD=""
 if [[ $RUN_WEB -eq 1 ]]; then
-  WEB_CMD="cd web && { [[ -d node_modules ]] || npm ci; } && npm run lint && npm run typecheck && npm run test"
+  WEB_CMD="cd web && { [[ -d node_modules ]] || npm ci; } && npm run lint && npm run typecheck && npm run test:coverage"
 fi
 
 RESULT_BUILD=""
