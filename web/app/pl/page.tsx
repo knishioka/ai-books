@@ -12,7 +12,7 @@ export default async function ProfitAndLossPage({
   searchParams: Promise<{ fy?: string }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, (sql, year) =>
+  const result = await loadReport("profit-and-loss", fy, (sql, year) =>
     fetchProfitAndLoss(sql, {
       fiscalYear: year.name,
       start: year.start_date,

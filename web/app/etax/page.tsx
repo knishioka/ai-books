@@ -11,7 +11,7 @@ export default async function EtaxPage({
   searchParams: Promise<{ fy?: string }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, buildSampleEtaxSnapshot);
+  const result = await loadReport("etax-preview", fy, buildSampleEtaxSnapshot);
   if (!result.ok) return <ErrorBanner error={result.error} />;
 
   const { data: exported, fiscalYear, fiscalYears } = result.data;

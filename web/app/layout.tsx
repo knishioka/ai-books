@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { Nav } from "@/components/nav";
-import { createClient } from "@/lib/supabase/server";
+import { getViewerEmailFromHeaders } from "@/lib/auth/request-context";
 
 import "./globals.css";
 
@@ -14,16 +15,10 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  // The current owner's email drives the nav (report links + sign-out appear only when
-  // signed in). The auth gate itself lives in `web/middleware.ts`; this is presentation.
-  const supabase = await createClient();
-  let userEmail: string | null = null;
-  if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    userEmail = user?.email ?? null;
-  }
+  // The current owner's email is resolved once in `web/proxy.ts` via Supabase getUser().
+  // Layout only consumes that verified request context for presentation, avoiding a second
+  // Auth server round trip on every navigation.
+  const userEmail = getViewerEmailFromHeaders(await headers());
 
   return (
     <html lang="ja">

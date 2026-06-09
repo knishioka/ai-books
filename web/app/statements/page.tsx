@@ -17,7 +17,7 @@ export default async function StatementsPage({
   searchParams: Promise<{ fy?: string }>;
 }) {
   const { fy } = await searchParams;
-  const result = await loadReport(fy, (sql, year) =>
+  const result = await loadReport("statements", fy, (sql, year) =>
     fetchFinancialStatements(sql, {
       fiscalYear: year.name,
       start: year.start_date,

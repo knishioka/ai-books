@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isAllowedEmail, safeNextPath } from "@/lib/auth/allowlist";
 import { getAllowedEmail } from "@/lib/auth/env";
+import {
+  sanitizedViewerHeaders,
+  viewerHeadersWithEmail,
+} from "@/lib/auth/request-context";
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
@@ -42,10 +46,27 @@ function redirectTo(url: URL, cookieCarrier: NextResponse): NextResponse {
   return redirect;
 }
 
+/** Continue the request with the already-verified user email available to Server Components. */
+function continueWithUserEmail(
+  request: NextRequest,
+  cookieCarrier: NextResponse,
+  email: string | null | undefined,
+): NextResponse {
+  const response = NextResponse.next({
+    request: { headers: viewerHeadersWithEmail(request.headers, email) },
+  });
+  for (const cookie of cookieCarrier.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   // Public demo: serve the read-only viewer to everyone (no auth). Default keeps the gate.
   if (PUBLIC_VIEWER) {
-    return NextResponse.next();
+    return NextResponse.next({
+      request: { headers: sanitizedViewerHeaders(request.headers) },
+    });
   }
   const { response, user, configured } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
@@ -68,7 +89,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (authorized) {
-    return response;
+    return continueWithUserEmail(request, response, user.email);
   }
 
   // Unauthenticated, unconfigured, or not on the allowlist → fail closed to /login.

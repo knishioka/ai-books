@@ -2,6 +2,7 @@ import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
 import { loadReport } from "@/lib/reports/context";
+import { normalizeAccountCodeParam } from "@/lib/reports/filters";
 import { fetchMonthlyTrend } from "@/lib/reports/monthly-trend";
 
 export const dynamic = "force-dynamic";
@@ -17,45 +18,50 @@ export default async function MonthlyTrendPage({
   searchParams: Promise<{ fy?: string; account?: string }>;
 }) {
   const { fy, account } = await searchParams;
+  const accountCode = normalizeAccountCodeParam(account);
 
-  const result = await loadReport(fy, async (sql, year) => {
-    const accountOptions = await sql<AccountOption[]>`
-      SELECT a.code, a.name
-      FROM accounts a
-      WHERE EXISTS (
-        SELECT 1
-        FROM journal_lines jl
-        JOIN journal_entries je ON je.id = jl.entry_id
-        WHERE jl.account_id = a.id
-          AND je.entry_date <= ${year.end_date}::date
-          AND je.status <> 'voided'::entry_status
-      )
-      ORDER BY a.code
-    `;
-    const codes = accountOptions.map((option) => option.code);
-    // Default to 普通預金 (1141) when present, else the first touched account.
-    const selected =
-      account && codes.includes(account)
-        ? account
-        : codes.includes("1141")
-          ? "1141"
-          : codes[0];
-    const trend = selected
-      ? await fetchMonthlyTrend(sql, {
-          codes: [selected],
-          fiscalYear: year.name,
-          start: year.start_date,
-          end: year.end_date,
-          status: "posted",
-          carryForward: false,
-        })
-      : {
-          report: "monthly_trend" as const,
-          fiscal_year: year.name,
-          accounts: [],
-        };
-    return { trend, accountOptions, selected };
-  });
+  const result = await loadReport(
+    `monthly-trend:${accountCode ?? "__default__"}`,
+    fy,
+    async (sql, year) => {
+      const accountOptions = await sql<AccountOption[]>`
+        SELECT a.code, a.name
+        FROM accounts a
+        WHERE EXISTS (
+          SELECT 1
+          FROM journal_lines jl
+          JOIN journal_entries je ON je.id = jl.entry_id
+          WHERE jl.account_id = a.id
+            AND je.entry_date <= ${year.end_date}::date
+            AND je.status <> 'voided'::entry_status
+        )
+        ORDER BY a.code
+      `;
+      const codes = accountOptions.map((option) => option.code);
+      // Default to 普通預金 (1141) when present, else the first touched account.
+      const selected =
+        accountCode && codes.includes(accountCode)
+          ? accountCode
+          : codes.includes("1141")
+            ? "1141"
+            : codes[0];
+      const trend = selected
+        ? await fetchMonthlyTrend(sql, {
+            codes: [selected],
+            fiscalYear: year.name,
+            start: year.start_date,
+            end: year.end_date,
+            status: "posted",
+            carryForward: false,
+          })
+        : {
+            report: "monthly_trend" as const,
+            fiscal_year: year.name,
+            accounts: [],
+          };
+      return { trend, accountOptions, selected };
+    },
+  );
   if (!result.ok) return <ErrorBanner error={result.error} />;
 
   const { data, fiscalYear, fiscalYears } = result.data;
