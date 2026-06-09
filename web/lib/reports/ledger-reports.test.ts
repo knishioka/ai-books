@@ -24,6 +24,23 @@ function fakeSql(...resultSets: Record<string, unknown>[][]): Sql {
   return tag as unknown as Sql;
 }
 
+function countingFakeSql(...resultSets: Record<string, unknown>[][]): {
+  sql: Sql;
+  calls: () => number;
+} {
+  let i = 0;
+  const tag = () => ({
+    then(
+      onFulfilled: (rows: Record<string, unknown>[]) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) {
+      const rows = i < resultSets.length ? resultSets[i++] : [];
+      return Promise.resolve(rows).then(onFulfilled, onRejected);
+    },
+  });
+  return { sql: tag as unknown as Sql, calls: () => i };
+}
+
 describe("fetchJournalBook", () => {
   it("inlines each line's 科目 and foots 借方/貸方 over the listed lines", async () => {
     const headers = [
@@ -121,6 +138,108 @@ describe("fetchMonthlyTrend", () => {
 });
 
 describe("fetchGeneralLedger", () => {
+  it("builds the whole book with a fixed bulk-query shape", async () => {
+    const accounts = [
+      { id: "7", code: "1110", name: "現金", normal_balance: "debit" },
+      { id: "8", code: "2110", name: "買掛金", normal_balance: "credit" },
+      { id: "9", code: "4110", name: "売上高", normal_balance: "credit" },
+    ];
+    const opening = [
+      { account_id: "7", debit_total: "100000.00", credit_total: "0.00" },
+      { account_id: "8", debit_total: "0.00", credit_total: "25000.00" },
+      { account_id: "9", debit_total: "0.00", credit_total: "30000.00" },
+    ];
+    const lineRows = [
+      {
+        account_id: "7",
+        entry_id: "1",
+        line_no: 1,
+        entry_date: "2025-02-01",
+        voucher_no: "V1",
+        description: "売上",
+        line_description: null,
+        side: "debit",
+        amount: "420000.00",
+      },
+      {
+        account_id: "7",
+        entry_id: "2",
+        line_no: 1,
+        entry_date: "2025-03-01",
+        voucher_no: "V2",
+        description: "支払",
+        line_description: null,
+        side: "credit",
+        amount: "20000.00",
+      },
+      {
+        account_id: "8",
+        entry_id: "2",
+        line_no: 2,
+        entry_date: "2025-03-01",
+        voucher_no: "V2",
+        description: "支払",
+        line_description: "掛け支払",
+        side: "debit",
+        amount: "20000.00",
+      },
+    ];
+    const entryLines = [
+      { entry_id: "1", account_id: "7", code: "1110" },
+      { entry_id: "1", account_id: "9", code: "4110" },
+      { entry_id: "1", account_id: "10", code: "4110" },
+      { entry_id: "2", account_id: "7", code: "1110" },
+      { entry_id: "2", account_id: "8", code: "2110" },
+    ];
+    const { sql, calls } = countingFakeSql(
+      accounts,
+      opening,
+      lineRows,
+      entryLines,
+    );
+
+    const gl = await fetchGeneralLedger(sql, {
+      start: "2025-01-01",
+      end: "2025-12-31",
+    });
+
+    expect(calls()).toBe(4);
+    expect(gl.accounts.map((account) => account.code)).toEqual([
+      "1110",
+      "2110",
+      "4110",
+    ]);
+    expect(gl.accounts[0].opening_balance).toBe("100000.00");
+    expect(gl.accounts[0].closing_balance).toBe("500000.00");
+    expect(gl.accounts[0].rows.map((row) => row.counter_accounts)).toEqual([
+      ["4110"],
+      ["2110"],
+    ]);
+    expect(gl.accounts[1].opening_balance).toBe("25000.00");
+    expect(gl.accounts[1].closing_balance).toBe("5000.00");
+    expect(gl.accounts[1].rows[0].counter_accounts).toEqual(["1110"]);
+    expect(gl.accounts[2].opening_balance).toBe("30000.00");
+    expect(gl.accounts[2].closing_balance).toBe("30000.00");
+    expect(gl.accounts[2].rows).toEqual([]);
+  });
+
+  it("skips whole-book opening and counter queries when they are unnecessary", async () => {
+    const accounts = [
+      { id: "7", code: "1110", name: "現金", normal_balance: "debit" },
+      { id: "8", code: "2110", name: "買掛金", normal_balance: "credit" },
+    ];
+    const { sql, calls } = countingFakeSql(accounts, []);
+
+    const gl = await fetchGeneralLedger(sql, { carryForward: false });
+
+    expect(calls()).toBe(2);
+    expect(gl.accounts).toHaveLength(2);
+    expect(gl.accounts.map((account) => account.opening_balance)).toEqual([
+      "0.00",
+      "0.00",
+    ]);
+  });
+
   it("carries the 繰越 forward and moves the running balance in the normal direction", async () => {
     const accounts = [
       { id: "7", code: "1110", name: "現金", normal_balance: "debit" },

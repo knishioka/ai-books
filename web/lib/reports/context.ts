@@ -15,7 +15,7 @@ import type { Sql } from "postgres";
 
 import { tryQuery, type ConnectionResult } from "../db";
 import { normalizeFiscalYearParam, type QueryParamValue } from "./filters";
-import { resolveFiscalYear, type FiscalYear } from "./fiscal-year";
+import type { FiscalYear } from "./fiscal-year";
 
 export const REPORT_REVALIDATE_SECONDS = 60;
 
@@ -58,7 +58,7 @@ async function loadReportData<T>(
     `;
     const fiscalYear = normalizedYear
       ? (fiscalYears.find((year) => year.name === normalizedYear) ?? null)
-      : await resolveFiscalYear(sql);
+      : (fiscalYears[0] ?? null);
     if (!fiscalYear) {
       throw new Error(
         normalizedYear

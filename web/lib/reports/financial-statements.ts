@@ -95,6 +95,10 @@ interface MonthAmountRow {
   credit_total: string;
 }
 
+interface ClassifiedMonthAmountRow extends MonthAmountRow {
+  is_sales: boolean;
+}
+
 type MonthAmounts = { debit: Money; credit: Money };
 
 function byMonth(rows: MonthAmountRow[]): Map<string, MonthAmounts> {
@@ -115,33 +119,26 @@ async function monthlySalesPurchases(
   end: string,
   status: EntryStatus | null,
 ): Promise<MonthlySalesPurchasesSnapshot> {
-  const salesRows = await sql<MonthAmountRow[]>`
+  const monthRows = await sql<ClassifiedMonthAmountRow[]>`
     SELECT to_char(date_trunc('month', je.entry_date), 'YYYY-MM') AS month,
+           COALESCE(a.statement_category = 'sales', false) AS is_sales,
            COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
            COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
     FROM journal_lines jl
     JOIN journal_entries je ON je.id = jl.entry_id
     JOIN accounts a ON a.id = jl.account_id
-    WHERE a.statement_category = 'sales'
+    WHERE (
+        a.statement_category = 'sales'
+        OR a.name LIKE ${"%" + PURCHASE_ACCOUNT_NAME_SUFFIX}
+      )
       AND je.entry_date >= ${start}::date
       AND je.entry_date <= ${end}::date
       AND ${statusFilter(sql, status)}
-    GROUP BY month
-  `;
-  const purchaseRows = await sql<MonthAmountRow[]>`
-    SELECT to_char(date_trunc('month', je.entry_date), 'YYYY-MM') AS month,
-           COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
-           COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
-    FROM journal_lines jl
-    JOIN journal_entries je ON je.id = jl.entry_id
-    JOIN accounts a ON a.id = jl.account_id
-    WHERE a.name LIKE ${"%" + PURCHASE_ACCOUNT_NAME_SUFFIX}
-      AND je.entry_date >= ${start}::date
-      AND je.entry_date <= ${end}::date
-      AND ${statusFilter(sql, status)}
-    GROUP BY month
+    GROUP BY month, is_sales
   `;
 
+  const salesRows = monthRows.filter((row) => row.is_sales);
+  const purchaseRows = monthRows.filter((row) => !row.is_sales);
   const salesByMonth = byMonth(salesRows);
   const purchasesByMonth = byMonth(purchaseRows);
   const rows: MonthlySalesPurchasesRowSnapshot[] = [];
@@ -295,21 +292,29 @@ export async function fetchFinancialStatements(
   sql: Sql,
   { fiscalYear, start, end, status = "posted" }: FinancialStatementsOptions,
 ): Promise<FinancialStatementsSnapshot> {
-  const profitAndLoss = await fetchProfitAndLoss(sql, {
+  const profitAndLossPromise = fetchProfitAndLoss(sql, {
     fiscalYear,
     start,
     end,
     status,
   });
-  const balanceSheet = await fetchBalanceSheet(sql, { start, asOf: end, status });
-  const monthly = await monthlySalesPurchases(sql, start, end, status);
-  const depreciation = await depreciationSchedule(
-    sql,
-    profitAndLoss,
+  const balanceSheetPromise = fetchBalanceSheet(sql, {
     start,
-    end,
+    asOf: end,
     status,
+  });
+  const monthlyPromise = monthlySalesPurchases(sql, start, end, status);
+  const depreciationPromise = profitAndLossPromise.then((profitAndLoss) =>
+    depreciationSchedule(sql, profitAndLoss, start, end, status),
   );
+
+  const [profitAndLoss, balanceSheet, monthly, depreciation] =
+    await Promise.all([
+      profitAndLossPromise,
+      balanceSheetPromise,
+      monthlyPromise,
+      depreciationPromise,
+    ]);
 
   return {
     report: "financial_statements",
