@@ -61,6 +61,22 @@ interface LedgerLineRow {
   amount: string;
 }
 
+interface WholeBookLedgerLineRow extends LedgerLineRow {
+  account_id: string;
+}
+
+interface OpeningFootingRow {
+  account_id: string;
+  debit_total: string;
+  credit_total: string;
+}
+
+interface EntryLineRow {
+  entry_id: string;
+  account_id: string;
+  code: string;
+}
+
 export interface GeneralLedgerOptions {
   /** Limit to one account by 勘定科目コード; omit for the whole book. */
   accountCode?: string | null;
@@ -93,6 +109,41 @@ async function openingBalance(
     parseMoney(row.credit_total),
     normal,
   );
+}
+
+function buildAccountLedger(
+  account: AccountMeta,
+  opening: Money,
+  lineRows: LedgerLineRow[],
+  counterAccounts: (row: LedgerLineRow) => string[],
+): GeneralLedgerAccountSnapshot {
+  let running = opening;
+  const rows: GeneralLedgerRowSnapshot[] = lineRows.map((row) => {
+    running += signedDelta(
+      row.side,
+      account.normal_balance,
+      parseMoney(row.amount),
+    );
+    return {
+      entry_date: row.entry_date,
+      voucher_no: row.voucher_no,
+      description: row.description,
+      line_description: row.line_description,
+      counter_accounts: counterAccounts(row),
+      side: row.side,
+      amount: formatMoney(parseMoney(row.amount)),
+      running_balance: formatMoney(running),
+    };
+  });
+
+  return {
+    code: account.code,
+    name: account.name,
+    normal_balance: account.normal_balance,
+    opening_balance: formatMoney(opening),
+    closing_balance: formatMoney(running),
+    rows,
+  };
 }
 
 async function accountLedger(
@@ -148,33 +199,160 @@ async function accountLedger(
     }
   }
 
-  let running = opening;
-  const rows: GeneralLedgerRowSnapshot[] = lineRows.map((row) => {
-    running += signedDelta(
-      row.side,
-      account.normal_balance,
-      parseMoney(row.amount),
-    );
-    return {
-      entry_date: row.entry_date,
-      voucher_no: row.voucher_no,
-      description: row.description,
-      line_description: row.line_description,
-      counter_accounts: counterByEntry.get(row.entry_id) ?? [],
-      side: row.side,
-      amount: formatMoney(parseMoney(row.amount)),
-      running_balance: formatMoney(running),
-    };
-  });
+  return buildAccountLedger(
+    account,
+    opening,
+    lineRows,
+    (row) => counterByEntry.get(row.entry_id) ?? [],
+  );
+}
 
-  return {
-    code: account.code,
-    name: account.name,
-    normal_balance: account.normal_balance,
-    opening_balance: formatMoney(opening),
-    closing_balance: formatMoney(running),
-    rows,
-  };
+function groupByAccount<T extends { account_id: string }>(
+  rows: T[],
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const accountRows = grouped.get(row.account_id) ?? [];
+    accountRows.push(row);
+    grouped.set(row.account_id, accountRows);
+  }
+  return grouped;
+}
+
+function counterFor(entryLines: EntryLineRow[], accountId: string): string[] {
+  const codes: string[] = [];
+  for (const line of entryLines) {
+    if (line.account_id !== accountId && !codes.includes(line.code)) {
+      codes.push(line.code);
+    }
+  }
+  return codes;
+}
+
+async function wholeBookAccounts(
+  sql: Sql,
+  {
+    start,
+    end,
+    status,
+    carryForward,
+  }: {
+    start: string | null;
+    end: string | null;
+    status: EntryStatus | null;
+    carryForward: boolean;
+  },
+): Promise<GeneralLedgerAccountSnapshot[]> {
+  const accounts =
+    carryForward && start !== null
+      ? await sql<AccountMeta[]>`
+          SELECT a.id::text AS id, a.code, a.name, a.normal_balance
+          FROM accounts a
+          WHERE EXISTS (
+            SELECT 1
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id = jl.entry_id
+            WHERE jl.account_id = a.id
+              AND (${end}::date IS NULL OR je.entry_date <= ${end}::date)
+              AND ${statusFilter(sql, status)}
+          )
+          ORDER BY a.code
+        `
+      : await sql<AccountMeta[]>`
+          SELECT a.id::text AS id, a.code, a.name, a.normal_balance
+          FROM accounts a
+          WHERE EXISTS (
+            SELECT 1
+            FROM journal_lines jl
+            JOIN journal_entries je ON je.id = jl.entry_id
+            WHERE jl.account_id = a.id
+              AND (${start}::date IS NULL OR je.entry_date >= ${start}::date)
+              AND (${end}::date IS NULL OR je.entry_date <= ${end}::date)
+              AND ${statusFilter(sql, status)}
+          )
+          ORDER BY a.code
+        `;
+  if (accounts.length === 0) return [];
+
+  const openingRows =
+    carryForward && start !== null
+      ? await sql<OpeningFootingRow[]>`
+          SELECT jl.account_id::text AS account_id,
+                 COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'debit'), 0)::text  AS debit_total,
+                 COALESCE(SUM(jl.amount) FILTER (WHERE jl.side = 'credit'), 0)::text AS credit_total
+          FROM journal_lines jl
+          JOIN journal_entries je ON je.id = jl.entry_id
+          WHERE je.entry_date < ${start}::date
+            AND ${statusFilter(sql, status)}
+          GROUP BY jl.account_id
+        `
+      : [];
+  const openingByAccount = new Map(openingRows.map((row) => [row.account_id, row]));
+
+  const lineRows = await sql<WholeBookLedgerLineRow[]>`
+    SELECT jl.account_id::text AS account_id, je.id::text AS entry_id, jl.line_no,
+           je.entry_date::text AS entry_date, je.voucher_no, je.description,
+           jl.line_description, jl.side, jl.amount::text AS amount
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.entry_id
+    WHERE (${start}::date IS NULL OR je.entry_date >= ${start}::date)
+      AND (${end}::date IS NULL OR je.entry_date <= ${end}::date)
+      AND ${statusFilter(sql, status)}
+    ORDER BY jl.account_id, je.entry_date, je.id, jl.line_no
+  `;
+  const linesByAccount = groupByAccount(lineRows);
+
+  const entryIds = [...new Set(lineRows.map((row) => row.entry_id))];
+  const entryLinesByEntry = new Map<string, EntryLineRow[]>();
+  if (entryIds.length > 0) {
+    const entryLines = await sql<EntryLineRow[]>`
+      SELECT jl.entry_id::text AS entry_id, jl.account_id::text AS account_id, a.code
+      FROM journal_lines jl
+      JOIN accounts a ON a.id = jl.account_id
+      WHERE jl.entry_id = ANY(${entryIds}::bigint[])
+      ORDER BY jl.entry_id, jl.line_no
+    `;
+    for (const row of entryLines) {
+      const lines = entryLinesByEntry.get(row.entry_id) ?? [];
+      lines.push(row);
+      entryLinesByEntry.set(row.entry_id, lines);
+    }
+  }
+
+  return accounts.map((account) => {
+    const openingFooting = openingByAccount.get(account.id);
+    const opening =
+      openingFooting === undefined
+        ? ZERO
+        : balanceFromTotals(
+            parseMoney(openingFooting.debit_total),
+            parseMoney(openingFooting.credit_total),
+            account.normal_balance,
+          );
+
+    return buildAccountLedger(
+      account,
+      opening,
+      linesByAccount.get(account.id) ?? [],
+      (row) => counterFor(entryLinesByEntry.get(row.entry_id) ?? [], account.id),
+    );
+  });
+}
+
+async function selectAccountByCode(
+  sql: Sql,
+  accountCode: string,
+): Promise<AccountMeta> {
+  const accounts = await sql<AccountMeta[]>`
+    SELECT id::text AS id, code, name, normal_balance
+    FROM accounts
+    WHERE code = ${accountCode}
+  `;
+  const account = accounts[0];
+  if (account === undefined) {
+    throw new Error(`account ${accountCode} not found`);
+  }
+  return account;
 }
 
 export async function fetchGeneralLedger(
@@ -187,40 +365,14 @@ export async function fetchGeneralLedger(
     carryForward = true,
   }: GeneralLedgerOptions = {},
 ): Promise<GeneralLedgerSnapshot> {
-  let accounts: AccountMeta[];
+  let accounts: GeneralLedgerAccountSnapshot[];
   if (accountCode !== null) {
-    accounts = await sql<AccountMeta[]>`
-      SELECT id::text AS id, code, name, normal_balance
-      FROM accounts
-      WHERE code = ${accountCode}
-    `;
-    if (accounts.length === 0) {
-      throw new Error(`account ${accountCode} not found`);
-    }
-  } else {
-    // "Active" = any line dated on/before 期末 under the status filter (科目コード順) — so an
-    // account touched only before `start` still appears with its 繰越 and no in-window rows.
-    accounts = await sql<AccountMeta[]>`
-      SELECT a.id::text AS id, a.code, a.name, a.normal_balance
-      FROM accounts a
-      WHERE EXISTS (
-        SELECT 1
-        FROM journal_lines jl
-        JOIN journal_entries je ON je.id = jl.entry_id
-        WHERE jl.account_id = a.id
-          AND (${start}::date IS NULL OR je.entry_date >= ${start}::date)
-          AND (${end}::date IS NULL OR je.entry_date <= ${end}::date)
-          AND ${statusFilter(sql, status)}
-      )
-      ORDER BY a.code
-    `;
-  }
-
-  const accountSnapshots: GeneralLedgerAccountSnapshot[] = [];
-  for (const account of accounts) {
-    accountSnapshots.push(
+    const account = await selectAccountByCode(sql, accountCode);
+    accounts = [
       await accountLedger(sql, account, { start, end, status, carryForward }),
-    );
+    ];
+  } else {
+    accounts = await wholeBookAccounts(sql, { start, end, status, carryForward });
   }
 
   return {
@@ -228,6 +380,6 @@ export async function fetchGeneralLedger(
     start_date: start,
     end_date: end,
     status,
-    accounts: accountSnapshots,
+    accounts,
   };
 }
