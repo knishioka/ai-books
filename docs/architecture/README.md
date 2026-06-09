@@ -44,8 +44,8 @@ golden で機械保証する ([§3](#3-テスト保証インベントリ-能力-
             ┌──────────────────────── 閲覧経路 (SELECT 専用) ─────────────────────────┐
  ブラウザ ─▶ web/proxy.ts (auth gate) ─▶ web/app/*/page.tsx ─▶ web/lib/reports/*
                        │                         │                    │
-                       ├─ lib/auth/*             │                    └─ context.ts/sql.ts/ledger.ts
-                       └─ lib/supabase/middleware.ts                  │
+                       ├─ web/lib/auth/*         │                    ├─ context.ts/sql.ts/ledger.ts
+                       └─ web/lib/supabase/middleware.ts              │
                                                                       ▼
                                                           web/lib/db.ts (prepare:false, max:5)
                                                                       │
