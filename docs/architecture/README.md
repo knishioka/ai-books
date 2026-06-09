@@ -42,9 +42,14 @@ golden で機械保証する ([§3](#3-テスト保証インベントリ-能力-
    ledger.py / aggregation.py ── 純粋会計演算 (SQL/IO なし。単体テスト可能)
 
             ┌──────────────────────── 閲覧経路 (SELECT 専用) ─────────────────────────┐
- ブラウザ ─▶ web/app/*/page.tsx ──▶ web/lib/reports/* ──▶ web/lib/db.ts (prepare:false)
-                                       │                      │
-                                       └─ ledger.ts/sql.ts    └─▶ Postgres (viewer_ro ロール)
+ ブラウザ ─▶ web/proxy.ts (auth gate) ─▶ web/app/*/page.tsx ─▶ web/lib/reports/*
+                       │                         │                    │
+                       ├─ web/lib/auth/*         │                    ├─ context.ts/sql.ts/ledger.ts
+                       └─ web/lib/supabase/middleware.ts              │
+                                                                      ▼
+                                                          web/lib/db.ts (prepare:false, max:5)
+                                                                      │
+                                                                      └─▶ Postgres (viewer_ro ロール)
                                           (Python と同じ符号規則を TS で再実装)
 
  Postgres ◀── supabase/migrations/*.sql (forward-only) ── 全層が読む保管層
@@ -79,15 +84,18 @@ golden で機械保証する ([§3](#3-テスト保証インベントリ-能力-
 
 ### 1.2 web (`web/`) — read-only ビューア
 
-Next.js (App Router)。**書込 UI を持たない** (不変条件 #1)。各 page は `loadReport()` 経由で
-`web/lib/reports/*` の純粋関数を呼び、Python レポート層と**同じ符号規則**を TS で再実装する。
+Next.js (App Router)。**書込 UI を持たない** (不変条件 #1)。`web/proxy.ts` が Supabase Auth と
+single-user allowlist の認証ゲートを担い、検証済み owner email だけを request header として root
+layout へ渡す。各 page は `loadReport()` 経由で `web/lib/reports/*` の純粋関数を呼び、Python
+レポート層と**同じ符号規則**を TS で再実装する。
 
 | 層                  | パス                                                                                            | 責務                                                                                                                            |
 | ------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **認証ゲート**      | `web/proxy.ts` · `web/lib/auth/{allowlist,env,request-context}.ts` · `web/lib/supabase/middleware.ts` | Supabase Auth session 更新 + single-user allowlist。fail-closed で `/login` へ誘導し、検証済み email だけを layout 用 header に転送 |
 | **ページ**          | `web/app/{bs,pl,statements,trial-balance,ledger,journal,monthly-trend,worksheet,etax}/page.tsx` | 各帳票の描画。`web/app/etax/download/route.ts` は e-Tax ダウンロード POST                                                       |
-| **データ計算**      | `web/lib/reports/*.ts`                                                                          | `fetch{BalanceSheet,ProfitAndLoss,TrialBalance,...}`。`context.ts`(FY解決) `ledger.ts`(符号) `sql.ts`(voided filter) `month.ts` |
+| **データ計算**      | `web/lib/reports/*.ts`                                                                          | `fetch{BalanceSheet,ProfitAndLoss,TrialBalance,...}`。`context.ts`(FY解決 + `unstable_cache`, 60s revalidate) `ledger.ts`(符号) `sql.ts`(voided filter) `month.ts` |
 | **e-Tax**           | `web/lib/etax/{spec,export}.ts`                                                                 | Python `etax/` の TS ミラー。`buildEtaxExport()` + CSV/XML 描画                                                                 |
-| **DB ゲートウェイ** | `web/lib/db.ts`                                                                                 | read-only Postgres クライアント。**`prepare: false`** (pgbouncer transaction mode 安全)                                         |
+| **DB ゲートウェイ** | `web/lib/db.ts`                                                                                 | read-only Postgres クライアント。**`prepare: false`** + **`max:5`** の小規模 pool (pgbouncer transaction mode 安全)             |
 | **整形/UI**         | `web/lib/{format,money,routes}.ts` · `web/components/*`                                         | 金額整形 · ナビ · 表コンポーネント                                                                                              |
 
 ### 1.3 scripts / supabase

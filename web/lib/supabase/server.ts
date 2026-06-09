@@ -8,8 +8,8 @@ import { getSupabaseAuthEnv } from "@/lib/auth/env";
 /**
  * A request-scoped Supabase client for Server Components, Route Handlers and Server
  * Actions, wired to Next's cookie store so it can read and refresh the auth session
- * (issue #108). Used by the `/login` server actions (sign-in / sign-out) and by the
- * layout to read the current user.
+ * (issue #108). Used by the `/login` server actions (sign-in / sign-out); the
+ * root layout reads the already-verified viewer context forwarded by `web/proxy.ts`.
  *
  * Returns `null` when Supabase Auth is not configured so callers fail closed with a
  * friendly message instead of throwing (see {@link getSupabaseAuthEnv}). The anon key is
