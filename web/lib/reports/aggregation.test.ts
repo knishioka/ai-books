@@ -28,6 +28,11 @@ function fakeSql(...resultSets: Record<string, unknown>[][]): Sql {
   return tag as unknown as Sql;
 }
 
+const flushMicrotasks = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 describe("fetchTrialBalance", () => {
   it("signs each account and foots both columns", async () => {
     const sql = fakeSql([
@@ -302,6 +307,70 @@ describe("fetchWorksheet", () => {
 });
 
 describe("fetchFinancialStatements", () => {
+  it("starts independent report queries before waiting for the PL", async () => {
+    const started: string[] = [];
+    const pending = new Map<string, (rows: Record<string, unknown>[]) => void>();
+    const sql = ((strings: TemplateStringsArray) => {
+      const query = strings.join("");
+      if (query.includes("CASE WHEN")) {
+        return {};
+      }
+
+      let kind: string;
+      if (query.includes("a.account_type IN ('revenue', 'expense')")) {
+        kind = "profit-and-loss";
+      } else if (
+        query.includes("a.statement_category = 'sales'") &&
+        query.includes("a.name LIKE")
+      ) {
+        kind = "monthly-sales-purchases";
+      } else if (query.includes("a.statement_category = 'fixed_assets'")) {
+        kind = "depreciation";
+      } else {
+        kind = "balance-sheet";
+      }
+
+      started.push(kind);
+      return new Promise<Record<string, unknown>[]>((resolve) => {
+        pending.set(kind, resolve);
+      });
+    }) as unknown as Sql;
+
+    const fsPromise = fetchFinancialStatements(sql, {
+      fiscalYear: "FY2025",
+      start: "2025-01-01",
+      end: "2025-03-31",
+    });
+    await flushMicrotasks();
+
+    expect(started).toEqual([
+      "profit-and-loss",
+      "balance-sheet",
+      "monthly-sales-purchases",
+    ]);
+    expect(started).not.toContain("depreciation");
+
+    pending.get("profit-and-loss")!([]);
+    await flushMicrotasks();
+    expect(started).toEqual([
+      "profit-and-loss",
+      "balance-sheet",
+      "monthly-sales-purchases",
+      "depreciation",
+    ]);
+
+    pending.get("balance-sheet")!([]);
+    pending.get("monthly-sales-purchases")!([]);
+    pending.get("depreciation")!([]);
+
+    await expect(fsPromise).resolves.toMatchObject({
+      report: "financial_statements",
+      profit_and_loss: { report: "profit_and_loss" },
+      balance_sheet: { report: "balance_sheet" },
+      monthly: { rows: expect.any(Array) },
+    });
+  });
+
   it("tiles 月別売上・仕入 across the period and regroups 製造原価 from the PL", async () => {
     const plRows = [
       {
@@ -359,12 +428,25 @@ describe("fetchFinancialStatements", () => {
         credit_total: "200000.00",
       },
     ];
-    const salesMonths = [
-      { month: "2025-01", debit_total: "0.00", credit_total: "100000.00" },
-      { month: "2025-03", debit_total: "0.00", credit_total: "320000.00" },
-    ];
-    const purchaseMonths = [
-      { month: "2025-02", debit_total: "50000.00", credit_total: "0.00" },
+    const monthlyRows = [
+      {
+        month: "2025-01",
+        is_sales: true,
+        debit_total: "0.00",
+        credit_total: "100000.00",
+      },
+      {
+        month: "2025-03",
+        is_sales: true,
+        debit_total: "0.00",
+        credit_total: "320000.00",
+      },
+      {
+        month: "2025-02",
+        is_sales: false,
+        debit_total: "50000.00",
+        credit_total: "0.00",
+      },
     ];
     const depreciationRows = [
       {
@@ -377,13 +459,7 @@ describe("fetchFinancialStatements", () => {
       },
     ];
 
-    const sql = fakeSql(
-      plRows,
-      bsRows,
-      salesMonths,
-      purchaseMonths,
-      depreciationRows,
-    );
+    const sql = fakeSql(plRows, bsRows, monthlyRows, depreciationRows);
     const fs = await fetchFinancialStatements(sql, {
       fiscalYear: "FY2025",
       start: "2025-01-01",

@@ -36,7 +36,9 @@ export function loadReport<T>(
       FROM fiscal_years
       ORDER BY start_date DESC
     `;
-    const fiscalYear = await resolveFiscalYear(sql, requestedYear);
+    const fiscalYear = requestedYear
+      ? await resolveFiscalYear(sql, requestedYear)
+      : (fiscalYears[0] ?? null);
     if (!fiscalYear) {
       throw new Error(
         "会計年度がまだ登録されていません。MCP 経由で仕訳を登録し、fiscal_years をシードしてください。",

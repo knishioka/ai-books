@@ -24,7 +24,7 @@ const globalForSql = globalThis as unknown as {
  * The shared read-only SQL client, or `null` when `AI_BOOKS_DB_URL` is unset.
  *
  * Every report query in `lib/reports/*` and `lib/etax/*` goes through this one client so the
- * viewer opens a single pooled, prepared-statement-free connection (pooler-safe). It returns
+ * viewer reuses a small prepared-statement-free pool (pooler-safe). It returns
  * `null` rather than throwing so a page can degrade to a friendly "未接続" banner (e.g. during
  * a CI build with no database) instead of crashing.
  */
@@ -34,7 +34,7 @@ export function getSql(): postgres.Sql | null {
   }
   if (!globalForSql.__aiBooksSql) {
     globalForSql.__aiBooksSql = postgres(connectionString, {
-      max: 1,
+      max: 5,
       idle_timeout: 20,
       // Supabase's pooler (pgbouncer, transaction mode) does not support
       // prepared statements; disabling them keeps the viewer pooler-safe.
