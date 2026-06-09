@@ -185,8 +185,8 @@ any block failed:
 | Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                    | #55/#58             |
 | Web Vercel parity build (isolated web root)      | Production build passes with only `web/` visible, catching repo-root reads such as `../src`             | #140                |
 | e-Tax layout sync check                          | Python-side layout SSOT and committed web layout copies remain byte-for-byte in sync                    | #154                |
-| Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
 | Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
+| Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
 
 ##### CI ↔ local guarantee mapping
 
@@ -200,8 +200,8 @@ two together cover every CI job:
 | Web unit layer + coverage gate                              | `web`                     |
 | Web Vercel parity build                                     | `web-vercel-build`        |
 | e-Tax layout sync check                                     | `verify` / local          |
-| Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
 | Viewer golden cross-check (direct DB)                       | `web-golden`              |
+| Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
 | e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
 | `./scripts/verify.sh` (lint/format/typecheck/layout sync) + secret scan | `pre-commit` / `gitleaks` |
 

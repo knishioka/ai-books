@@ -190,8 +190,8 @@ layout へ渡す。各 page は `loadReport()` 経由で `web/lib/reports/*` の
 | Web unit layer + coverage gate (vitest)  | `web`                |
 | Web Vercel parity build                  | `web-vercel-build`   |
 | e-Tax layout sync check                  | `verify` / local     |
-| Pooler safety + golden (pgbouncer 越し)  | `pooler`             |
 | Viewer golden cross-check (直結)         | `web-golden`         |
+| Pooler safety + golden (pgbouncer 越し)  | `pooler`             |
 
 `etax-xsd` (公式 .xsd 非同梱) と `pre-commit`/`gitleaks` (`verify.sh` で担保) は CI 専用。
 両者を合わせてローカルが CI 全ジョブを網羅する。
