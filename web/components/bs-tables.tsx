@@ -14,14 +14,16 @@ function Sections({ sections }: { sections: BalanceSheetSectionSnapshot[] }) {
       {sections.map((section) => (
         <tbody key={section.category} className="bs-section">
           <tr className="section-head">
-            <td colSpan={2}>
+            <th scope="row" colSpan={2}>
               {CATEGORY_LABELS[section.category] ?? section.category}
-            </td>
+            </th>
             <td className="num" />
           </tr>
           {section.lines.map((line) => (
             <tr key={line.code}>
-              <td className="code">{line.code}</td>
+              <th scope="row" className="code">
+                {line.code}
+              </th>
               <td>{line.name}</td>
               <td className="num">
                 <Amount value={line.balance} />
@@ -29,9 +31,9 @@ function Sections({ sections }: { sections: BalanceSheetSectionSnapshot[] }) {
             </tr>
           ))}
           <tr className="subtotal">
-            <td colSpan={2}>
+            <th scope="row" colSpan={2}>
               {CATEGORY_LABELS[section.category] ?? section.category} 計
-            </td>
+            </th>
             <td className="num">
               <Amount value={section.subtotal} />
             </td>
@@ -46,7 +48,9 @@ function PartHead({ label }: { label: string }) {
   return (
     <tbody className="bs-part-head">
       <tr className="part-head">
-        <td colSpan={3}>{label}</td>
+        <th scope="row" colSpan={3}>
+          {label}
+        </th>
       </tr>
     </tbody>
   );
@@ -75,7 +79,9 @@ export function BalanceSheetTables({ bs }: { bs: BalanceSheetSnapshot }) {
             <Sections sections={bs.assets} />
             <tfoot>
               <tr className="grand-total">
-                <td colSpan={2}>資産合計</td>
+                <th scope="row" colSpan={2}>
+                  資産合計
+                </th>
                 <td className="num">
                   <Amount value={bs.total_assets} />
                 </td>
@@ -93,7 +99,9 @@ export function BalanceSheetTables({ bs }: { bs: BalanceSheetSnapshot }) {
             <Sections sections={bs.liabilities} />
             <tbody>
               <tr className="subtotal part-total">
-                <td colSpan={2}>負債合計</td>
+                <th scope="row" colSpan={2}>
+                  負債合計
+                </th>
                 <td className="num">
                   <Amount value={bs.total_liabilities} />
                 </td>
@@ -103,13 +111,17 @@ export function BalanceSheetTables({ bs }: { bs: BalanceSheetSnapshot }) {
             <Sections sections={bs.equity} />
             <tbody>
               <tr className="profit">
-                <td colSpan={2}>当期純利益</td>
+                <th scope="row" colSpan={2}>
+                  当期純利益
+                </th>
                 <td className="num">
                   <Amount value={bs.net_income} />
                 </td>
               </tr>
               <tr className="subtotal part-total">
-                <td colSpan={2}>純資産合計</td>
+                <th scope="row" colSpan={2}>
+                  純資産合計
+                </th>
                 <td className="num">
                   <Amount value={bs.total_equity} />
                 </td>
@@ -117,7 +129,9 @@ export function BalanceSheetTables({ bs }: { bs: BalanceSheetSnapshot }) {
             </tbody>
             <tfoot>
               <tr className="grand-total">
-                <td colSpan={2}>負債・純資産合計</td>
+                <th scope="row" colSpan={2}>
+                  負債・純資産合計
+                </th>
                 <td className="num">
                   <Amount value={liabilitiesEquityTotal} />
                 </td>

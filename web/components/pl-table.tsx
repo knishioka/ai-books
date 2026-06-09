@@ -9,12 +9,16 @@ function Section({ section }: { section: ProfitAndLossSectionSnapshot }) {
   return (
     <>
       <tr className="section-head">
-        <td colSpan={2}>【{section.label}】</td>
+        <th scope="row" colSpan={2}>
+          【{section.label}】
+        </th>
         <td className="num" />
       </tr>
       {section.lines.map((line) => (
         <tr key={line.code}>
-          <td className="code">{line.code}</td>
+          <th scope="row" className="code">
+            {line.code}
+          </th>
           <td>{line.name}</td>
           <td className="num">
             <Amount value={line.amount} />
@@ -22,7 +26,9 @@ function Section({ section }: { section: ProfitAndLossSectionSnapshot }) {
         </tr>
       ))}
       <tr className="subtotal">
-        <td colSpan={2}>{section.label} 計</td>
+        <th scope="row" colSpan={2}>
+          {section.label} 計
+        </th>
         <td className="num">
           <Amount value={section.subtotal} />
         </td>
@@ -54,9 +60,9 @@ function Profit({
       }
       data-step={step}
     >
-      <td colSpan={2}>
+      <th scope="row" colSpan={2}>
         <span className="profit-label">{label}</span>
-      </td>
+      </th>
       <td className="num">
         <Amount value={amount} />
       </td>
@@ -70,9 +76,11 @@ export function ProfitAndLossTable({ pl }: { pl: ProfitAndLossSnapshot }) {
     <table className="report-table">
       <thead>
         <tr>
-          <th>コード</th>
-          <th>科目名</th>
-          <th className="num">金額</th>
+          <th scope="col">コード</th>
+          <th scope="col">科目名</th>
+          <th scope="col" className="num">
+            金額
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -93,12 +101,16 @@ export function ProfitAndLossTable({ pl }: { pl: ProfitAndLossSnapshot }) {
         {pl.unclassified.length > 0 && (
           <>
             <tr className="section-head warn-row">
-              <td colSpan={2}>【未分類科目（表示区分なし）】</td>
+              <th scope="row" colSpan={2}>
+                【未分類科目（表示区分なし）】
+              </th>
               <td className="num" />
             </tr>
             {pl.unclassified.map((line) => (
               <tr key={line.code}>
-                <td className="code">{line.code}</td>
+                <th scope="row" className="code">
+                  {line.code}
+                </th>
                 <td>{line.name}</td>
                 <td className="num">
                   <Amount value={line.amount} />

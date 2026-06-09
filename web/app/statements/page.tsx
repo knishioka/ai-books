@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { BalanceSheetTables } from "@/components/bs-tables";
@@ -10,6 +12,10 @@ import {
 } from "@/lib/reports/financial-statements";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "青色申告決算書 | ai-books viewer",
+};
 
 export default async function StatementsPage({
   searchParams,
@@ -53,15 +59,21 @@ export default async function StatementsPage({
           <table className="report-table">
             <thead>
               <tr>
-                <th>月</th>
-                <th className="num">売上（収入）金額</th>
-                <th className="num">仕入金額</th>
+                <th scope="col">月</th>
+                <th scope="col" className="num">
+                  売上（収入）金額
+                </th>
+                <th scope="col" className="num">
+                  仕入金額
+                </th>
               </tr>
             </thead>
             <tbody>
               {fs.monthly.rows.map((row) => (
                 <tr key={row.month}>
-                  <td className="nowrap">{row.month}</td>
+                  <th scope="row" className="nowrap">
+                    {row.month}
+                  </th>
                   <td className="num">
                     <Amount value={row.sales} />
                   </td>
@@ -73,7 +85,7 @@ export default async function StatementsPage({
             </tbody>
             <tfoot>
               <tr className="subtotal">
-                <td>合計</td>
+                <th scope="row">合計</th>
                 <td className="num">
                   <Amount value={fs.monthly.sales_total} />
                 </td>
@@ -92,17 +104,25 @@ export default async function StatementsPage({
           <table className="report-table">
             <thead>
               <tr>
-                <th>コード</th>
-                <th>科目名</th>
-                <th className="num">取得価額</th>
-                <th className="num">本年分の償却費</th>
-                <th className="num">期末未償却残高</th>
+                <th scope="col">コード</th>
+                <th scope="col">科目名</th>
+                <th scope="col" className="num">
+                  取得価額
+                </th>
+                <th scope="col" className="num">
+                  本年分の償却費
+                </th>
+                <th scope="col" className="num">
+                  期末未償却残高
+                </th>
               </tr>
             </thead>
             <tbody>
               {fs.depreciation.lines.map((line) => (
                 <tr key={line.code}>
-                  <td className="code">{line.code}</td>
+                  <th scope="row" className="code">
+                    {line.code}
+                  </th>
                   <td>{line.name}</td>
                   <td className="num">
                     <Amount value={line.acquisition_cost} />
@@ -118,7 +138,9 @@ export default async function StatementsPage({
             </tbody>
             <tfoot>
               <tr className="subtotal">
-                <td colSpan={3}>本年分の償却費 合計</td>
+                <th scope="row" colSpan={3}>
+                  本年分の償却費 合計
+                </th>
                 <td className="num">
                   <Amount value={fs.depreciation.total_depreciation} />
                 </td>
@@ -137,9 +159,11 @@ export default async function StatementsPage({
           <table className="report-table">
             <thead>
               <tr>
-                <th>コード</th>
-                <th>科目名</th>
-                <th className="num">金額</th>
+                <th scope="col">コード</th>
+                <th scope="col">科目名</th>
+                <th scope="col" className="num">
+                  金額
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -149,7 +173,9 @@ export default async function StatementsPage({
             </tbody>
             <tfoot>
               <tr className="subtotal">
-                <td colSpan={2}>当期製造費用</td>
+                <th scope="row" colSpan={2}>
+                  当期製造費用
+                </th>
                 <td className="num">
                   <Amount
                     value={fs.manufacturing_cost.total_manufacturing_cost}
@@ -157,7 +183,9 @@ export default async function StatementsPage({
                 </td>
               </tr>
               <tr className="grand-total">
-                <td colSpan={2}>当期製品製造原価</td>
+                <th scope="row" colSpan={2}>
+                  当期製品製造原価
+                </th>
                 <td className="num">
                   <Amount
                     value={fs.manufacturing_cost.cost_of_goods_manufactured}
@@ -185,12 +213,16 @@ function ManufacturingSection({
   return (
     <>
       <tr className="section-head">
-        <td colSpan={2}>【{section.label}】</td>
+        <th scope="row" colSpan={2}>
+          【{section.label}】
+        </th>
         <td className="num" />
       </tr>
       {section.lines.map((line) => (
         <tr key={line.code}>
-          <td className="code">{line.code}</td>
+          <th scope="row" className="code">
+            {line.code}
+          </th>
           <td>{line.name}</td>
           <td className="num">
             <Amount value={line.amount} />
@@ -198,7 +230,9 @@ function ManufacturingSection({
         </tr>
       ))}
       <tr className="subtotal">
-        <td colSpan={2}>{section.label} 計</td>
+        <th scope="row" colSpan={2}>
+          {section.label} 計
+        </th>
         <td className="num">
           <Amount value={section.subtotal} />
         </td>

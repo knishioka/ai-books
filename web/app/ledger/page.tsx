@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
@@ -9,6 +11,10 @@ import {
 } from "@/lib/reports/general-ledger";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "総勘定元帳 | ai-books viewer",
+};
 
 interface AccountOption {
   code: string;
@@ -101,28 +107,39 @@ function AccountLedger({ account }: { account: GeneralLedgerAccountSnapshot }) {
           <Amount value={account.closing_balance} />
         </span>
       </h2>
-      <table className="report-table">
+      <div className="scroll-x">
+        <table className="report-table">
         <thead>
           <tr>
-            <th>日付</th>
-            <th>伝票番号</th>
-            <th>相手科目</th>
-            <th>摘要</th>
-            <th className="num">借方</th>
-            <th className="num">貸方</th>
-            <th className="num">残高</th>
+            <th scope="col">日付</th>
+            <th scope="col">伝票番号</th>
+            <th scope="col">相手科目</th>
+            <th scope="col">摘要</th>
+            <th scope="col" className="num">
+              借方
+            </th>
+            <th scope="col" className="num">
+              貸方
+            </th>
+            <th scope="col" className="num">
+              残高
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr className="opening">
-            <td colSpan={6}>前期繰越</td>
+            <th scope="row" colSpan={6}>
+              前期繰越
+            </th>
             <td className="num">
               <Amount value={account.opening_balance} />
             </td>
           </tr>
           {account.rows.map((row, index) => (
             <tr key={`${row.voucher_no ?? row.entry_date}-${index}`}>
-              <td className="nowrap">{row.entry_date}</td>
+              <th scope="row" className="nowrap">
+                {row.entry_date}
+              </th>
               <td className="code">{row.voucher_no ?? "—"}</td>
               <td className="muted">
                 {row.counter_accounts.join(" / ") || "—"}
@@ -144,13 +161,16 @@ function AccountLedger({ account }: { account: GeneralLedgerAccountSnapshot }) {
         </tbody>
         <tfoot>
           <tr className="subtotal">
-            <td colSpan={6}>期末残高</td>
+            <th scope="row" colSpan={6}>
+              期末残高
+            </th>
             <td className="num">
               <Amount value={account.closing_balance} />
             </td>
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }

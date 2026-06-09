@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { signOut } from "@/app/login/actions";
 import { REPORT_ROUTES } from "@/lib/routes";
@@ -12,9 +15,17 @@ import { REPORT_ROUTES } from "@/lib/routes";
  * sign-out form never appear to an unauthenticated visitor.
  */
 export function Nav({ userEmail }: { userEmail?: string | null }) {
+  const pathname = usePathname();
+  const isCurrentPath = (href: string) =>
+    href === "/" ? pathname === "/" : pathname === href;
+
   return (
     <nav className="site-nav">
-      <Link href="/" className="site-nav-brand">
+      <Link
+        href="/"
+        className="site-nav-brand"
+        aria-current={isCurrentPath("/") ? "page" : undefined}
+      >
         ai-books viewer
       </Link>
       {userEmail ? (
@@ -23,7 +34,14 @@ export function Nav({ userEmail }: { userEmail?: string | null }) {
             {REPORT_ROUTES.filter((route) => route.href !== "/").map(
               (route) => (
                 <li key={route.href}>
-                  <Link href={route.href}>{route.label}</Link>
+                  <Link
+                    href={route.href}
+                    aria-current={
+                      isCurrentPath(route.href) ? "page" : undefined
+                    }
+                  >
+                    {route.label}
+                  </Link>
                 </li>
               ),
             )}

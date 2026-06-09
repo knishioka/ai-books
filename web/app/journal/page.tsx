@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
@@ -5,6 +7,10 @@ import { loadReport } from "@/lib/reports/context";
 import { fetchJournalBook } from "@/lib/reports/journal-book";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "仕訳帳 | ai-books viewer",
+};
 
 const EMPTY = "";
 
@@ -35,16 +41,20 @@ export default async function JournalPage({
         fiscalYear={fiscalYear}
         fiscalYears={fiscalYears}
       />
-      <div className="card">
+      <div className="card scroll-x">
         <table className="report-table journal-table">
           <thead>
             <tr>
-              <th>日付</th>
-              <th>伝票番号</th>
-              <th>勘定科目</th>
-              <th className="num">借方</th>
-              <th className="num">貸方</th>
-              <th>摘要</th>
+              <th scope="col">日付</th>
+              <th scope="col">伝票番号</th>
+              <th scope="col">勘定科目</th>
+              <th scope="col" className="num">
+                借方
+              </th>
+              <th scope="col" className="num">
+                貸方
+              </th>
+              <th scope="col">摘要</th>
             </tr>
           </thead>
           <tbody>
@@ -57,7 +67,9 @@ export default async function JournalPage({
           </tbody>
           <tfoot>
             <tr className="subtotal">
-              <td colSpan={3}>合計</td>
+              <th scope="row" colSpan={3}>
+                合計
+              </th>
               <td className="num">
                 <Amount value={book.total_debit} />
               </td>
@@ -85,9 +97,9 @@ function EntryRows({
           key={`${entry.voucher_no ?? entry.entry_date}-${lineIndex}`}
           className={lineIndex === 0 ? "journal-entry-start" : undefined}
         >
-          <td className="nowrap">
+          <th scope="row" className="nowrap">
             {lineIndex === 0 ? entry.entry_date : EMPTY}
-          </td>
+          </th>
           <td className="code">
             {lineIndex === 0 ? (entry.voucher_no ?? "—") : EMPTY}
           </td>

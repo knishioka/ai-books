@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
@@ -5,6 +7,10 @@ import { loadReport } from "@/lib/reports/context";
 import { fetchWorksheet } from "@/lib/reports/worksheet";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "精算表 | ai-books viewer",
+};
 
 export default async function WorksheetPage({
   searchParams,
@@ -38,28 +44,58 @@ export default async function WorksheetPage({
         <table className="report-table worksheet-table">
           <thead>
             <tr>
-              <th rowSpan={2}>コード</th>
-              <th rowSpan={2}>科目名</th>
-              <th colSpan={2}>残高試算表</th>
-              <th colSpan={2}>修正記入</th>
-              <th colSpan={2}>損益計算書</th>
-              <th colSpan={2}>貸借対照表</th>
+              <th scope="col" rowSpan={2}>
+                コード
+              </th>
+              <th scope="col" rowSpan={2}>
+                科目名
+              </th>
+              <th scope="colgroup" colSpan={2}>
+                残高試算表
+              </th>
+              <th scope="colgroup" colSpan={2}>
+                修正記入
+              </th>
+              <th scope="colgroup" colSpan={2}>
+                損益計算書
+              </th>
+              <th scope="colgroup" colSpan={2}>
+                貸借対照表
+              </th>
             </tr>
             <tr>
-              <th className="num">借方</th>
-              <th className="num">貸方</th>
-              <th className="num">借方</th>
-              <th className="num">貸方</th>
-              <th className="num">借方</th>
-              <th className="num">貸方</th>
-              <th className="num">借方</th>
-              <th className="num">貸方</th>
+              <th scope="col" className="num">
+                借方
+              </th>
+              <th scope="col" className="num">
+                貸方
+              </th>
+              <th scope="col" className="num">
+                借方
+              </th>
+              <th scope="col" className="num">
+                貸方
+              </th>
+              <th scope="col" className="num">
+                借方
+              </th>
+              <th scope="col" className="num">
+                貸方
+              </th>
+              <th scope="col" className="num">
+                借方
+              </th>
+              <th scope="col" className="num">
+                貸方
+              </th>
             </tr>
           </thead>
           <tbody>
             {ws.rows.map((row) => (
               <tr key={row.code}>
-                <td className="code">{row.code}</td>
+                <th scope="row" className="code">
+                  {row.code}
+                </th>
                 <td>{row.name}</td>
                 <td className="num">
                   <Amount value={row.trial_debit} />
@@ -90,7 +126,9 @@ export default async function WorksheetPage({
           </tbody>
           <tfoot>
             <tr className="subtotal">
-              <td colSpan={2}>合計</td>
+              <th scope="row" colSpan={2}>
+                合計
+              </th>
               <td className="num">
                 <Amount value={ws.trial_debit_total} />
               </td>
@@ -117,7 +155,9 @@ export default async function WorksheetPage({
               </td>
             </tr>
             <tr className="profit">
-              <td colSpan={2}>当期純利益</td>
+              <th scope="row" colSpan={2}>
+                当期純利益
+              </th>
               <td className="num" colSpan={4} />
               <td className="num">
                 <Amount value={ws.net_income} />
