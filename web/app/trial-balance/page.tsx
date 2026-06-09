@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
@@ -5,6 +7,10 @@ import { loadReport } from "@/lib/reports/context";
 import { fetchTrialBalance } from "@/lib/reports/trial-balance";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "試算表 | ai-books viewer",
+};
 
 export default async function TrialBalancePage({
   searchParams,
@@ -38,18 +44,24 @@ export default async function TrialBalancePage({
         <table className="report-table">
           <thead>
             <tr>
-              <th>コード</th>
-              <th>科目名</th>
-              <th className="num">借方合計</th>
-              <th className="num">貸方合計</th>
-              <th className="num">残高</th>
+              <th scope="col">コード</th>
+              <th scope="col">科目名</th>
+              <th scope="col" className="num">
+                借方合計
+              </th>
+              <th scope="col" className="num">
+                貸方合計
+              </th>
+              <th scope="col" className="num">
+                残高
+              </th>
             </tr>
           </thead>
           <tbody>
             {tb.rows.map((row) => (
               <tr key={row.code}>
                 <td className="code">{row.code}</td>
-                <td>{row.name}</td>
+                <th scope="row">{row.name}</th>
                 <td className="num">
                   <Amount value={row.debit_total} />
                 </td>
@@ -64,7 +76,9 @@ export default async function TrialBalancePage({
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2}>合計</td>
+              <th scope="row" colSpan={2}>
+                合計
+              </th>
               <td className="num">
                 <Amount value={tb.total_debit} />
               </td>

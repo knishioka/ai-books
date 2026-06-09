@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { ErrorBanner } from "@/components/banner";
 import { ProfitAndLossTable } from "@/components/pl-table";
 import { ReportHeader } from "@/components/report-header";
@@ -5,6 +7,10 @@ import { loadReport } from "@/lib/reports/context";
 import { fetchProfitAndLoss } from "@/lib/reports/profit-and-loss";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "損益計算書 | ai-books viewer",
+};
 
 export default async function ProfitAndLossPage({
   searchParams,

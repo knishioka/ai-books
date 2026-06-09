@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Amount } from "@/components/amount";
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
@@ -6,6 +8,10 @@ import { normalizeAccountCodeParam } from "@/lib/reports/filters";
 import { fetchMonthlyTrend } from "@/lib/reports/monthly-trend";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "月次推移 | ai-books viewer",
+};
 
 interface AccountOption {
   code: string;
@@ -108,16 +114,24 @@ export default async function MonthlyTrendPage({
           <table className="report-table">
             <thead>
               <tr>
-                <th>月</th>
-                <th className="num">借方</th>
-                <th className="num">貸方</th>
-                <th className="num">純増減</th>
-                <th className="num">残高</th>
+                <th scope="col">月</th>
+                <th scope="col" className="num">
+                  借方
+                </th>
+                <th scope="col" className="num">
+                  貸方
+                </th>
+                <th scope="col" className="num">
+                  純増減
+                </th>
+                <th scope="col" className="num">
+                  残高
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr className="opening">
-                <td>期首</td>
+                <th scope="row">期首</th>
                 <td className="num" colSpan={3}>
                   繰越
                 </td>
@@ -127,7 +141,9 @@ export default async function MonthlyTrendPage({
               </tr>
               {trendAccount.points.map((point) => (
                 <tr key={point.month}>
-                  <td className="nowrap">{point.month}</td>
+                  <th scope="row" className="nowrap">
+                    {point.month}
+                  </th>
                   <td className="num">
                     <Amount value={point.debit_total} />
                   </td>
@@ -145,7 +161,9 @@ export default async function MonthlyTrendPage({
             </tbody>
             <tfoot>
               <tr className="subtotal">
-                <td colSpan={4}>期末残高</td>
+                <th scope="row" colSpan={4}>
+                  期末残高
+                </th>
                 <td className="num">
                   <Amount value={trendAccount.closing_balance} />
                 </td>

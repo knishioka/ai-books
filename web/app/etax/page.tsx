@@ -1,9 +1,15 @@
+import type { Metadata } from "next";
+
 import { ErrorBanner } from "@/components/banner";
 import { ReportHeader } from "@/components/report-header";
 import { buildSampleEtaxSnapshot } from "@/lib/etax/sample";
 import { loadReport } from "@/lib/reports/context";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "e-Tax | ai-books viewer",
+};
 
 export default async function EtaxPage({
   searchParams,
@@ -82,13 +88,17 @@ export default async function EtaxPage({
         <table className="report-table etax-table">
           <thead>
             <tr>
-              <th>面</th>
-              <th>項目コード</th>
-              <th>項目名</th>
-              <th className="num">行</th>
-              <th>勘定科目</th>
-              <th>種別</th>
-              <th className="num">値</th>
+              <th scope="col">面</th>
+              <th scope="col">項目コード</th>
+              <th scope="col">項目名</th>
+              <th scope="col" className="num">
+                行
+              </th>
+              <th scope="col">勘定科目</th>
+              <th scope="col">種別</th>
+              <th scope="col" className="num">
+                値
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -96,7 +106,7 @@ export default async function EtaxPage({
               <tr key={`${record.item_code}-${record.row ?? ""}-${index}`}>
                 <td>{record.form}</td>
                 <td className="code">{record.item_code}</td>
-                <td>{record.label}</td>
+                <th scope="row">{record.label}</th>
                 <td className="num muted">{record.row ?? ""}</td>
                 <td className="code">{record.account_code ?? ""}</td>
                 <td className="muted">{record.kind}</td>

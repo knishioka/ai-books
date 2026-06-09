@@ -65,6 +65,23 @@ a {
   text-underline-offset: 2px;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* tabular figures for all numeric cells */
 .num,
 .amount,
@@ -147,6 +164,11 @@ a {
 .site-nav a:hover {
   color: var(--accent);
   border-bottom-color: var(--shu);
+}
+.site-nav a[aria-current="page"] {
+  color: var(--fg);
+  border-bottom-color: var(--shu);
+  font-weight: 700;
 }
 .site-nav-user {
   margin-left: auto;
@@ -355,10 +377,33 @@ th.num,
 td.num {
   text-align: right;
 }
+tbody th[scope="row"],
+tfoot th[scope="row"] {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+}
+tbody th[scope="row"] {
+  border-bottom: 1px dotted var(--rule);
+}
+tfoot th[scope="row"] {
+  border-bottom: none;
+}
+tbody th[scope="row"].num,
+tfoot th[scope="row"].num {
+  text-align: right;
+}
+tbody tr:last-child th,
 tbody tr:last-child td {
   border-bottom: none;
 }
 tr:hover td {
+  background: rgba(35, 78, 156, 0.04);
+}
+tr:hover th[scope="row"] {
   background: rgba(35, 78, 156, 0.04);
 }
 td.code {
@@ -376,6 +421,7 @@ td.muted,
 }
 
 /* section rows inside statements */
+.section-head th,
 .section-head td {
   font-weight: 700;
   font-size: 0.8rem;
@@ -384,6 +430,7 @@ td.muted,
   border-bottom: 1px solid var(--rule);
   padding-top: 0.85rem;
 }
+.subtotal th,
 .subtotal td {
   font-weight: 600;
   color: var(--muted);
@@ -391,10 +438,12 @@ td.muted,
   border-bottom: none;
 }
 .subtotal td.num,
+.subtotal th.num,
 .subtotal .amount {
   color: var(--fg);
 }
 /* 合計 = 二重罫（会計の二重線） */
+.grand-total th,
 .grand-total td {
   font-family: var(--font-display);
   font-weight: 700;
@@ -409,6 +458,7 @@ td.muted,
 }
 
 /* 段階利益 (P/L) — emphasized profit rows */
+.profit th,
 .profit td {
   font-weight: 700;
   color: var(--fg);
@@ -419,6 +469,7 @@ td.muted,
 
 /* 階段状の段階利益 — 売上総利益 → 営業利益 → 経常利益 → 当期純利益 が右へ一段ずつ降りる。
    各段の手前に L 字の罫を引いて利益を導く（"罫で導く強調"）。 */
+.profit-step th:first-child,
 .profit-step td:first-child {
   position: relative;
 }
@@ -427,15 +478,19 @@ td.muted,
   display: inline-block;
   letter-spacing: 0.06em;
 }
+.profit-step[data-step="1"] th:first-child,
 .profit-step[data-step="1"] td:first-child {
   padding-left: 1.6rem;
 }
+.profit-step[data-step="2"] th:first-child,
 .profit-step[data-step="2"] td:first-child {
   padding-left: 2.7rem;
 }
+.profit-step[data-step="3"] th:first-child,
 .profit-step[data-step="3"] td:first-child {
   padding-left: 3.8rem;
 }
+.profit-step[data-step="4"] th:first-child,
 .profit-step[data-step="4"] td:first-child {
   padding-left: 4.9rem;
 }
@@ -452,6 +507,7 @@ td.muted,
   border-bottom-left-radius: 2px;
 }
 /* 結び = 当期純利益。二重罫で締める */
+.profit-final th,
 .profit-final td {
   background: rgba(35, 78, 156, 0.09);
   border-top: 3px double var(--fg);
@@ -492,6 +548,11 @@ td.muted,
   color: var(--muted);
   font-style: italic;
 }
+.opening th {
+  color: var(--muted);
+  font-style: italic;
+}
+.warn-row th,
 .warn-row td {
   background: var(--warn-bg);
   color: var(--warn-fg);
@@ -570,6 +631,7 @@ td.muted,
   border-radius: 999px;
 }
 /* 「負債の部」「純資産の部」= 貸方側の部見出し */
+.part-head th,
 .part-head td {
   font-family: var(--font-display);
   font-weight: 700;
@@ -580,9 +642,11 @@ td.muted,
   padding-bottom: 0.45rem;
   border-bottom: 1.5px solid var(--rule-strong);
 }
+.bs-part-head + tbody .section-head th,
 .bs-part-head + tbody .section-head td {
   padding-top: 0.6rem;
 }
+.subtotal.part-total th,
 .subtotal.part-total td {
   border-top: 1.5px solid var(--fg);
 }
@@ -805,6 +869,9 @@ footer {
 
 /* ── print: そのまま提出資料級 ──────────────────────────────────────────── */
 @media print {
+  :focus-visible {
+    outline: none;
+  }
   body {
     background: #fff;
   }

@@ -65,7 +65,7 @@ export type ConnectionResult<T> =
 
 /** Error message shown when the viewer has no database configured. */
 export const NO_DB_ERROR =
-  "AI_BOOKS_DB_URL is not set. Configure it to connect to Supabase.";
+  "AI_BOOKS_DB_URL が未設定です。Supabase に接続するための値を設定してください。";
 
 /**
  * Run `query` against the shared client, wrapping the result (or a failure reason) in a

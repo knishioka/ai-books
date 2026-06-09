@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { ErrorBanner } from "@/components/banner";
 import { BalanceSheetTables } from "@/components/bs-tables";
 import { ReportHeader } from "@/components/report-header";
@@ -5,6 +7,10 @@ import { loadReport } from "@/lib/reports/context";
 import { fetchBalanceSheet } from "@/lib/reports/balance-sheet";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "貸借対照表 | ai-books viewer",
+};
 
 export default async function BalanceSheetPage({
   searchParams,

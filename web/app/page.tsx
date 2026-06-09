@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ErrorBanner, OkBanner } from "@/components/banner";
@@ -7,6 +8,10 @@ import { REPORT_ROUTES } from "@/lib/routes";
 // The viewer reads live data per request; never prerender at build time (which
 // also keeps `next build` from needing a database in CI).
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "勘定科目 | ai-books viewer",
+};
 
 const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   asset: "資産",
@@ -62,18 +67,18 @@ export default async function Home() {
               <table>
                 <thead>
                   <tr>
-                    <th>コード</th>
-                    <th>科目名</th>
-                    <th>区分</th>
-                    <th>正常残高</th>
-                    <th>状態</th>
+                    <th scope="col">コード</th>
+                    <th scope="col">科目名</th>
+                    <th scope="col">区分</th>
+                    <th scope="col">正常残高</th>
+                    <th scope="col">状態</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.data.map((account) => (
                     <tr key={account.code}>
                       <td className="code">{account.code}</td>
-                      <td>{account.name}</td>
+                      <th scope="row">{account.name}</th>
                       <td>{ACCOUNT_TYPE_LABEL[account.account_type]}</td>
                       <td className="muted">
                         {account.normal_balance === "debit" ? "借方" : "貸方"}
