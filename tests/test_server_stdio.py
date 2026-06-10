@@ -60,6 +60,8 @@ EXPECTED_TOOLS: frozenset[str] = frozenset(
         "general_ledger",
         # e-Tax export (#24)
         "export_etax",
+        # e-Tax filing preflight (#163)
+        "etax_preflight",
         # journal writes (#13)
         "create_journal_entry",
         "update_journal_entry",

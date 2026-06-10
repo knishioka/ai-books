@@ -50,10 +50,12 @@ from ai_books.db.repository import (
 from ai_books.errors import AiBooksError, RecordNotFoundError
 from ai_books.etax import (
     LATEST_ETAX_VERSION,
+    EtaxPreflightResult,
     build_etax_export,
     load_etax_profile,
     parse_etax_format,
     render_etax,
+    run_etax_preflight,
 )
 from ai_books.models import (
     Account,
@@ -97,7 +99,9 @@ mcp: FastMCP = FastMCP(
         "get_account_ledger. Aggregation tools (trial_balance / monthly_trend / worksheet) "
         "return the 合計残高試算表, 月次推移, and 精算表; profit_and_loss returns the 損益計算書 "
         "(P/L) staged into the 青色申告決算書 layout and balance_sheet returns the 貸借対照表 "
-        "(B/S). export_etax renders the 決算書 as e-Tax 取込データ (xtx/CSV/XML) for electronic filing. "
+        "(B/S). export_etax renders the 決算書 as e-Tax 取込データ (xtx/CSV/XML) for electronic filing, "
+        "and etax_preflight checks in one call whether a fiscal year is ready to file (申告可 / 要修正) "
+        "with optional official-XSD 形式 validation. "
         "Amounts are exact decimals returned as strings."
     ),
 )
@@ -515,6 +519,42 @@ def export_etax(
     except AiBooksError as exc:
         raise _tool_error(exc) from exc
     return render_etax(export, output_format)
+
+
+@mcp.tool
+def etax_preflight(
+    fiscal_year: str,
+    form_version: str = LATEST_ETAX_VERSION,
+    validate_xsd: bool = False,
+) -> EtaxPreflightResult:
+    """Check whether ``fiscal_year`` is ready for e-Tax filing — 申告前チェックを 1 コールで (#163).
+
+    Runs the filing preflight over your real data and (optionally) validates the generated ``.xtx``
+    against the official 国税庁 ``.xsd``, so an agent can decide 申告可 / 要修正 without juggling several
+    tools. The returned ``status`` is ``'ok'`` (申告可) or ``'error'`` (要修正); ``errors`` lists every
+    申告ブロッカー (未転記 draft の残存 / 会計期間外の posted 仕訳 / 決算書 → KOA210 マッピングの必須欄
+    欠落・非整数円・桁あふれ・不正勘定科目コード — すべて全件), and ``warnings`` lists 参考情報 (記帳漏れ
+    の可能性がある空の月 / void 済仕訳の多発) that do not block filing.
+
+    ``validate_xsd=True`` additionally renders the ``.xtx`` in memory (never written to disk — 事業者の
+    確定数値を含むため) and validates its 形式妥当性 against the official schema. The .xsd is 著作物 で
+    非同梱なので、未取得なら ``xsd_result.status='skipped'`` と取得手順 (``scripts/etax/fetch_etax_spec.py``)
+    を返す — オフラインでも preflight 本体は使えるよう *fail させない*。XSD の検証**失敗**のみ
+    ``xsd_result.status='error'`` (``xsd_result.errors`` に全件)。``validate_xsd=False`` (既定) や preflight
+    が error のときも ``xsd_result.status='skipped'`` (理由つき)。
+
+    Errors (``ToolError``) if ``fiscal_year`` is unknown.
+    """
+    try:
+        with db.connect() as conn:
+            return run_etax_preflight(
+                conn,
+                fiscal_year=fiscal_year,
+                form_version=form_version,
+                validate_xsd=validate_xsd,
+            )
+    except AiBooksError as exc:
+        raise _tool_error(exc) from exc
 
 
 # --- journal writes (Issue #13) -----------------------------------------------

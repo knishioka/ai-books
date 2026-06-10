@@ -36,10 +36,13 @@ from .export import (
 )
 from .preflight import (
     VOIDED_WARNING_THRESHOLD,
+    EtaxPreflightResult,
     PreflightCheck,
     PreflightIssue,
     PreflightReport,
+    XsdValidation,
     filing_preflight,
+    run_etax_preflight,
 )
 from .profile import (
     HEADER_FIELDS,
@@ -77,6 +80,7 @@ __all__ = [
     "EtaxFormat",
     "EtaxFormatSpec",
     "EtaxHeaderField",
+    "EtaxPreflightResult",
     "EtaxProfile",
     "EtaxScalarField",
     "EtaxSection",
@@ -84,6 +88,7 @@ __all__ = [
     "PreflightCheck",
     "PreflightIssue",
     "PreflightReport",
+    "XsdValidation",
     "build_agricultural_etax_export",
     "build_etax_export",
     "build_real_estate_etax_export",
@@ -101,4 +106,5 @@ __all__ = [
     "render_etax_csv",
     "render_etax_xml",
     "render_etax_xtx",
+    "run_etax_preflight",
 ]

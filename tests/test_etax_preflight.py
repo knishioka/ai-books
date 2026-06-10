@@ -24,12 +24,17 @@ from ai_books.db.repository import AccountRepository, JournalRepository
 from ai_books.errors import EtaxValidationError, RecordNotFoundError
 from ai_books.etax.preflight import (
     VOIDED_WARNING_THRESHOLD,
+    EtaxPreflightResult,
     PreflightCheck,
     PreflightReport,
     filing_preflight,
+    run_etax_preflight,
 )
 from ai_books.models import EntrySide, EntryStatus, JournalEntry, JournalLine
+from tests.etax_xsd import skip_reason, xsd_available
 from tests.fixtures.seed_fy import FY_ENTRIES, load_fiscal_year
+
+_requires_xsd = pytest.mark.skipif(not xsd_available(), reason=skip_reason())
 
 pytestmark = pytest.mark.skipif(
     not os.environ.get(db.DB_URL_ENV),
@@ -287,3 +292,72 @@ def test_unknown_fiscal_year_raises(migrated_conn: psycopg.Connection[Any]) -> N
     load_fiscal_year(migrated_conn)
     with pytest.raises(RecordNotFoundError):
         filing_preflight(migrated_conn, fiscal_year="FY1999")
+
+
+# === run_etax_preflight: tool 公開層 (data preflight + 任意の公式 XSD 形式検証, #163) ===
+
+
+def test_run_etax_preflight_clean_year_ok_xsd_skipped_by_default(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # 既定 (validate_xsd=False): 申告可 (ok) で、XSD は未要求として skipped (理由つき)。
+    load_fiscal_year(migrated_conn)
+    result = run_etax_preflight(migrated_conn, fiscal_year=_FY)
+    assert isinstance(result, EtaxPreflightResult)
+    assert result.fiscal_year == _FY
+    assert result.start_date == date(2025, 1, 1)
+    assert result.end_date == date(2025, 12, 31)
+    assert result.status == "ok"
+    assert result.errors == []
+    assert result.warnings == []
+    assert result.xsd_result.status == "skipped"
+    assert result.xsd_result.errors == []
+    assert "validate_xsd" in (result.xsd_result.reason or "")
+
+
+def test_run_etax_preflight_errors_skip_xsd(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # preflight が error → .xtx を生成せず XSD は skipped (理由は「error 検出」)。status は error。
+    load_fiscal_year(migrated_conn)
+    _insert_entry(
+        migrated_conn,
+        voucher_no="DRAFT-XSD",
+        entry_date=date(2025, 6, 15),
+        status=EntryStatus.DRAFT,
+    )
+    result = run_etax_preflight(migrated_conn, fiscal_year=_FY, validate_xsd=True)
+    assert result.status == "error"
+    assert any(e.check == PreflightCheck.DRAFT_ENTRY for e in result.errors)
+    assert result.xsd_result.status == "skipped"
+    assert "error" in (result.xsd_result.reason or "")
+
+
+def test_run_etax_preflight_xsd_skipped_when_schema_absent(
+    migrated_conn: psycopg.Connection[Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Any,
+) -> None:
+    # 設計決定: schema 未取得 + validate_xsd=True は *fail させず* skipped + 取得手順を返す。
+    # 空ディレクトリを schema_dir に向けることで「未取得」を CI/ローカル問わず決定的に再現する。
+    load_fiscal_year(migrated_conn)
+    monkeypatch.setenv("AI_BOOKS_ETAX_SCHEMA_DIR", str(tmp_path))
+    result = run_etax_preflight(migrated_conn, fiscal_year=_FY, validate_xsd=True)
+    # データは申告可 (XSD が引けないだけ) — preflight 本体の価値は保たれる。
+    assert result.status == "ok"
+    assert result.errors == []
+    assert result.xsd_result.status == "skipped"
+    assert "fetch_etax_spec.py" in (result.xsd_result.reason or "")
+
+
+@_requires_xsd
+def test_run_etax_preflight_xsd_ok_with_official_schema(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # XSD-gated (#79 と同じ skip パターン): schema 取得済みなら clean な seed_fy の .xtx は 形式妥当。
+    # CI の etax-xsd ジョブ (または `/etax-validate --fetch` 後のローカル) でのみ実行される。
+    load_fiscal_year(migrated_conn)
+    result = run_etax_preflight(migrated_conn, fiscal_year=_FY, validate_xsd=True)
+    assert result.status == "ok"
+    assert result.xsd_result.status == "ok", result.xsd_result.errors
+    assert result.xsd_result.errors == []

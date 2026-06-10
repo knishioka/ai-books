@@ -212,6 +212,27 @@ pass することを検証し、layout の入れ子/順序/版が様式定義と
 > (人間)で行う(手順・チェックリストは [`handoff-runbook.md`](./handoff-runbook.md))。本 Issue (#79)
 > は **様式データの形式妥当性**を機械保証する最終ゲート。
 
+## 申告前チェック (filing preflight) と MCP `etax_preflight` (#159 / #163)
+
+申告直前の最終確認を 1 ツールに集約する。`ai_books.etax.filing_preflight` (#159) が _実データ_ の
+申告可否を判定し (未転記 draft の残存 / 会計期間外の posted 仕訳 / 決算書 → KOA210 マッピングの dry-run
+を全件収集して error、空の月 / void 多発を warning)、MCP **`etax_preflight(fiscal_year,
+form_version=latest, validate_xsd=False)`** (#163) がそれを公開する。
+
+返却は `EtaxPreflightResult`:
+
+- `status` — 申告可否 (`"ok"` / `"error"`)。`errors[]` が申告ブロッカー、`warnings[]` が参考情報。
+- `xsd_result` — 公式 .xsd 形式検証の顛末 (`status` = `"ok"` / `"error"` / `"skipped"`,
+  `errors[]`, `reason`)。
+
+`validate_xsd=True` のとき、error が無ければ `.xtx` を**メモリ上で**レンダリングし (ファイルには
+書かない — 事業者の確定数値を残さない既存方針)、上記 XSD 検証ロジック (`ai_books.etax.xsd`、
+`tests/test_etax_xtx.py` と共通) で公式 .xsd と照合する。**設計決定**: スキーマ未取得 (または
+`xmlschema` 未導入) のとき `validate_xsd=True` は _error にせず_ `xsd_result.status="skipped"` +
+取得手順 (`scripts/etax/fetch_etax_spec.py`) を返す — オフラインで preflight 本体 (データ検証) の
+価値まで失わせないため。XSD の**検証失敗**のみ `"error"`。tool 内からネットワーク fetch はしない
+(取得は既存 script / `/etax-validate --fetch` に委ねる)。
+
 ## フィールドカタログ概要 (スポット確認用)
 
 `field_catalog.json` は各帳票につき `{seq, item_code(=ＸＭＬタグ), group, name, kind, format,
