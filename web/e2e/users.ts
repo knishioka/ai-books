@@ -37,18 +37,35 @@ function adminClient(): SupabaseClient {
  * Idempotently provision a confirmed GoTrue user via the service-role admin API.
  *
  * `email_confirm: true` skips the e-mail confirmation flow so the fixture can sign in with a
- * password immediately. A repeat run (user already exists) is a no-op rather than an error.
+ * password immediately. If the user already exists (a persisted local stack reused across runs)
+ * the password is *updated* rather than left as-is — so changing the constants above stays
+ * self-healing instead of failing a later sign-in against a stale password.
  */
 export async function ensureUser(
   email: string,
   password: string,
 ): Promise<void> {
-  const { error } = await adminClient().auth.admin.createUser({
+  const admin = adminClient();
+  const { data, error: listError } = await admin.auth.admin.listUsers();
+  if (listError) {
+    throw listError;
+  }
+  const existing = data.users.find((u) => u.email === email);
+  if (existing) {
+    const { error } = await admin.auth.admin.updateUserById(existing.id, {
+      password,
+    });
+    if (error) {
+      throw error;
+    }
+    return;
+  }
+  const { error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
   });
-  if (error && !/already|registered|exists/i.test(error.message)) {
+  if (error) {
     throw error;
   }
 }

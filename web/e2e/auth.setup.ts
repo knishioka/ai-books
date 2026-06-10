@@ -26,9 +26,10 @@ setup("provision users and persist the owner session", async ({ page }) => {
   await page.locator('input[name="password"]').fill(OWNER_PASSWORD);
   await page.getByRole("button", { name: "ログイン" }).click();
 
-  // Sign-in redirects the owner to the chart-of-accounts home; the h1 proves we are authorized
-  // and rendering data, not bounced back to /login.
-  await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+  // Sign-in redirects the owner to the chart-of-accounts home; assert only the trailing-slash
+  // path (host-agnostic, so a non-127.0.0.1 baseURL still works) — the h1 below proves we are
+  // authorized and rendering data, not bounced back to /login.
+  await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", { level: 1, name: "ai-books viewer" }),
   ).toBeVisible();
