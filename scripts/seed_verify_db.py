@@ -22,13 +22,25 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="seed only the original FY2025 KOA210 fixture",
     )
+    parser.add_argument(
+        "--seed-only",
+        action="store_true",
+        help=(
+            "skip migrate.run() and only seed — for the E2E stack where `supabase start` "
+            "has already applied supabase/migrations (re-applying via our own "
+            "schema_migrations table would conflict)"
+        ),
+    )
     return parser
 
 
 if __name__ == "__main__":
     args = _parser().parse_args()
-    applied = migrate.run()
-    print(f"applied {len(applied)} migration(s)")
+    if args.seed_only:
+        print("seed-only: skipping migrate (schema applied by `supabase start`)")
+    else:
+        applied = migrate.run()
+        print(f"applied {len(applied)} migration(s)")
     with transaction() as conn:
         if args.fy2025_only:
             result = load_fiscal_year(conn)

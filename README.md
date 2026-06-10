@@ -167,6 +167,7 @@ runs:
 ./scripts/test.sh -k etax  # extra args are forwarded to pytest
 ./scripts/test.sh --web    # also cross-check the viewer's numbers against golden
 ./scripts/test.sh --pooler # run the suite THROUGH a pgbouncer pooler (Supabase parity, #52)
+./scripts/test.sh --e2e    # supabase start + Playwright browser smoke for the viewer (#162)
 ./scripts/test.sh --all    # ONE command, every guarantee — see below (#59)
 ./scripts/test.sh --down   # stop the test containers
 ```
@@ -179,14 +180,15 @@ Postgres + the pgbouncer pooler once, runs every guarantee block, and ends with 
 every block runs so the summary shows the full picture, and the command exits non-zero if
 any block failed:
 
-| Block                                            | What it proves                                                                                          | Issues              |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------- |
-| Python full suite + coverage gate (direct DB)    | All DB-backed pytest (MCP, property-based, read-only role) + the line 80 / branch 70 gate               | #50/#56/#57/#54/#58 |
-| Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                    | #55/#58             |
-| Web Vercel parity build (isolated web root)      | Production build passes with only `web/` visible, catching repo-root reads such as `../src`             | #140                |
-| e-Tax layout sync check                          | Python-side layout SSOT and committed web layout copies remain byte-for-byte in sync                    | #154                |
-| Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                    | #17/#25             |
-| Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler | #52                 |
+| Block                                            | What it proves                                                                                                                                                             | Issues              |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| Python full suite + coverage gate (direct DB)    | All DB-backed pytest (MCP, property-based, read-only role) + the line 80 / branch 70 gate                                                                                  | #50/#56/#57/#54/#58 |
+| Web unit layer + coverage gate (vitest)          | Fast DB-free `lib/reports` + `lib/etax` unit layer under its v8 gate                                                                                                       | #55/#58             |
+| Web Vercel parity build (isolated web root)      | Production build passes with only `web/` visible, catching repo-root reads such as `../src`                                                                                | #140                |
+| e-Tax layout sync check                          | Python-side layout SSOT and committed web layout copies remain byte-for-byte in sync                                                                                       | #154                |
+| Viewer golden cross-check (direct DB)            | The viewer's numbers reproduce the report-layer golden byte-for-byte                                                                                                       | #17/#25             |
+| Pooler safety suite + golden (through pgbouncer) | The same write path + golden, plus `tests/test_pooler_db.py`, all routed through the transaction pooler                                                                    | #52                 |
+| Viewer E2E smoke + fail-closed auth (Playwright) | All 10 screens render in a real browser, and unauthenticated / non-allowlisted access fails closed to `/login` (boots its own `supabase start` stack for real GoTrue auth) | #162                |
 
 ##### CI ↔ local guarantee mapping
 
@@ -194,15 +196,16 @@ Each `--all` block maps 1:1 onto a CI job, so the local command reproduces CI's 
 surface. lint / format / typecheck stay with `./scripts/verify.sh` (the static layer); the
 two together cover every CI job:
 
-| `./scripts/test.sh --all` block                             | CI job                    |
-| ----------------------------------------------------------- | ------------------------- |
-| Python full suite + coverage gate                           | `verify` (3.12 / 3.13)    |
-| Web unit layer + coverage gate                              | `web`                     |
-| Web Vercel parity build                                     | `web-vercel-build`        |
-| e-Tax layout sync check                                     | `verify` / local          |
-| Viewer golden cross-check (direct DB)                       | `web-golden`              |
-| Pooler safety suite + golden (through pgbouncer)            | `pooler`                  |
-| e-Tax `.xtx` validated against the official `.xsd` (#79)    | `etax-xsd`                |
+| `./scripts/test.sh --all` block                                         | CI job                    |
+| ----------------------------------------------------------------------- | ------------------------- |
+| Python full suite + coverage gate                                       | `verify` (3.12 / 3.13)    |
+| Web unit layer + coverage gate                                          | `web`                     |
+| Web Vercel parity build                                                 | `web-vercel-build`        |
+| e-Tax layout sync check                                                 | `verify` / local          |
+| Viewer golden cross-check (direct DB)                                   | `web-golden`              |
+| Pooler safety suite + golden (through pgbouncer)                        | `pooler`                  |
+| Viewer E2E smoke + fail-closed auth (Playwright)                        | `web-e2e`                 |
+| e-Tax `.xtx` validated against the official `.xsd` (#79)                | `etax-xsd`                |
 | `./scripts/verify.sh` (lint/format/typecheck/layout sync) + secret scan | `pre-commit` / `gitleaks` |
 
 ###### Remote-auth boundary tests (#110)
@@ -226,6 +229,16 @@ preserve prepared statements. It runs the migrate + seed write path, the report/
 ledger/e-Tax queries and the viewer golden cross-check all over the pooler, proving the viewer's
 `prepare: false` path and the prepared-statement-free Python client stay pooler-safe. A regression
 that re-enables prepared statements fails `tests/test_pooler_db.py` (and the CI `pooler` job).
+
+`--e2e` boots the **full local Supabase stack** (`supabase start` — GoTrue auth + Postgres,
+not the lightweight `db` container the other modes use), seeds it, then runs the `web/`
+Playwright specs against a production viewer build: all 10 screens render, and unauthenticated
+/ non-allowlisted access fails closed to `/login`. It deliberately exercises **real Supabase
+Auth** — there is no test-only auth bypass (AGENTS.md invariant #1 / ADR-0008 fail-closed), so a
+regression that serves data anonymously fails here (and in the CI `web-e2e` job). The numbers
+themselves stay the golden cross-check's job; this is a browser-render + auth-gate smoke. Requires
+the [Supabase CLI](https://supabase.com/docs/guides/cli); extra args are forwarded to
+`playwright test`.
 
 The container is left running between invocations for fast reuse. If `AI_BOOKS_DB_URL`
 is already set (e.g. in CI), it is used as-is and no container is started. This mirrors
