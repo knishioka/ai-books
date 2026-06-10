@@ -28,6 +28,10 @@ command -v supabase > /dev/null 2>&1 || {
   echo "error: the Supabase CLI is required (https://supabase.com/docs/guides/cli)" >&2
   exit 1
 }
+command -v uv > /dev/null 2>&1 || {
+  echo "error: uv is required to seed the database (https://github.com/astral-sh/uv)" >&2
+  exit 1
+}
 supabase status > /dev/null 2>&1 || {
   echo "error: no local Supabase stack — run 'supabase start' first" >&2
   exit 1
@@ -44,7 +48,11 @@ AI_BOOKS_DB_URL="$DB_URL" PYTHONPATH=. uv run python scripts/seed_verify_db.py -
 
 # Rewrite the loopback host to host.docker.internal for the CONTAINER (and the Chromium it drives),
 # so they reach the host's stack — resolved on both Docker Desktop (macOS) and Linux via --add-host.
-to_host_internal() { printf '%s' "${1//127.0.0.1/host.docker.internal}"; }
+# Cover both loopback spellings the CLI/env might use (127.0.0.1 and localhost).
+to_host_internal() {
+  local url="${1//127.0.0.1/host.docker.internal}"
+  printf '%s' "${url//localhost/host.docker.internal}"
+}
 export NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_URL="$(to_host_internal "$API_URL")"
 export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
@@ -54,16 +62,24 @@ AI_BOOKS_DB_URL="$(to_host_internal "$DB_URL")"
 # The single-user allowlist the gate enforces; the setup project provisions this owner.
 export AUTH_ALLOWED_EMAIL="${AUTH_ALLOWED_EMAIL:-owner-e2e@ai-books.test}"
 
+# Named volumes (NOT anonymous) so the Linux node_modules + Next build cache PERSIST across runs —
+# `docker run --rm` discards anonymous volumes, forcing a full reinstall + cold build every time.
+# They also mask the host-mounted darwin binaries, so the container's tree never clobbers the host's.
+# Reinstall strategy: a reproducible `npm ci` in CI (ephemeral runners, lockfile-strict, never
+# rewrites the mounted lockfile); a cache-reusing `npm install` locally, because `npm ci` wipes
+# node_modules first and would defeat the persistent volume. With the lockfile in sync `npm install`
+# is a near-no-op that leaves it untouched.
+INSTALL="npm install --no-audit --no-fund"
+[[ -n "${CI:-}" ]] && INSTALL="npm ci"
+
 # --ipc=host: Chromium needs more shared memory than a container's default 64MB /dev/shm — without
 #   this it crashes mid-render ("Page crashed"), the Playwright-recommended fix for Docker.
-# Anonymous volumes mask the host-mounted node_modules/.next (darwin binaries) so `npm ci` inside
-# the container installs Linux binaries without clobbering the host's working tree.
 docker run --rm \
   --ipc=host \
   --add-host=host.docker.internal:host-gateway \
   -v "$REPO_ROOT":/work -w /work/web \
-  -v /work/web/node_modules \
-  -v /work/web/.next \
+  -v ai-books-web-node_modules:/work/web/node_modules \
+  -v ai-books-web-next:/work/web/.next \
   -e CI=1 \
   -e PLAYWRIGHT_VISUAL=1 \
   -e E2E_PORT="$E2E_PORT" \
@@ -73,4 +89,4 @@ docker run --rm \
   -e AI_BOOKS_DB_URL \
   -e AUTH_ALLOWED_EMAIL \
   "$PLAYWRIGHT_IMAGE" \
-  bash -c "npm ci && npx playwright test --project=visual ${*:-}"
+  bash -c "$INSTALL && npx playwright test --project=visual ${*:-}"

@@ -176,6 +176,11 @@ before committing — a screenshot test can only prove the layout has not change
 captured layout is correct. The script seeds the fixture on the host, then builds + serves the
 viewer and drives Chromium inside the container (reaching the host stack via `host.docker.internal`).
 
+The container's `node_modules` and Next build cache live in **persistent named volumes**
+(`ai-books-web-node_modules`, `ai-books-web-next`) so repeat runs skip a cold reinstall + build —
+isolated from the host tree, so no darwin/Linux binary clash. Reset them with
+`docker volume rm ai-books-web-node_modules ai-books-web-next` if a build ever goes stale.
+
 ## Deploying to Vercel
 
 1. Create a Vercel project linked to this repo and set **Root Directory** to `web`.
