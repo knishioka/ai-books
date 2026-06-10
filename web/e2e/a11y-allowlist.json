@@ -1,0 +1,4 @@
+{
+  "//": "axe-core a11y allowlist for the regression sweep (#166). Each entry tolerates exactly ONE (ruleId x selector) violation and MUST carry a non-empty `reason` explaining why it is genuinely unavoidable. serious/critical violations are fixed in place, NOT allowlisted (see #166) — this exists only for cases we cannot patch (e.g. third-party widgets). Empty by design; adding an entry without a reason fails the allowlist test.",
+  "entries": []
+}
