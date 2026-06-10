@@ -9,8 +9,9 @@ the guardrail it encoded is simply gone. This caught a real incident: the rule
 which both stalled a 4-pane wave and silently disabled a force-push guard.
 
 Checks per rule in permissions.allow / permissions.deny / permissions.ask:
-  - file parses as JSON
-  - rule is `Tool` or `Tool(specifier)`
+  - file parses as JSON, permissions is an object, lists are arrays of strings
+  - rule is `Tool` or `Tool(specifier)` (tool-name globs like
+    `mcp__github__get_*` or a bare `*` are valid)
   - `:*` appears only as the specifier suffix (use bare `*` mid-pattern)
   - specifier is non-empty (`Tool()` is invalid)
   - duplicate rules within a list (warning only, does not fail)
@@ -29,7 +30,9 @@ import re
 import sys
 from pathlib import Path
 
-RULE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*(?:\((?P<spec>.*)\))?$")
+# Tool-name globs ("mcp__github__get_*", "mcp__*", bare "*") are documented
+# Claude Code permission syntax, so `*` is allowed in the tool-name position.
+RULE_RE = re.compile(r"^[A-Za-z*][A-Za-z0-9_*-]*(?:\((?P<spec>.*)\))?$")
 
 
 def lint_file(path: Path) -> tuple[list[str], list[str]]:
@@ -43,11 +46,21 @@ def lint_file(path: Path) -> tuple[list[str], list[str]]:
         return [f"{path}: not valid JSON ({exc})"], []
 
     permissions = data.get("permissions", {})
+    if not isinstance(permissions, dict):
+        return [f"{path}: 'permissions' must be an object"], []
+
     for list_name in ("allow", "deny", "ask"):
         rules = permissions.get(list_name, [])
+        if not isinstance(rules, list):
+            errors.append(f"{path}: '{list_name}' must be an array")
+            continue
+
         seen: set[str] = set()
         for rule in rules:
             loc = f"{path} ({list_name})"
+            if not isinstance(rule, str):
+                errors.append(f"{loc}: rule must be a string, got {type(rule).__name__}")
+                continue
             if rule in seen:
                 warnings.append(f'{loc}: duplicate rule "{rule}"')
             seen.add(rule)
