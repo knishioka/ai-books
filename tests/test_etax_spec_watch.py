@@ -172,3 +172,30 @@ def test_check_sha_captures_fetch_failure_without_raising(
     assert [i["kind"] for i in report["issues"]] == ["fetch_error"]
     # Forms whose package went dark are 'skipped', not falsely reported as a confirmed drift.
     assert {f["status"] for f in report["forms"]} == {"skipped"}
+
+
+def test_check_sha_flags_missing_xsd_after_successful_extract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 上流が .xsd をリネーム/削除した場合: CAB の取得・解凍は成功するが期待ファイルが無い。
+    # サイレントに skip せず fetch_error として 1 件起票する (gemini-code-assist #169 指摘)。
+    manifest = _manifest()
+
+    def extract_nothing(
+        cab: Path, out: Path, basenames: list[str], keep_dirs: bool = False
+    ) -> list[Path]:
+        out.mkdir(parents=True, exist_ok=True)
+        return []  # download ok, but the expected .xsd are absent from the archive
+
+    monkeypatch.setattr(fetch_etax_spec, "download", lambda url, dest: dest.write_bytes(b"CAB"))
+    monkeypatch.setattr(fetch_etax_spec, "extract_cab", extract_nothing)
+    report = fetch_etax_spec.check_sha(tmp_path / "m", manifest, simulate_drift=False)
+    assert report["ok"] is False
+    # One aggregated fetch_error for the package, naming every missing .xsd (no duplicate titles).
+    assert [e["package"] for e in report["fetch_errors"]] == ["e-tax19.CAB"]
+    error = report["fetch_errors"][0]["error"]
+    assert "not found" in error
+    for form in manifest["青色申告決算書_forms"]:
+        assert Path(form["xsd"]).name in error
+    assert [i["kind"] for i in report["issues"]] == ["fetch_error"]
+    assert {f["status"] for f in report["forms"]} == {"skipped"}

@@ -262,8 +262,13 @@ def check_sha(out_dir: Path, manifest: dict, *, simulate_drift: bool = False) ->
     forms = manifest["青色申告決算書_forms"]
     report: dict = {"forms": [], "fetch_errors": []}
     extracted: dict[str, Path] = {}
+    failed_packages: set[str] = set()
+    # 様式 .xsd basename → the CAB that ships it (SCHEMA_FILES is the authoritative mapping).
+    xsd_to_package = {
+        Path(p).name: filename for filename, paths in SCHEMA_FILES.items() for p in paths
+    }
 
-    # SCHEMA_FILES is the authoritative CAB→.xsd mapping; only those CABs hold the 様式 schemas.
+    # Only the CABs in SCHEMA_FILES hold the 様式 schemas.
     for filename in SCHEMA_FILES:
         pkg = packages[filename]
         cab_path = out_dir / filename
@@ -274,9 +279,30 @@ def check_sha(out_dir: Path, manifest: dict, *, simulate_drift: bool = False) ->
             for path in extract_cab(cab_path, out_dir / "extracted", basenames):
                 extracted[path.name] = path
         except Exception as exc:
+            failed_packages.add(filename)
             report["fetch_errors"].append(
                 {"package": filename, "url": pkg["url"], "error": f"{type(exc).__name__}: {exc}"}
             )
+
+    # A 様式 whose .xsd is *absent from a package that extracted fine* (上流のファイル名変更/削除) is
+    # itself a revision signal — surface it as a fetch_error rather than silently skipping it. Group
+    # by package so several missing forms yield one issue (not N issues sharing one title).
+    missing_by_package: dict[str, list[str]] = {}
+    for form in forms:
+        basename = Path(form["xsd"]).name
+        if basename not in extracted:
+            pkg_name = xsd_to_package.get(basename, "unknown")
+            if pkg_name not in failed_packages:
+                missing_by_package.setdefault(pkg_name, []).append(basename)
+    for pkg_name, missing in sorted(missing_by_package.items()):
+        report["fetch_errors"].append(
+            {
+                "package": pkg_name,
+                "url": packages[pkg_name]["url"] if pkg_name in packages else "",
+                "error": "expected .xsd not found in package after extraction: "
+                + ", ".join(sorted(missing)),
+            }
+        )
 
     source_url = packages[next(iter(SCHEMA_FILES))]["url"]
     for form in forms:
@@ -284,7 +310,8 @@ def check_sha(out_dir: Path, manifest: dict, *, simulate_drift: bool = False) ->
         pinned = form["xsd_sha256"]
         path = extracted.get(basename)
         if path is None:
-            # The form's package failed to fetch — already captured as a fetch_error above.
+            # Missing .xsd — its signal is already recorded above (a package fetch failure or a
+            # missing-file fetch_error); record the form as skipped so it is not a false 'match'.
             report["forms"].append(
                 {"form_id": form["form_id"], "xsd": basename, "status": "skipped"}
             )
