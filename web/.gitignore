@@ -8,6 +8,12 @@
 # test coverage (vitest)
 /coverage/
 
+# playwright e2e (issue #162): generated session + report artifacts
+/e2e/.auth/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # production
 /build
 

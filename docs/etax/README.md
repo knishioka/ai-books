@@ -158,6 +158,28 @@ uv run python scripts/etax/sync_web_layouts.py
 `.cache/` は生成物 (国税庁 著作物を含む) であり commit しないこと。SHA256 不一致時はスクリプトが
 失敗する(国税庁の再公開時は `manifest.json` の sha256/日付を更新する → 年度追従 #78 のフック)。
 
+### 様式改訂の自動検知 (watcher, #161)
+
+様式改訂を**人力で気づく仕組みがない**と「申告期に古い様式で出力」するリスクが残る。これを塞ぐため
+`.github/workflows/etax-spec-watch.yml` が**週次 cron + `workflow_dispatch`**で公式 `.xsd` を取得し、
+各様式 (KOA210/220/240) を `manifest.json` の `青色申告決算書_forms[].xsd_sha256` (= CI `etax-xsd`
+が使う pin。**二重管理しない**) と突き合わせる:
+
+```bash
+# watcher 本体 (CI から呼ばれる)。drift を JSON レポートに書き出す
+uv run python scripts/etax/fetch_etax_spec.py --check-sha --out "$TMP/etax" --report "$TMP/report.json"
+# 起票パスの dry-run (pin を意図的にずらして全様式を mismatch 扱いにする)
+uv run python scripts/etax/fetch_etax_spec.py --check-sha --simulate-drift --out "$TMP/etax" --report "$TMP/report.json"
+```
+
+- **検知 → 自動起票**: SHA 不一致は様式ごとに、取得/解凍失敗 (URL 切れも改訂シグナル) は別メッセージで
+  GitHub issue を起票する。通知手段を issue に限定するのは secrets 不要で `GITHUB_TOKEN` だけで完結し、
+  resolve-waves に直接乗るため。
+- **重複起票しない**: 同タイトルの open issue があれば起票をスキップ (タイトルは ASCII 固定で完全一致 dedupe)。
+- **`.xsd` は残さない**: 取得物は `RUNNER_TEMP` に置き、commit も artifact 保存もしない (著作物)。watcher は
+  あえて `actions/cache` を使わず毎回新規取得する (cache すると検知すべき改訂を隠してしまうため)。
+- watcher が起票するのは**検知まで**。spec 差し替え自体は起票された issue から別途対応する (#161 Out of scope)。
+
 ## .xtx (実 e-Tax 交換ファイル) 出力と XSD 検証 (#79)
 
 `ai_books.etax.export.render_etax_xtx`(MCP は `export_etax(format="xtx")`)は 決算書 を実様式の

@@ -1,0 +1,102 @@
+# Scheduled watcher for official e-Tax 様式 .xsd revisions (#161).
+#
+# spec.py is version-managed (EtaxFormatSpec) so swapping a 様式 layout is cheap — but *noticing*
+# that 国税庁 revised a 様式 is otherwise manual, risking "申告期に古い様式で出力". This job fetches
+# the official .xsd weekly, diffs each 様式 (KOA210/KOA220/KOA240) against its pinned SHA256 in
+# docs/etax/manifest.json (the same pins the CI `etax-xsd` job asserts — no second copy), and opens
+# a GitHub issue on drift or fetch failure. Notification is issue-only by design: GITHUB_TOKEN is
+# enough, zero admin/secrets, so it rides resolve-waves. The .xsd is 著作物 — fetched to a temp dir,
+# never committed and never uploaded as an artifact.
+name: etax-spec-watch
+
+on:
+  schedule:
+    # Weekly, Monday 21:00 UTC (= 火 06:00 JST). Off申告期 cadence; drift is rare.
+    - cron: "0 21 * * 1"
+  workflow_dispatch:
+    inputs:
+      simulate_drift:
+        description: "Force every 様式 to mismatch (exercise the issue-creation path)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Print intended issues without creating them"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: etax-spec-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Detect official .xsd revisions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      # NOTE: deliberately no actions/cache for .cache/etax — the watcher must hit the government
+      # server fresh each run, otherwise a cached CAB would mask the very revision we are watching.
+      - name: Fetch official .xsd and diff against pinned SHA256
+        run: |
+          uv run python scripts/etax/fetch_etax_spec.py \
+            --check-sha \
+            --out "${RUNNER_TEMP}/etax" \
+            --report "${RUNNER_TEMP}/etax-report.json" \
+            ${SIMULATE:+--simulate-drift}
+        env:
+          SIMULATE: ${{ inputs.simulate_drift && '1' || '' }}
+
+      - name: Open issues for drift / fetch failures (de-duplicated by title)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          REPORT: ${{ runner.temp }}/etax-report.json
+        run: |
+          set -euo pipefail
+          count=$(jq '.issues | length' "$REPORT")
+          echo "::notice::etax-spec-watch: ${count} issue(s) to evaluate (ok=$(jq -r '.ok' "$REPORT"))"
+          if [ "$count" -eq 0 ]; then
+            echo "現行 .xsd は pin と一致。変化なしで green 終了。"
+            exit 0
+          fi
+          # Snapshot open issue titles once for exact-match dedupe (charset-safe, no search quirks).
+          open_titles=$(gh issue list --state open --limit 300 --json title --jq '.[].title')
+          jq -c '.issues[]' "$REPORT" | while read -r issue; do
+            title=$(jq -r '.title' <<<"$issue")
+            body=$(jq -r '.body' <<<"$issue")
+            if grep -Fxq "$title" <<<"$open_titles"; then
+              echo "skip (既存 open issue あり): ${title}"
+              continue
+            fi
+            if [ -n "$DRY_RUN" ]; then
+              echo "DRY-RUN would create: ${title}"
+              continue
+            fi
+            gh issue create \
+              --title "$title" \
+              --body "$body" \
+              --label "track:etax" \
+              --label "layer:infra"
+            echo "created: ${title}"
+          done
+
+      - name: Ensure no .xsd persists (著作物)
+        if: always()
+        run: rm -rf "${RUNNER_TEMP}/etax"

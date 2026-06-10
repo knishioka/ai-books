@@ -173,13 +173,208 @@ def download(url: str, dest: Path) -> None:
         dest.write_bytes(response.read())
 
 
+# --- Scheduled XSD-revision watcher (#161) -------------------------------------------------------
+# The 様式 .xsd is the precise revision signal: spec.py is version-managed so swapping a layout is
+# easy, but *detecting* an upstream revision is otherwise manual. ``--check-sha`` fetches the
+# official .xsd, compares each 様式 against its pinned SHA256 in manifest.json (the single source
+# also asserted by the CI ``etax-xsd`` job — no second copy of the pins), and emits a machine-
+# readable report whose ``issues`` list the watcher workflow turns into GitHub issues. The pins live
+# only in ``docs/etax/manifest.json``; this code reads them, it never re-records them.
+
+
+def _drift_issue(form_id: str, xsd_name: str, pinned: str, fetched: str, source_url: str) -> dict:
+    """Issue spec for a 様式 whose upstream .xsd no longer matches the pinned SHA256 (a revision)."""
+    title = f"[etax-watch] e-Tax XSD revision detected: {form_id}"
+    body = (
+        f"国税庁の公式 `.xsd` が **{form_id}** ({xsd_name}) でリポジトリの pin と不一致です。"
+        "様式改訂の可能性が高いため、レイアウト再生成と pin 更新を確認してください。\n\n"
+        "| 項目 | 値 |\n"
+        "| --- | --- |\n"
+        f"| 様式 (form ID) | `{form_id}` |\n"
+        f"| .xsd | `{xsd_name}` |\n"
+        f"| pin 済み SHA256 (旧) | `{pinned}` |\n"
+        f"| 取得した SHA256 (新) | `{fetched}` |\n"
+        f"| 取得元 | {source_url} |\n\n"
+        "### 対応\n"
+        "1. `docs/etax/manifest.json` の `青色申告決算書_forms[].xsd_sha256` (および対応する CAB の "
+        "`packages[].sha256`/公開日) を新版に更新\n"
+        "2. `scripts/etax/build_etax_layout.py` で `src/ai_books/etax/*_layout.json` を再生成し "
+        "`sync_web_layouts.py` で web 側へ同期\n"
+        "3. `./scripts/test.sh -k etax` (CI `etax-xsd`) で .xtx XSD 検証を pass させる\n\n"
+        "_この issue は `.github/workflows/etax-spec-watch.yml` が自動起票しました。_"
+    )
+    return {"kind": "drift", "key": form_id, "title": title, "body": body}
+
+
+def _fetch_error_issue(package: str, url: str, error: str) -> dict:
+    """Issue spec for a fetch/extract failure — distinct from a SHA mismatch (URL 切れも改訂シグナル)."""
+    title = f"[etax-watch] e-Tax XSD fetch failed: {package}"
+    body = (
+        f"国税庁の公式仕様パッケージ `{package}` の取得/解凍に失敗しました。ネットワーク障害の一過性も"
+        "あり得ますが、**URL 変更も改訂シグナル**のため起票します (SHA 不一致とは区別)。\n\n"
+        "| 項目 | 値 |\n"
+        "| --- | --- |\n"
+        f"| パッケージ | `{package}` |\n"
+        f"| URL | {url} |\n"
+        f"| エラー | `{error}` |\n\n"
+        "### 対応\n"
+        "1. 取得元 <https://www.e-tax.nta.go.jp/shiyo/shiyo3.htm> を確認 (URL/版の変更有無)\n"
+        "2. URL が変わっていれば `docs/etax/manifest.json` の `packages[].url` を更新\n"
+        "3. 一過性であれば `workflow_dispatch` で再実行し green を確認のうえクローズ\n\n"
+        "_この issue は `.github/workflows/etax-spec-watch.yml` が自動起票しました。_"
+    )
+    return {"kind": "fetch_error", "key": package, "title": title, "body": body}
+
+
+def plan_issues(report: dict) -> list[dict]:
+    """Pure transform: a drift report → the GitHub issues that should be (de-duplicated then) opened.
+
+    Kept side-effect free so the dedupe/create step in the workflow stays a thin gh wrapper and the
+    title/body wording is unit-testable without any network or ``gh``.
+    """
+    issues: list[dict] = []
+    for form in report.get("forms", []):
+        if form.get("status") == "mismatch":
+            issues.append(
+                _drift_issue(
+                    form["form_id"],
+                    form["xsd"],
+                    form["expected_sha256"],
+                    form["actual_sha256"],
+                    form.get("source_url", ""),
+                )
+            )
+    for err in report.get("fetch_errors", []):
+        issues.append(_fetch_error_issue(err["package"], err["url"], err["error"]))
+    return issues
+
+
+def check_sha(out_dir: Path, manifest: dict, *, simulate_drift: bool = False) -> dict:
+    """Fetch the official .xsd and diff each 様式 against its pinned SHA256; return a drift report.
+
+    A per-package fetch/extract failure is captured as a ``fetch_errors`` entry (not raised) so one
+    様式 going dark does not hide the others. ``simulate_drift`` offsets every pin so the issue-
+    creation path can be exercised end-to-end via ``workflow_dispatch`` without a real upstream
+    change (AC: "SHA pin を意図的にずらした dry-run").
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    packages = {pkg["file"]: pkg for pkg in manifest["packages"]}
+    forms = manifest["青色申告決算書_forms"]
+    report: dict = {"forms": [], "fetch_errors": []}
+    extracted: dict[str, Path] = {}
+    failed_packages: set[str] = set()
+    # 様式 .xsd basename → the CAB that ships it (SCHEMA_FILES is the authoritative mapping).
+    xsd_to_package = {
+        Path(p).name: filename for filename, paths in SCHEMA_FILES.items() for p in paths
+    }
+
+    # Only the CABs in SCHEMA_FILES hold the 様式 schemas.
+    for filename in SCHEMA_FILES:
+        pkg = packages[filename]
+        cab_path = out_dir / filename
+        try:
+            if not cab_path.exists():
+                download(pkg["url"], cab_path)
+            basenames = [Path(p).name for p in SCHEMA_FILES[filename]]
+            for path in extract_cab(cab_path, out_dir / "extracted", basenames):
+                extracted[path.name] = path
+        except Exception as exc:
+            failed_packages.add(filename)
+            report["fetch_errors"].append(
+                {"package": filename, "url": pkg["url"], "error": f"{type(exc).__name__}: {exc}"}
+            )
+
+    # A 様式 whose .xsd is *absent from a package that extracted fine* (上流のファイル名変更/削除) is
+    # itself a revision signal — surface it as a fetch_error rather than silently skipping it. Group
+    # by package so several missing forms yield one issue (not N issues sharing one title).
+    missing_by_package: dict[str, list[str]] = {}
+    for form in forms:
+        basename = Path(form["xsd"]).name
+        if basename not in extracted:
+            pkg_name = xsd_to_package.get(basename, "unknown")
+            if pkg_name not in failed_packages:
+                missing_by_package.setdefault(pkg_name, []).append(basename)
+    for pkg_name, missing in sorted(missing_by_package.items()):
+        report["fetch_errors"].append(
+            {
+                "package": pkg_name,
+                "url": packages[pkg_name]["url"] if pkg_name in packages else "",
+                "error": "expected .xsd not found in package after extraction: "
+                + ", ".join(sorted(missing)),
+            }
+        )
+
+    source_url = packages[next(iter(SCHEMA_FILES))]["url"]
+    for form in forms:
+        basename = Path(form["xsd"]).name
+        pinned = form["xsd_sha256"]
+        path = extracted.get(basename)
+        if path is None:
+            # Missing .xsd — its signal is already recorded above (a package fetch failure or a
+            # missing-file fetch_error); record the form as skipped so it is not a false 'match'.
+            report["forms"].append(
+                {"form_id": form["form_id"], "xsd": basename, "status": "skipped"}
+            )
+            continue
+        fetched = _sha256(path)
+        # simulate_drift pretends the pin was set to an impossible value so the live fetched SHA
+        # never equals it — a faithful "pin intentionally offset" without touching manifest.json.
+        compare_pin = "0" * 64 if simulate_drift else pinned
+        status = "match" if fetched == compare_pin else "mismatch"
+        report["forms"].append(
+            {
+                "form_id": form["form_id"],
+                "xsd": basename,
+                "status": status,
+                "expected_sha256": compare_pin,
+                "actual_sha256": fetched,
+                "source_url": source_url,
+            }
+        )
+
+    report["issues"] = plan_issues(report)
+    report["ok"] = not report["issues"]
+    return report
+
+
+def _run_check_sha(args: argparse.Namespace, manifest: dict) -> None:
+    args.out.mkdir(parents=True, exist_ok=True)
+    report = check_sha(args.out, manifest, simulate_drift=args.simulate_drift)
+    payload = json.dumps(report, ensure_ascii=False, indent=2)
+    if args.report:
+        args.report.write_text(payload + "\n", encoding="utf-8")
+    for form in report["forms"]:
+        print(f"{form['status']:>8}  {form['form_id']}  {form['xsd']}")
+    for err in report["fetch_errors"]:
+        print(f"fetch-err  {err['package']}: {err['error']}")
+    print(f"\n{len(report['issues'])} issue(s) to open; ok={report['ok']}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path, help="cache/extract directory")
     parser.add_argument("--no-verify", action="store_true", help="skip SHA256 verification")
+    parser.add_argument(
+        "--check-sha",
+        action="store_true",
+        help="watcher (#161): diff each 様式 .xsd against its pinned SHA256; emit a drift report",
+    )
+    parser.add_argument(
+        "--report", type=Path, help="with --check-sha: write the drift report JSON to this path"
+    )
+    parser.add_argument(
+        "--simulate-drift",
+        action="store_true",
+        help="with --check-sha: force every 様式 to mismatch (dry-run the issue-creation path)",
+    )
     args = parser.parse_args()
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+    if args.check_sha:
+        _run_check_sha(args, manifest)
+        return
+
     packages = {pkg["file"]: pkg for pkg in manifest["packages"]}
     args.out.mkdir(parents=True, exist_ok=True)
 

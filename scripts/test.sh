@@ -11,6 +11,7 @@
 #   ./scripts/test.sh -k journal -x   # extra args are forwarded to pytest
 #   ./scripts/test.sh --web           # also run the web/ golden cross-check
 #   ./scripts/test.sh --pooler        # run the suite THROUGH a pgbouncer pooler (#52)
+#   ./scripts/test.sh --e2e           # Playwright browser smoke + fail-closed auth (#162)
 #   ./scripts/test.sh --all           # ONE-COMMAND local guarantee — every block (#59)
 #   ./scripts/test.sh --down          # stop & remove the test containers, exit
 #
@@ -19,12 +20,19 @@
 # PASS/FAIL summary — the Python full suite (incl. MCP #50/#56, property #57, read-only
 # role #54) with the coverage gate (#58), the pgbouncer pooler safety suite + viewer
 # golden through the pooler (#52), the web unit layer + its coverage gate (#55/#58),
-# the isolated Vercel-parity web build (#140), the e-Tax layout sync check, and the
-# viewer golden cross-check against a directly-connected Postgres. Unlike the other
-# modes it does NOT stop at the first failure: every block runs so the summary shows
-# the full picture, and the script exits non-zero if any block failed. This mirrors
-# the CI jobs (verify / web / web-vercel-build / web-golden / pooler); see README
+# the isolated Vercel-parity web build (#140), the e-Tax layout sync check, the viewer
+# golden cross-check against a directly-connected Postgres, and the Playwright E2E smoke
+# + fail-closed auth harness (#162, which boots its own `supabase start` stack). Unlike
+# the other modes it does NOT stop at the first failure: every block runs so the summary
+# shows the full picture, and the script exits non-zero if any block failed. This mirrors
+# the CI jobs (verify / web / web-vercel-build / web-golden / pooler / web-e2e); see README
 # "CI ↔ local guarantee mapping".
+#
+# --e2e boots the full local Supabase stack (`supabase start` — GoTrue auth + Postgres),
+# seeds it, then runs `web/` Playwright specs against the production viewer build: all 10
+# screens render, and unauthenticated / non-allowlisted access fails closed to /login. It
+# exercises REAL Supabase Auth (no test-only bypass; AGENTS.md invariant #1 / ADR-0008).
+# Requires the Supabase CLI. Extra args are forwarded to `playwright test`.
 #
 # --pooler reproduces Supabase's production pooler (pgbouncer, transaction mode): it
 # brings up the extra `pgbouncer` compose service in front of `db`, points
@@ -46,6 +54,7 @@ RUN_WEB=false
 DOWN=false
 POOLER=false
 ALL=false
+E2E=false
 PYTEST_ARGS=()
 for arg in "$@"; do
   case "$arg" in
@@ -55,6 +64,7 @@ for arg in "$@"; do
       RUN_WEB=true
       ;;
     --all) ALL=true ;;
+    --e2e) E2E=true ;;
     --down) DOWN=true ;;
     *) PYTEST_ARGS+=("$arg") ;;
   esac
@@ -88,6 +98,58 @@ if [[ "$DOWN" == true ]]; then
   "${COMPOSE[@]}" --profile pooler down
   echo "✓ test containers stopped"
   exit 0
+fi
+
+# Ensure web/ deps are installed once before any block that needs them.
+ensure_web_deps() {
+  (cd web && { [[ -d node_modules ]] || npm ci; })
+}
+
+# E2E smoke harness (issue #162): boot the full local Supabase stack (GoTrue auth +
+# Postgres) and run Playwright against the production viewer. Unlike every other mode this
+# uses `supabase start` — NOT the lightweight `db` compose container — because the auth gate
+# must be exercised against REAL Supabase Auth: there is no test-only bypass (AGENTS.md
+# invariant #1 / ADR-0008 fail-closed). Shared by the `--e2e` mode and the `--all` summary.
+run_e2e() {
+  command -v supabase > /dev/null 2>&1 || {
+    echo "error: the Supabase CLI is required for E2E (https://supabase.com/docs/guides/cli)" >&2
+    return 1
+  }
+  echo "▶ supabase start (local GoTrue auth + Postgres)"
+  supabase start || return 1
+  # Export the stack's URL + keys for both `next build/start` and the Playwright setup
+  # project. `supabase status -o env` emits API_URL / ANON_KEY / SERVICE_ROLE_KEY / DB_URL;
+  # eval is safe here (trusted first-party CLI output).
+  local _status
+  _status="$(supabase status -o env)" || return 1
+  eval "$_status"
+  export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+  export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+  export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+  export AI_BOOKS_DB_URL="$DB_URL"
+  # The single-user allowlist the gate enforces; the Playwright setup provisions this owner
+  # plus a non-owner outsider that must be denied.
+  export AUTH_ALLOWED_EMAIL="${AUTH_ALLOWED_EMAIL:-owner-e2e@ai-books.test}"
+  echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+  echo "AI_BOOKS_DB_URL=$AI_BOOKS_DB_URL"
+  # `supabase start` already applied supabase/migrations to its Postgres, so SEED ONLY (our
+  # migrate.run() tracks in a separate schema_migrations table and would re-apply → a
+  # CREATE TABLE conflict).
+  PYTHONPATH=. uv run python scripts/seed_verify_db.py --seed-only || return 1
+  ensure_web_deps || return 1
+  # Install the Chromium build Playwright drives (with OS deps in CI, where apt is present).
+  if [[ -n "${CI:-}" ]]; then
+    (cd web && npx playwright install --with-deps chromium) || return 1
+  else
+    (cd web && npx playwright install chromium) || return 1
+  fi
+  (cd web && npx playwright test "$@")
+}
+
+if [[ "$E2E" == true ]]; then
+  # Standalone E2E: no compose container — the Supabase stack owns Postgres here.
+  run_e2e "${PYTEST_ARGS[@]}"
+  exit $?
 fi
 
 # --all needs the pooler container too, so it shares --pooler's bring-up path.
@@ -158,11 +220,6 @@ if [[ "$ALL" == true && -z "${AI_BOOKS_POOLER_URL:-}" ]]; then
   exit 2
 fi
 
-# Ensure web/ deps are installed once before any block that needs them.
-ensure_web_deps() {
-  (cd web && { [[ -d node_modules ]] || npm ci; })
-}
-
 if [[ "$ALL" == true ]]; then
   echo "AI_BOOKS_POOLER_URL=$AI_BOOKS_POOLER_URL"
   echo
@@ -230,7 +287,7 @@ if [[ "$ALL" == true ]]; then
     # before the pooler safety tests so the FY2025 golden is not polluted.
     (
       export AI_BOOKS_DB_URL="$AI_BOOKS_POOLER_URL"
-      uv run python - <<'PY' &&
+      uv run python - << 'PY' &&
 from ai_books import db
 
 with db.connect() as conn:
@@ -256,12 +313,20 @@ PY
     )
   }
 
+  block_e2e() {
+    # Browser smoke + fail-closed auth gate (#162). Runs in a subshell so its Supabase
+    # env exports (AI_BOOKS_DB_URL → the local stack's Postgres) never leak back to the
+    # direct-DB blocks above. Boots `supabase start` for REAL GoTrue auth (no bypass).
+    (run_e2e)
+  }
+
   run_block "Python full suite + coverage gate (direct DB)" block_python
   run_block "Web unit layer + coverage gate (vitest)" block_web_unit
   run_block "Web Vercel parity build (isolated web root)" block_web_vercel_build
   run_block "e-Tax layout sync check (Python SSOT -> web)" block_etax_layout_sync
   run_block "Viewer golden cross-check (direct DB)" block_web_golden
   run_block "Pooler safety suite + golden (through pgbouncer)" block_pooler
+  run_block "Viewer E2E smoke + fail-closed auth (Playwright)" block_e2e
 
   echo
   echo "════════════════════════════════════════════════════════════════════"

@@ -124,6 +124,31 @@ This is a local gate (CI runs `lint` / `build`, which need no database). A misma
 path-tagged diff so a sign flip or a dropped row is caught the same way the Python harness
 catches it.
 
+### E2E browser smoke + fail-closed auth (Playwright)
+
+`e2e/` holds the [Playwright](https://playwright.dev) smoke harness (#162). It proves the thing
+the golden cross-check cannot: that every one of the 10 screens actually **renders in a real
+browser**, and that the auth gate is **fail closed** — an unauthenticated or non-allowlisted
+visitor is redirected to `/login` and sees no data. It asserts headings and redirects, never
+figures (numbers stay the golden's job). Auth runs against **real Supabase Auth (GoTrue)** with
+no test-only bypass (invariant #1 / ADR-0008).
+
+The specs are excluded from the Next.js build (`tsconfig.json` `exclude`) so the isolated Vercel
+parity build never compiles them. Run the whole flow — `supabase start`, seed, build + serve,
+Playwright — from the repo root:
+
+```bash
+./scripts/test.sh --e2e          # boots Supabase, seeds, builds the viewer, runs the specs
+```
+
+Or, with a local `supabase start` stack already running and its env exported, iterate from `web/`:
+
+```bash
+cd web && npx playwright test    # reuses the running dev/prod server (see playwright.config.ts)
+```
+
+CI runs the identical harness in the `web-e2e` job.
+
 ## Deploying to Vercel
 
 1. Create a Vercel project linked to this repo and set **Root Directory** to `web`.
