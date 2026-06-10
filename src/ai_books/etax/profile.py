@@ -46,7 +46,7 @@ import unicodedata
 from pathlib import Path
 from typing import NamedTuple
 
-from ai_books.errors import EtaxValidationError
+from ai_books.errors import DomainValidationError, EtaxValidationError
 from ai_books.models import EtaxRecord, EtaxValueKind
 
 #: 面 区分 (CSV/XML の「面」列) — ヘッダ records 用。.xtx は 項目コード で配置するので 値に影響しない。
@@ -109,31 +109,50 @@ def profile_path() -> Path:
 def load_etax_profile() -> EtaxProfile | None:
     """プロフィールを読み込む。ファイルが無ければ ``None`` (= 従来通り空欄、エラーにしない)。
 
-    TOML の ``[filer]`` テーブルを :class:`EtaxProfile` に写す。未知キーは ``ValueError`` で弾く
+    TOML の ``[filer]`` テーブルを :class:`EtaxProfile` に写す。未知キーは :class:`~ai_books.errors.DomainValidationError` で弾く
     (手編集のタイプミス検出)。値の桁数・文字種検証は emit 時 (:func:`profile_header_records`) に行う。
     ファイルは **読むだけ** — 書き込みは一切しない。
     """
     path = profile_path()
     if not path.is_file():
         return None
-    with path.open("rb") as handle:
-        data = tomllib.load(handle)
+    try:
+        with path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except tomllib.TOMLDecodeError as exc:
+        raise DomainValidationError(
+            f"e-Tax profile: {path} is not valid TOML: {exc}",
+            [{"field": _FILER_TABLE, "message": str(exc), "type": "toml_decode_error"}],
+        ) from exc
     filer = data.get(_FILER_TABLE, {})
     if not isinstance(filer, dict):
-        raise ValueError(
-            f"e-Tax profile: [{_FILER_TABLE}] must be a table, got {type(filer).__name__}"
+        raise DomainValidationError(
+            f"e-Tax profile: [{_FILER_TABLE}] must be a table, got {type(filer).__name__}",
+            [{"field": _FILER_TABLE, "message": "must be a table", "type": "type_error"}],
         )
     known = set(EtaxProfile._fields)
     unknown = sorted(set(filer) - known)
     if unknown:
-        raise ValueError(
+        raise DomainValidationError(
             f"e-Tax profile: unknown [{_FILER_TABLE}] key(s) {', '.join(unknown)}; "
-            f"supported: {', '.join(sorted(known))}"
+            f"supported: {', '.join(sorted(known))}",
+            [
+                {"field": f"{_FILER_TABLE}.{key}", "message": "unknown key", "type": "unknown_key"}
+                for key in unknown
+            ],
         )
     for key, value in filer.items():
         if not isinstance(value, str):
-            raise ValueError(
-                f"e-Tax profile: [{_FILER_TABLE}].{key} must be a string, got {type(value).__name__}"
+            raise DomainValidationError(
+                f"e-Tax profile: [{_FILER_TABLE}].{key} must be a string, "
+                f"got {type(value).__name__}",
+                [
+                    {
+                        "field": f"{_FILER_TABLE}.{key}",
+                        "message": "must be a string",
+                        "type": "type_error",
+                    }
+                ],
             )
     return EtaxProfile(**filer)
 
@@ -165,6 +184,15 @@ def profile_header_records(profile: EtaxProfile) -> list[EtaxRecord]:
     for field in HEADER_FIELDS:
         raw = getattr(profile, field.attr)
         if raw is None:
+            continue
+        if not isinstance(raw, str):
+            problems.append(
+                {
+                    "item_code": field.item_code,
+                    "row": "",
+                    "message": f"型不正: str が必要 (got {type(raw).__name__})",
+                }
+            )
             continue
         value = raw.strip()
         if not value:

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from ai_books.errors import EtaxValidationError
+from ai_books.errors import DomainValidationError, EtaxValidationError
 from ai_books.etax import (
     EtaxFormat,
     EtaxProfile,
@@ -89,21 +89,30 @@ def test_env_overrides_default_path(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_unknown_key_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = _write_profile(tmp_path, '[filer]\nname = "山田太郎"\n')
     monkeypatch.setenv("AI_BOOKS_ETAX_PROFILE", str(path))
-    with pytest.raises(ValueError, match=r"unknown.*key.*name"):
+    with pytest.raises(DomainValidationError, match=r"unknown.*key.*name"):
         load_etax_profile()
 
 
 def test_non_string_value_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = _write_profile(tmp_path, "[filer]\naddress = 123\n")
     monkeypatch.setenv("AI_BOOKS_ETAX_PROFILE", str(path))
-    with pytest.raises(ValueError, match="must be a string"):
+    with pytest.raises(DomainValidationError, match="must be a string"):
         load_etax_profile()
+
+
+def test_malformed_toml_reported_with_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 手編集タイポ (不正 TOML) は どのファイルが壊れているか を含めて報告する。
+    path = _write_profile(tmp_path, "[filer\naddress = ")
+    monkeypatch.setenv("AI_BOOKS_ETAX_PROFILE", str(path))
+    with pytest.raises(DomainValidationError, match="not valid TOML") as excinfo:
+        load_etax_profile()
+    assert str(path) in excinfo.value.message
 
 
 def test_filer_must_be_table(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     path = _write_profile(tmp_path, 'filer = "oops"\n')
     monkeypatch.setenv("AI_BOOKS_ETAX_PROFILE", str(path))
-    with pytest.raises(ValueError, match="must be a table"):
+    with pytest.raises(DomainValidationError, match="must be a table"):
         load_etax_profile()
 
 
@@ -145,6 +154,17 @@ def test_overflow_and_invalid_char_reported_together() -> None:
     messages = " ".join(p["message"] for p in problems)
     assert "不正文字" in messages
     assert "桁あふれ" in messages
+
+
+def test_programmatic_non_string_value_reported_not_crash() -> None:
+    # 公開 API としての防衛: プログラムから str 以外を渡しても AttributeError で落とさず
+    # EtaxValidationError で全件報告する。
+    bad = EtaxProfile(address=123)  # type: ignore[arg-type]
+    with pytest.raises(EtaxValidationError) as excinfo:
+        profile_header_records(bad)
+    problems = excinfo.value.problems
+    assert problems[0]["item_code"] == "AMB00010"
+    assert "型不正" in problems[0]["message"]
 
 
 def test_overflow_at_boundary_ok_but_over_fails() -> None:
