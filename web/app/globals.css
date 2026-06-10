@@ -569,6 +569,9 @@ td.muted,
   background: var(--rule);
   border: 1px solid var(--rule-strong);
 }
+/* The link *card* itself — `.report-index` must sit on the <a>, not its wrapper section, so the
+   muted description renders on the sheet (5.04:1, AA) rather than the hairline rule behind the grid
+   gaps (3.5:1, an axe serious color-contrast fail). See #166. */
 .report-index {
   background: var(--sheet);
   padding: 1.1rem 1.25rem;

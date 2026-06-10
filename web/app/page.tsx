@@ -45,12 +45,12 @@ export default async function Home() {
         <ErrorBanner error={result.error} />
       )}
 
-      <section className="report-index">
+      <section>
         <h2>帳票一覧</h2>
         <ul className="report-index-list">
           {REPORT_ROUTES.filter((route) => route.href !== "/").map((route) => (
             <li key={route.href}>
-              <Link href={route.href}>
+              <Link href={route.href} className="report-index">
                 <span className="report-index-label">{route.label}</span>
                 <span className="report-index-desc">{route.description}</span>
               </Link>
