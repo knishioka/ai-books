@@ -64,15 +64,17 @@ fail() {
   echo "FAIL: $message"
 }
 
-# fetch <url> <body_file> — status code on stdout, redirects NOT followed.
+# fetch <url> <body_file> — status code on stdout, redirects NOT followed. Curl
+# failures propagate as a non-zero exit; callers fall back to status "000" so a
+# transport error cannot mix with the -w output (e.g. "000000").
 fetch() {
   local url="$1" body_file="$2"
-  curl "${CURL_OPTS[@]}" -o "$body_file" -w '%{http_code}' "$url" || echo "000"
+  curl "${CURL_OPTS[@]}" -o "$body_file" -w '%{http_code}' "$url"
 }
 
 redirect_location() {
   local url="$1"
-  curl "${CURL_OPTS[@]}" -o /dev/null -w '%{redirect_url}' "$url" || true
+  curl "${CURL_OPTS[@]}" -o /dev/null -w '%{redirect_url}' "$url"
 }
 
 body_tmp=$(mktemp)
@@ -81,39 +83,46 @@ trap 'rm -f "$body_tmp"' EXIT
 echo "prod-smoke: mode=${MODE} base=${BASE_URL}"
 
 # /login renders in both modes.
-status=$(fetch "${BASE_URL}${LOGIN_PATH}" "$body_tmp")
+status=$(fetch "${BASE_URL}${LOGIN_PATH}" "$body_tmp") || status="000"
 echo "check ${LOGIN_PATH}: status=${status} (expect 200)"
 [[ "$status" == "200" ]] || fail "${LOGIN_PATH} returned ${status} (expected 200)"
 
 for entry in "${ROUTES[@]}"; do
   route="${entry%%|*}"
   marker="${entry##*|}"
-  status=$(fetch "${BASE_URL}${route}" "$body_tmp")
+  status=$(fetch "${BASE_URL}${route}" "$body_tmp") || status="000"
 
   if [[ "$MODE" == "public" ]]; then
+    if [[ "$status" != "200" ]]; then
+      # No marker checks on a failed response — they would only add noise on top.
+      echo "check ${route}: status=${status} (expect 200)"
+      fail "${route} returned ${status} (expected 200 in public mode)"
+      continue
+    fi
     marker_found="no"
     footer_found="no"
     grep -qF "$marker" "$body_tmp" && marker_found="yes"
     grep -qF "$READONLY_FOOTER" "$body_tmp" && footer_found="yes"
     echo "check ${route}: status=${status} marker=${marker_found} readonly_footer=${footer_found} (expect 200/yes/yes)"
-    [[ "$status" == "200" ]] || fail "${route} returned ${status} (expected 200 in public mode)"
     [[ "$marker_found" == "yes" ]] || fail "${route} did not render its heading marker"
     [[ "$footer_found" == "yes" ]] || fail "${route} lost the read-only footer (書込 UI 混入の兆候)"
   else
     # gated: must redirect to /login and must NOT leak the report marker. The home
     # page's marker is the app shell title, which the login screen legitimately
     # shares — leak detection uses the report pages' unique h1 titles.
-    location=$(redirect_location "${BASE_URL}${route}")
+    location=$(redirect_location "${BASE_URL}${route}") || location=""
     leaked="no"
     if [[ "$route" != "/" ]] && grep -qF "$marker" "$body_tmp"; then
       leaked="yes"
     fi
     echo "check ${route}: status=${status} location=${location:-none} leak=${leaked} (expect 3xx→${LOGIN_PATH}/no)"
     case "$status" in
-      30[1278]) ;;
+      30[1278])
+        [[ "$location" == *"${LOGIN_PATH}"* ]] || fail "${route} redirect did not target ${LOGIN_PATH}"
+        ;;
       *) fail "${route} returned ${status} (expected a redirect in gated mode)" ;;
     esac
-    [[ "$location" == *"${LOGIN_PATH}"* ]] || fail "${route} redirect did not target ${LOGIN_PATH}"
+    # The leak check always runs — a 200 serving report content is the key signal.
     [[ "$leaked" == "no" ]] || fail "${route} body leaked report content while unauthenticated"
   fi
 done
