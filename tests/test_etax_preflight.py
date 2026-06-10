@@ -79,6 +79,17 @@ def _insert_entry(
     return JournalRepository(conn).insert_entry(entry)
 
 
+def _insert_fiscal_year(
+    conn: psycopg.Connection[Any], *, name: str, start: date, end: date
+) -> None:
+    """Register another fiscal year so its entries are not orphaned (会計期間外 判定の対象外)."""
+    conn.execute(
+        "INSERT INTO fiscal_years (name, start_date, end_date) VALUES (%s, %s, %s)"
+        " ON CONFLICT (name) DO NOTHING",
+        (name, start, end),
+    )
+
+
 # --- clean year -----------------------------------------------------------------
 
 
@@ -151,6 +162,34 @@ def test_out_of_period_posted_blocks_filing(migrated_conn: psycopg.Connection[An
     assert report.status == "error"
     out = {e.voucher_no for e in report.errors if e.check == PreflightCheck.OUT_OF_PERIOD}
     assert out == {"AFTER-END", "BEFORE-START"}
+
+
+def test_other_fiscal_year_entries_are_not_flagged(
+    migrated_conn: psycopg.Connection[Any],
+) -> None:
+    # Regression for PR #170 review: an entry dated in a *registered* other fiscal year is a
+    # legitimate entry of that year, not a FY2025 申告ブロッカー. Only true orphans (belonging to
+    # no fiscal year) are reported — so multi-year databases produce no false positives.
+    load_fiscal_year(migrated_conn)
+    _insert_fiscal_year(
+        migrated_conn, name="FY2024", start=date(2024, 1, 1), end=date(2024, 12, 31)
+    )
+    _insert_entry(
+        migrated_conn,
+        voucher_no="FY2024-POSTED",  # 2024 の正当な仕訳 (FY2024 に属する) → 報告しない
+        entry_date=date(2024, 6, 15),
+        status=EntryStatus.POSTED,
+    )
+    _insert_entry(
+        migrated_conn,
+        voucher_no="ORPHAN",  # どの会計年度にも属さない孤児 → 報告する
+        entry_date=date(2099, 1, 1),
+        status=EntryStatus.POSTED,
+    )
+    report = filing_preflight(migrated_conn, fiscal_year=_FY)
+    out = {e.voucher_no for e in report.errors if e.check == PreflightCheck.OUT_OF_PERIOD}
+    assert out == {"ORPHAN"}
+    assert "FY2024-POSTED" not in out
 
 
 # --- error: 決算書 → KOA210 マッピング欠落 (全件収集) --------------------------

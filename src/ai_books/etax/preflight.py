@@ -17,8 +17,9 @@ dry-run — を report 層に閉じて実装し、「申告可 (ok) / 要修正 
 
 DB 読み取り・決算書生成は既存の :class:`~ai_books.db.repository.LedgerRepository` /
 :class:`~ai_books.db.repository.JournalRepository` と :func:`ai_books.etax.build_etax_export`
-を再利用し、新規 SQL は持たない。MCP tool としての公開と XSD 検証は別 issue (本 issue は純粋な
-report 層に閉じる)。
+を再利用する。新規 SQL は「どの会計年度にも属さない孤児 posted 仕訳の検出」と「月ごとの posted
+有無判定」の 2 点に絞り (どちらも対象を DB 側で絞り込み、全 posted をメモリに載せない)、MCP tool
+としての公開と XSD 検証は別 issue (本 issue は純粋な report 層に閉じる)。
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from datetime import date
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
+from psycopg.rows import dict_row
 from pydantic import Field
 
 from ai_books.aggregation import month_windows
@@ -140,24 +142,21 @@ def filing_preflight(conn: psycopg.Connection[Any], *, fiscal_year: str) -> Pref
             )
         )
 
-    # 2. 会計期間外の posted 仕訳 — 全 posted を 1 回読み、期間外を error に、期間内の月を 4. 用に集める。
-    posted_months: set[date] = set()
-    for entry in _all_entries(journals, status=EntryStatus.POSTED):
-        if entry.entry_date < year.start_date or entry.entry_date > year.end_date:
-            errors.append(
-                PreflightIssue(
-                    check=PreflightCheck.OUT_OF_PERIOD,
-                    message=(
-                        f"会計期間 [{year.start_date}〜{year.end_date}] 外の日付を持つ posted 仕訳です: "
-                        f"{_entry_ref(entry)}"
-                    ),
-                    entry_id=entry.id,
-                    voucher_no=entry.voucher_no,
-                    entry_date=entry.entry_date,
-                )
+    # 2. 会計期間外の posted 仕訳 — どの会計年度にも属さない孤児だけを error に。
+    #    対象 FY の窓だけで判定すると他年度の正当な仕訳まで誤検知する (#170 review)。いずれの
+    #    fiscal_years 期間にも入らない posted 仕訳を DB 側で絞り込むので、全 posted は読み込まない。
+    for orphan in _orphan_posted_entries(conn):
+        errors.append(
+            PreflightIssue(
+                check=PreflightCheck.OUT_OF_PERIOD,
+                message=(
+                    f"どの会計年度の会計期間にも属さない posted 仕訳です (会計期間外): {_row_ref(orphan)}"
+                ),
+                entry_id=orphan["id"],
+                voucher_no=orphan["voucher_no"],
+                entry_date=orphan["entry_date"],
             )
-        else:
-            posted_months.add(entry.entry_date.replace(day=1))
+        )
 
     # 3. 決算書 → KOA210 マッピングの dry-run — 検証エラーは全件 error に。
     financial_statements = LedgerRepository(conn).financial_statements(
@@ -180,6 +179,7 @@ def filing_preflight(conn: psycopg.Connection[Any], *, fiscal_year: str) -> Pref
             )
 
     # 4. posted 仕訳が 1 件も無い月 → warning (休業月は正当なので止めない)。
+    posted_months = _posted_months(conn, start=year.start_date, end=year.end_date)
     for window in month_windows(year.start_date, year.end_date):
         if window.month_start not in posted_months:
             warnings.append(
@@ -227,8 +227,56 @@ def _all_entries(journals: JournalRepository, **filters: Any) -> list[JournalEnt
     return entries
 
 
+def _orphan_posted_entries(conn: psycopg.Connection[Any]) -> list[dict[str, Any]]:
+    """どの ``fiscal_years`` 期間にも入らない posted 仕訳 (孤児) を取得する (会計期間外検出)。
+
+    対象 FY の窓で判定すると他年度の正当な仕訳まで誤検知する (#170 review) ため、いずれの会計年度
+    にも属さない孤児だけを ``NOT EXISTS`` で絞る。返るのは孤児のみなので件数が増えてもメモリ安全。
+    呼び出し側の row factory に依らず id/伝票番号/日付を引けるよう ``dict_row`` で読む。
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT je.id, je.voucher_no, je.entry_date
+            FROM journal_entries je
+            WHERE je.status = 'posted'::entry_status
+              AND NOT EXISTS (
+                  SELECT 1 FROM fiscal_years fy
+                  WHERE je.entry_date BETWEEN fy.start_date AND fy.end_date
+              )
+            ORDER BY je.entry_date, je.id
+            """
+        )
+        return cur.fetchall()
+
+
+def _posted_months(conn: psycopg.Connection[Any], *, start: date, end: date) -> set[date]:
+    """``[start, end]`` 内に posted 仕訳がある月の月初日の集合を返す (空の月検出用)。
+
+    月ごとの有無だけを DB 側で ``DISTINCT`` 集約するので、対象期間の全仕訳を読み込まない。
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT DISTINCT date_trunc('month', je.entry_date)::date AS month_start
+            FROM journal_entries je
+            WHERE je.status = 'posted'::entry_status
+              AND je.entry_date BETWEEN %(start)s AND %(end)s
+            """,
+            {"start": start, "end": end},
+        )
+        return {row["month_start"] for row in cur.fetchall()}
+
+
 def _entry_ref(entry: JournalEntry) -> str:
     """ログ/メッセージ用の仕訳参照 — 伝票番号があれば優先、無ければ id と日付。"""
     if entry.voucher_no:
         return f"{entry.voucher_no} ({entry.entry_date})"
     return f"id={entry.id} ({entry.entry_date})"
+
+
+def _row_ref(row: dict[str, Any]) -> str:
+    """SQL 行 (id/voucher_no/entry_date) からメッセージ用の仕訳参照を組み立てる。"""
+    if row["voucher_no"]:
+        return f"{row['voucher_no']} ({row['entry_date']})"
+    return f"id={row['id']} ({row['entry_date']})"
