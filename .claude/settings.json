@@ -40,7 +40,7 @@
       "Bash(rm -rf:*)",
       "Bash(git push --force)",
       "Bash(git push --force:*)",
-      "Bash(git push:* --force)",
+      "Bash(git push * --force*)",
       "Bash(docker compose down --volumes)",
       "Bash(docker compose down --volumes:*)",
       "Bash(docker compose down -v)",
