@@ -47,7 +47,8 @@ from ai_books.models import DomainModel, EntryStatus
 if TYPE_CHECKING:
     import psycopg
 
-    from ai_books.models import JournalEntry
+    from ai_books.models import EtaxExport, FinancialStatements, FiscalYear, JournalEntry
+
 
 #: void 済仕訳がこの件数以上あれば「多発」の参考 warning を 1 件出す (申告は止めない)。
 #: 取消は通常運用でも起きうるので閾値方式にして恒常的なノイズを避ける。
@@ -122,10 +123,67 @@ def filing_preflight(conn: psycopg.Connection[Any], *, fiscal_year: str) -> Pref
 
     どのチェックも最初の不備で止めず、全件を集めて :class:`PreflightReport` に返す。
     """
+    year = _resolve_fiscal_year(conn, fiscal_year)
+    statements = _posted_financial_statements(conn, year)
+    _export, report = _preflight_report(conn, year, statements, version=LATEST_ETAX_VERSION)
+    return report
+
+
+def _resolve_fiscal_year(conn: psycopg.Connection[Any], fiscal_year: str) -> FiscalYear:
+    """会計年度を解決する — 未登録なら :class:`~ai_books.errors.RecordNotFoundError`。"""
     year = FiscalYearRepository(conn).get_by_name(fiscal_year)
     if year is None:
         raise RecordNotFoundError("fiscal_year", fiscal_year)
+    return year
 
+
+def _posted_financial_statements(
+    conn: psycopg.Connection[Any], year: FiscalYear
+) -> FinancialStatements:
+    """``year`` の posted のみの決算書を 1 回だけ生成する (マッピング検証と XSD レンダリングで共有)。"""
+    return LedgerRepository(conn).financial_statements(
+        fiscal_year=year.name,
+        start=year.start_date,
+        end=year.end_date,
+        status=EntryStatus.POSTED,
+    )
+
+
+def _mapping_dry_run(
+    statements: FinancialStatements, *, version: str
+) -> tuple[EtaxExport | None, list[PreflightIssue]]:
+    """決算書 → KOA210 マッピングの dry-run。成功なら ``(export, [])``、失敗なら ``(None, problems)``。
+
+    成功時に組み立てた :class:`~ai_books.models.EtaxExport` を返すので、呼び出し側 (:func:`run_etax_preflight`)
+    は XSD レンダリングのために build し直さずに使い回せる (重複した DB アクセス・build を排除, #176 review)。
+    """
+    try:
+        return build_etax_export(statements, version=version), []
+    except EtaxValidationError as exc:
+        return None, [
+            PreflightIssue(
+                check=PreflightCheck.ETAX_MAPPING,
+                message=problem["message"],
+                item_code=problem.get("item_code"),
+                row=problem.get("row"),
+            )
+            for problem in exc.problems
+        ]
+
+
+def _preflight_report(
+    conn: psycopg.Connection[Any],
+    year: FiscalYear,
+    statements: FinancialStatements,
+    *,
+    version: str,
+) -> tuple[EtaxExport | None, PreflightReport]:
+    """``year`` の全データチェック + マッピング dry-run を実行して ``(built export | None, report)`` を返す。
+
+    ``filing_preflight`` (純粋な report 層) と ``run_etax_preflight`` (XSD 込みの tool 層) の共通本体。
+    ``year`` / ``statements`` は呼び出し側で 1 回だけ解決・生成して渡すので、両層で二重に DB を引かない。
+    返す export は、マッピングが成功したとき (= report に ETAX_MAPPING error が無いとき) のみ非 ``None``。
+    """
     journals = JournalRepository(conn)
     errors: list[PreflightIssue] = []
     warnings: list[PreflightIssue] = []
@@ -160,25 +218,9 @@ def filing_preflight(conn: psycopg.Connection[Any], *, fiscal_year: str) -> Pref
             )
         )
 
-    # 3. 決算書 → KOA210 マッピングの dry-run — 検証エラーは全件 error に。
-    financial_statements = LedgerRepository(conn).financial_statements(
-        fiscal_year=year.name,
-        start=year.start_date,
-        end=year.end_date,
-        status=EntryStatus.POSTED,
-    )
-    try:
-        build_etax_export(financial_statements)
-    except EtaxValidationError as exc:
-        for problem in exc.problems:
-            errors.append(
-                PreflightIssue(
-                    check=PreflightCheck.ETAX_MAPPING,
-                    message=problem["message"],
-                    item_code=problem.get("item_code"),
-                    row=problem.get("row"),
-                )
-            )
+    # 3. 決算書 → KOA210 マッピングの dry-run — 検証エラーは全件 error に。export は成功時のみ返る。
+    export, mapping_issues = _mapping_dry_run(statements, version=version)
+    errors.extend(mapping_issues)
 
     # 4. posted 仕訳が 1 件も無い月 → warning (休業月は正当なので止めない)。
     posted_months = _posted_months(conn, start=year.start_date, end=year.end_date)
@@ -204,13 +246,14 @@ def filing_preflight(conn: psycopg.Connection[Any], *, fiscal_year: str) -> Pref
             )
         )
 
-    return PreflightReport(
+    report = PreflightReport(
         fiscal_year=year.name,
         start_date=year.start_date,
         end_date=year.end_date,
         errors=errors,
         warnings=warnings,
     )
+    return export, report
 
 
 def _all_entries(journals: JournalRepository, **filters: Any) -> list[JournalEntry]:
@@ -338,11 +381,15 @@ def run_etax_preflight(
        ``.xsd`` で形式検証する。schema 未取得 / ``xmlschema`` 未導入 / そもそも未要求 のときは *fail せず*
        :class:`XsdValidation` を ``skipped`` (理由つき) で返す。検証**失敗**のみ ``error``。
 
-    未登録の ``fiscal_year`` は :func:`filing_preflight` が
+    未登録の ``fiscal_year`` は :func:`_resolve_fiscal_year` が
     :class:`~ai_books.errors.RecordNotFoundError` を送出する。
     """
-    report = filing_preflight(conn, fiscal_year=fiscal_year)
-    xsd_result = _xsd_validation(report, conn, form_version=form_version, validate_xsd=validate_xsd)
+    # year / 決算書 / export を 1 回だけ解決・生成して両段 (データ検証 + XSD) で共有する。これで
+    # validate_xsd=True の成功パスでも DB クエリ・build_etax_export が二重に走らない (#176 review)。
+    year = _resolve_fiscal_year(conn, fiscal_year)
+    statements = _posted_financial_statements(conn, year)
+    export, report = _preflight_report(conn, year, statements, version=form_version)
+    xsd_result = _xsd_validation(report, export, validate_xsd=validate_xsd)
     return EtaxPreflightResult(
         fiscal_year=report.fiscal_year,
         start_date=report.start_date,
@@ -356,37 +403,29 @@ def run_etax_preflight(
 
 def _xsd_validation(
     report: PreflightReport,
-    conn: psycopg.Connection[Any],
+    export: EtaxExport | None,
     *,
-    form_version: str,
     validate_xsd: bool,
 ) -> XsdValidation:
-    """生成 .xtx を公式 .xsd で検証する最終段 — 実行不能/未要求は ``skipped`` (理由つき)、失敗のみ ``error``。"""
+    """生成 .xtx を公式 .xsd で検証する最終段 — 実行不能/未要求は ``skipped`` (理由つき)、失敗のみ ``error``。
+
+    ``export`` はマッピング dry-run が成功したときの :class:`~ai_books.models.EtaxExport` を使い回す
+    (XSD 用に build し直さない)。report に error が無ければマッピングも成功しているので ``export`` は非 None。
+    """
     if not validate_xsd:
         return XsdValidation(
             status="skipped", reason="XSD 検証は要求されていません (validate_xsd=False)。"
         )
-    if report.errors:
+    if report.errors or export is None:
         # preflight が error → .xtx を生成しても申告には使えない。形式検証より先にデータを直す。
         return XsdValidation(
             status="skipped",
             reason="preflight が error を検出したため .xtx を生成せず、XSD 検証はスキップしました。",
         )
 
-    # error なし → 申告に渡る .xtx をメモリ上に組み立てて公式 .xsd で形式検証する。
-    year = FiscalYearRepository(conn).get_by_name(report.fiscal_year)
-    assert year is not None  # filing_preflight が解決済 (未登録なら既に RecordNotFoundError)
-    statements = LedgerRepository(conn).financial_statements(
-        fiscal_year=year.name,
-        start=year.start_date,
-        end=year.end_date,
-        status=EntryStatus.POSTED,
-    )
-    # No profile header here: the mapping dry-run above (build_etax_export) used none, so validating
-    # the same no-profile export keeps the two stages consistent and keeps the report layer off
-    # ~/.ai-books. The 申告者ヘッダ平文セル (#160) is supplied at actual export time (export_etax) and
-    # is optional in the 様式, so a header-less .xtx is still 形式妥当 — what XSD here checks.
-    export = build_etax_export(statements, version=form_version)
+    # error なし → マッピング済 export (profile header 無し: dry-run と同条件で report 層を ~/.ai-books から
+    # 切り離す。申告者ヘッダ平文セル #160 は実 export 時に供給され様式上も任意なので header-less でも 形式妥当)
+    # をそのまま .xtx にレンダリングして公式 .xsd で形式検証する。
     xtx = render_etax_xtx(export)
 
     form_id = form_id_of(xtx)
