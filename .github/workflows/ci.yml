@@ -197,6 +197,61 @@ jobs:
         run: npm run verify:golden
         working-directory: web
 
+  web-e2e:
+    name: Web viewer E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    # Browser smoke + fail-closed auth gate for the read-only viewer (#162). The golden
+    # cross-check proves the *numbers*; this proves the orthogonal thing it cannot — that
+    # every screen actually renders and that an unauthenticated / non-allowlisted visitor
+    # never sees data. Auth is exercised against REAL Supabase Auth (GoTrue) via a local
+    # `supabase start` stack — there is NO test-only auth bypass (AGENTS.md invariant #1 /
+    # ADR-0008 fail-closed). `scripts/test.sh --e2e` owns the whole flow (start → seed →
+    # build → Playwright), so local and CI run byte-for-byte the same harness.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Boots the local Supabase stack (GoTrue auth + Postgres), seeds it, builds + serves
+      # the production viewer, installs Chromium (+ OS deps), and runs the Playwright smoke
+      # + fail-closed auth specs — all inside scripts/test.sh --e2e.
+      - name: E2E (supabase start + Playwright)
+        run: bash scripts/test.sh --e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          if-no-files-found: warn
+
   pooler:
     name: Supabase pooler (pgbouncer) safety
     runs-on: ubuntu-latest
