@@ -15,6 +15,15 @@ default_language_version:
 repos:
   - repo: local
     hooks:
+      - id: lint-claude-settings
+        name: lint Claude settings permission rules
+        # Invalid rules (e.g. ":*" not at the end) are silently skipped by
+        # Claude Code, weakening deny lists and blocking unattended sessions
+        # on an interactive Settings Warning prompt at startup.
+        entry: python scripts/lint_claude_settings.py
+        language: python
+        files: ^\.claude/settings.*\.json$
+
       - id: sync-web-etax-layouts
         name: sync web e-Tax layout JSONs
         entry: python scripts/etax/sync_web_layouts.py
