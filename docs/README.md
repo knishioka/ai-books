@@ -21,6 +21,7 @@ Supabase/Postgres = 保管 · Vercel = read-only ビュー)。文書は **人間
 | [docs/etax/aoiro-65man-requirements.md](./etax/aoiro-65man-requirements.md) | 65万円控除 / 優良電子帳簿の要件 (令和7年分)                                | ドメイン要件      |
 | [docs/etax/handoff-runbook.md](./etax/handoff-runbook.md)                   | e-Tax 引き継ぎ runbook・手動取込の受け入れ手順 (WEB版)                     | 運用手順          |
 | [docs/remote/deploy-runbook.md](./remote/deploy-runbook.md)                 | MCP の Web リモート公開 + Claude 接続 runbook (現在は #142 により保留・再開用参照) | 運用手順          |
+| [docs/ops/prod-smoke.md](./ops/prod-smoke.md)                               | 本番 viewer の日次スモーク (モード切替・失敗時の自動起票) の運用手順 (#167) | 運用手順          |
 
 > 製品ゴールは **青色申告決算書 + e-Tax 取込データの出力** まで。税額計算・申告そのものは
 > 下流ツールの担当 (README の Non-goals 参照)。

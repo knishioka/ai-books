@@ -1,0 +1,80 @@
+# Post-deploy production smoke for the read-only viewer (#167).
+#
+# CI being green does not prove the deployed Vercel viewer works: prod can break via env-var
+# drift, viewer_ro grant drift, or Supabase Auth config changes. This job probes the live
+# deployment daily (and on demand) with scripts/prod_smoke/check.sh and opens a de-duplicated
+# GitHub issue on failure. Notification is issue-only by design (GITHUB_TOKEN suffices).
+#
+# Mode (PROD_SMOKE_MODE repo variable): `public` while the deployment intentionally runs the
+# public sample mode (synthetic data, AI_BOOKS_VIEWER_PUBLIC=true); switch to `gated` when the
+# single-user auth gate is enabled. The script defaults to gated (fail-closed) if the variable
+# is lost. Log safety: the script prints statuses/markers only — never response bodies.
+name: prod-smoke
+
+on:
+  schedule:
+    # Daily, 20:23 UTC (= 05:23 JST) — off-peak for the viewer's audience.
+    - cron: "23 20 * * *"
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Force a failing check (exercise the issue-creation path)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Print the intended issue without creating it"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: prod-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Probe production viewer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run smoke checks
+        env:
+          BASE_URL: ${{ secrets.PROD_SMOKE_BASE_URL }}
+          MODE: ${{ vars.PROD_SMOKE_MODE }}
+          SIMULATE_FAILURE: ${{ inputs.simulate_failure && '1' || '' }}
+          SUMMARY: ${{ runner.temp }}/prod-smoke-summary.md
+        run: bash scripts/prod_smoke/check.sh
+
+      - name: Open issue on failure (de-duplicated by title)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          SUMMARY: ${{ runner.temp }}/prod-smoke-summary.md
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="ops(web): production smoke failed — 要調査"
+          if [ -s "$SUMMARY" ]; then
+            body=$(cat "$SUMMARY")
+          else
+            body="本番スモーク (#167) が失敗しましたが、サマリが生成されていません (script 異常終了 / secret 未設定の可能性)。"
+          fi
+          body="$(printf '%s\n\n失敗 run: %s\n\n🤖 prod-smoke workflow (#167) による自動起票' "$body" "$RUN_URL")"
+          open_titles=$(gh issue list --state open --limit 300 --json title --jq '.[].title')
+          if grep -Fxq "$title" <<<"$open_titles"; then
+            echo "skip (既存 open issue あり): ${title}"
+            exit 0
+          fi
+          if [ -n "$DRY_RUN" ]; then
+            echo "DRY-RUN would create: ${title}"
+            printf '%s\n' "$body"
+            exit 0
+          fi
+          gh issue create --title "$title" --body "$body" --label "track:web" --label "layer:infra"
+          echo "created: ${title}"
