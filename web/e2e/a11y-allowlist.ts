@@ -73,11 +73,19 @@ export function parseAllowlist(raw: unknown): A11yAllowEntry[] {
 }
 
 /** Read and validate `a11y-allowlist.json`. The file is `{ "entries": [...] }`. */
+let cachedAllowlist: A11yAllowEntry[] | null = null;
+
 export function loadAllowlist(): A11yAllowEntry[] {
+  // The file never changes during a test run; cache it so the per-screen scans don't each pay a
+  // synchronous readFileSync.
+  if (cachedAllowlist !== null) {
+    return cachedAllowlist;
+  }
   const root = JSON.parse(readFileSync(ALLOWLIST_PATH, "utf8")) as {
     entries?: unknown;
   };
-  return parseAllowlist(root.entries ?? []);
+  cachedAllowlist = parseAllowlist(root.entries ?? []);
+  return cachedAllowlist;
 }
 
 /** Serialize an axe `node.target` (possibly nested for frames/shadow DOM) to a stable string. */
@@ -85,19 +93,19 @@ function serializeTarget(target: NodeResult["target"]): string {
   return target.flat(Infinity).join(" ");
 }
 
-/** True when this violation node is covered by an allowlist entry for the same rule. */
+/**
+ * True when this violation node is covered by an allowlist entry for the same rule. Matching is an
+ * **exact** comparison against the serialized target — never a substring/`includes` of the target
+ * parts, which would let a frame/ancestor selector silently allow *every* same-rule violation
+ * beneath it and hollow out the gate. One entry tolerates exactly one node, by design.
+ */
 function isNodeAllowed(
   ruleId: string,
   node: NodeResult,
   allow: A11yAllowEntry[],
 ): boolean {
   const serialized = serializeTarget(node.target);
-  const parts = node.target.flat(Infinity).map(String);
-  return allow.some(
-    (e) =>
-      e.ruleId === ruleId &&
-      (e.selector === serialized || parts.includes(e.selector)),
-  );
+  return allow.some((e) => e.ruleId === ruleId && e.selector === serialized);
 }
 
 /**
