@@ -53,8 +53,11 @@ mapping (documented in #76 ``snapshot_mapping.json``) and how this spec resolves
     (差引金額２→所得 の残差 = 非居場所 営業外 net。様式上は 各種引当金 欄が埋めるべき差で、本実装は空欄)。
   営業外の段を独立に持つ 様式/年度 が要るときは、その様式専用の spec を別途登録する。
 * **ヘッダ必須メタ (元号/年分・住所/氏名・提出年月日・業種名…) と BS 期首列** are not in the
-  snapshot; this spec focuses on **value mapping** (#78) and leaves those 任意欄 empty. 形式
-  (.xsd) 妥当性は #79.
+  snapshot; this spec focuses on **value mapping** (#78). The 申告者ヘッダの **平文セル** (住所
+  AMB00010 / 事業所所在地 AMB00050 / 加入団体名 AMB00110) are supplied from a local profile in
+  #160 (:mod:`ai_books.etax.profile`), prepended to the export outside this spec. 氏名/フリガナ/
+  業種名/屋号 (`gen:*ref` IDREF) ・電話 (複合型) は様式内に平文セルが無く e-Tax ソフト利用者情報側の
+  ため対象外。残りの 任意欄 (元号/提出年月日 等) は空欄のまま。形式 (.xsd) 妥当性は #79.
 
 The earlier *synthetic* (非公式・教育用) layout is kept off the 年度 axis under the
 ``"synthetic"`` version key so its mapping/validation/golden machinery still runs without being

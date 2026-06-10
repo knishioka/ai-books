@@ -41,6 +41,14 @@ from .preflight import (
     PreflightReport,
     filing_preflight,
 )
+from .profile import (
+    HEADER_FIELDS,
+    EtaxHeaderField,
+    EtaxProfile,
+    load_etax_profile,
+    profile_header_records,
+    profile_path,
+)
 from .spec import (
     ETAX_FORMAT_SPECS,
     LATEST_AGRICULTURAL_VERSION,
@@ -58,6 +66,7 @@ from .spec import (
 
 __all__ = [
     "ETAX_FORMAT_SPECS",
+    "HEADER_FIELDS",
     "LATEST_AGRICULTURAL_VERSION",
     "LATEST_ETAX_VERSION",
     "LATEST_REAL_ESTATE_VERSION",
@@ -67,6 +76,8 @@ __all__ = [
     "EtaxFixedSection",
     "EtaxFormat",
     "EtaxFormatSpec",
+    "EtaxHeaderField",
+    "EtaxProfile",
     "EtaxScalarField",
     "EtaxSection",
     "EtaxSectionField",
@@ -82,7 +93,10 @@ __all__ = [
     "form_layout",
     "get_format_spec",
     "koa210_layout",
+    "load_etax_profile",
     "parse_etax_format",
+    "profile_header_records",
+    "profile_path",
     "render_etax",
     "render_etax_csv",
     "render_etax_xml",
