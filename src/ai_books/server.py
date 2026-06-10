@@ -51,6 +51,7 @@ from ai_books.errors import AiBooksError, RecordNotFoundError
 from ai_books.etax import (
     LATEST_ETAX_VERSION,
     build_etax_export,
+    load_etax_profile,
     parse_etax_format,
     render_etax,
 )
@@ -491,6 +492,10 @@ def export_etax(
     returns a ``ToolError`` whose JSON payload lists every problem. ``'xtx'`` requires the real 様式
     (``format_version='2025'`` → KOA210). Errors if the fiscal year or version is unknown.
 
+    申告者ヘッダの平文セル (住所 / 事業所所在地 / 加入団体名) は ``~/.ai-books/etax/profile.toml``
+    (環境変数 ``AI_BOOKS_ETAX_PROFILE`` で上書き可) があれば自動供給する (Issue #160)。未設定なら従来
+    通り空欄。氏名・屋号・電話 等は様式上 e-Tax ソフトの利用者情報側が持つため対象外 (docs/etax 参照)。
+
     注意: 生成物は事業者の確定数値を含むため、ファイルに保存する場合もリポジトリにはコミットしない
     こと (運用は README 参照)。
     """
@@ -506,7 +511,7 @@ def export_etax(
             status=EntryStatus.POSTED,
         )
     try:
-        export = build_etax_export(statements, version=format_version)
+        export = build_etax_export(statements, version=format_version, profile=load_etax_profile())
     except AiBooksError as exc:
         raise _tool_error(exc) from exc
     return render_etax(export, output_format)

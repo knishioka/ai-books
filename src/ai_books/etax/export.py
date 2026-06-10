@@ -49,6 +49,7 @@ from ai_books.reports import (
     real_estate_income_snapshot,
 )
 
+from .profile import EtaxProfile, profile_header_records
 from .spec import (
     LATEST_AGRICULTURAL_VERSION,
     LATEST_ETAX_VERSION,
@@ -142,7 +143,10 @@ def _render_amount(text: str, max_int_digits: int) -> tuple[str | None, str | No
 
 
 def build_etax_export(
-    financial_statements: FinancialStatements, *, version: str = LATEST_ETAX_VERSION
+    financial_statements: FinancialStatements,
+    *,
+    version: str = LATEST_ETAX_VERSION,
+    profile: EtaxProfile | None = None,
 ) -> EtaxExport:
     """Map a 青色申告決算書(一般用) to e-Tax records under the ``version`` 様式, validating every 項目.
 
@@ -152,17 +156,24 @@ def build_etax_export(
     with the full list (no partial export is returned). Otherwise returns the ordered
     :class:`~ai_books.models.EtaxExport`.
 
+    ``profile`` (Issue #160) supplies the 申告者ヘッダ平文セル (住所 / 事業所所在地 / 加入団体名): when
+    given for a real KOA210 export its validated header records are prepended. ``profile=None`` (the
+    default) leaves the header 空欄 — byte-identical to before, so the golden harness stays hermetic
+    (it never reads ``~/.ai-books/``). Auto-loading from disk happens only at the MCP boundary
+    (``server.py``), not in this pure library function.
+
     This is the KOA210(一般用) entry. KOA220(不動産所得用) / KOA240(農業所得用) read a different
     収入側 snapshot, so they have their own entries (:func:`build_real_estate_etax_export` /
     :func:`build_agricultural_etax_export`); the engine below is shared, only the snapshot differs.
     """
-    return _build_export(
+    export = _build_export(
         get_format_spec(version),
         financial_statements_snapshot(financial_statements),
         fiscal_year=financial_statements.fiscal_year,
         start_date=financial_statements.start_date,
         end_date=financial_statements.end_date,
     )
+    return _with_profile_header(export, profile)
 
 
 def build_real_estate_etax_export(
@@ -200,6 +211,26 @@ def build_agricultural_etax_export(
         start_date=agricultural_income.start_date,
         end_date=agricultural_income.end_date,
     )
+
+
+def _with_profile_header(export: EtaxExport, profile: EtaxProfile | None) -> EtaxExport:
+    """Prepend the 申告者ヘッダ records from ``profile`` — only onto a real KOA210 export (#160).
+
+    Header 項目コード (AMB00010 等) live only in the KOA210 様式, so headers are stamped only when the
+    export's records already fit KOA210 (the same disjoint-コード superset test
+    :func:`_select_layout` uses). That excludes the synthetic / KOA220 / KOA240 paths. ``profile is
+    None`` is a no-op (空欄のまま — golden byte-不変)。An empty profile emits nothing; an invalid value
+    raises :class:`~ai_books.errors.EtaxValidationError` (全件報告)。
+    """
+    if profile is None:
+        return export
+    codes = {record.item_code for record in export.records}
+    if not codes or not codes <= _form_codes("KOA210"):
+        return export
+    header = profile_header_records(profile)
+    if not header:
+        return export
+    return export.model_copy(update={"records": [*header, *export.records]})
 
 
 def _build_export(
@@ -899,10 +930,15 @@ def export_etax(
     *,
     fmt: EtaxFormat = EtaxFormat.CSV,
     version: str = LATEST_ETAX_VERSION,
+    profile: EtaxProfile | None = None,
 ) -> str:
     """決算書 → e-Tax 取込データ in one call: build + validate + render to ``fmt``.
 
-    Raises :class:`~ai_books.errors.EtaxValidationError` if the 決算書 maps to invalid output, or
-    ``ValueError`` if ``version`` is unknown.
+    ``profile`` (Issue #160) supplies the 申告者ヘッダ平文セル on a real KOA210 export; ``None`` leaves
+    the header 空欄. This is a pure function — it does not read ``~/.ai-books/`` (auto-loading lives at
+    the MCP boundary). Raises :class:`~ai_books.errors.EtaxValidationError` if the 決算書 or a header
+    value maps to invalid output, or ``ValueError`` if ``version`` is unknown.
     """
-    return render_etax(build_etax_export(financial_statements, version=version), fmt)
+    return render_etax(
+        build_etax_export(financial_statements, version=version, profile=profile), fmt
+    )
