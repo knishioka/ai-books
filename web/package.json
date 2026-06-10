@@ -17,7 +17,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify:golden": "tsx scripts/verify-golden.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:visual": "bash scripts/visual-docker.sh",
+    "e2e:visual:update": "bash scripts/visual-docker.sh --update-snapshots"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
