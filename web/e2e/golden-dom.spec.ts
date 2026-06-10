@@ -20,23 +20,33 @@ test.use({ storageState: OWNER_STORAGE_STATE });
 
 const FY = "FY2025";
 
-/** The report row whose 科目名 / 見出し (its `<th scope="row">`) is exactly `rowheader`. */
-function reportRow(page: Page, rowheader: string): Locator {
-  return page
-    .getByRole("row")
-    .filter({
-      has: page.getByRole("rowheader", { name: rowheader, exact: true }),
-    });
+/**
+ * The report row whose 科目名 / 見出し (its `<th scope="row">`) is exactly `rowheader`.
+ *
+ * Pass `container` to scope the search to one table / 面 when a label (e.g. 「合計」) can repeat
+ * across a multi-table page — without it Playwright's strict mode would fault on the ambiguous match
+ * rather than assert. Defaults to the whole page for the single-table screens where each 見出し is
+ * already unique.
+ */
+function reportRow(
+  page: Page,
+  rowheader: string,
+  container?: Locator,
+): Locator {
+  return (container ?? page).getByRole("row").filter({
+    has: page.getByRole("rowheader", { name: rowheader, exact: true }),
+  });
 }
 
-/** Assert the row headed `rowheader` shows `amount` (a fixed-point golden string) as a figure. */
+/** Assert the row headed `rowheader` (optionally within `container`) shows `amount` as a figure. */
 async function expectRowFigure(
   page: Page,
   rowheader: string,
   amount: string,
+  container?: Locator,
 ): Promise<void> {
   await expect(
-    reportRow(page, rowheader),
+    reportRow(page, rowheader, container),
     `row 「${rowheader}」 should show ${formatAmount(amount)}`,
   ).toContainText(formatAmount(amount));
 }
@@ -130,8 +140,12 @@ test("青色申告決算書プレビュー shows golden figures across its 面",
 
   // 1面 損益計算書: 売上高 計.
   await expectRowFigure(page, "売上高 計", fs.profit_and_loss.sales.subtotal);
-  // 2面 月別: the 合計 footer carries 仕入金額合計.
-  await expectRowFigure(page, "合計", fs.monthly.purchases_total);
+  // 2面 月別: the 合計 footer carries 仕入金額合計. 「合計」 is the one 見出し that could repeat as
+  // more 面 are added, so scope the lookup to this 面 rather than the whole page.
+  const monthlyFace = page
+    .locator("section.statement-face")
+    .filter({ has: page.getByRole("heading", { level: 2, name: /月別売上/ }) });
+  await expectRowFigure(page, "合計", fs.monthly.purchases_total, monthlyFace);
   // 3面 減価償却費: 本年分の償却費 合計.
   await expectRowFigure(
     page,
