@@ -171,6 +171,12 @@ CONTRACT: dict[str, dict[str, Any]] = {
         "types": {"fiscal_year": "string", "format": "string", "format_version": "string"},
         "output": "scalar",
     },
+    "etax_preflight": {
+        "required": ["fiscal_year"],
+        "props": ["fiscal_year", "form_version", "validate_xsd"],
+        "types": {"fiscal_year": "string", "form_version": "string", "validate_xsd": "boolean"},
+        "output": "object",
+    },
     "create_journal_entry": {
         "required": ["entry"],
         "props": ["entry", "actor"],
@@ -560,3 +566,33 @@ async def test_etax_validation_error_is_tool_error_with_details(
     assert payload["error"] == "etax_validation_error"
     assert isinstance(payload["details"], list)
     assert payload["details"]
+
+
+@requires_db
+async def test_etax_preflight_ok_crosses_protocol_as_structured_result(
+    mcp_client: Client[Any], patched_connect: None, seed: _Seed
+) -> None:
+    # Happy path over the wire (#163): the seeded whole-yen FY2026 book is 申告可 and the tool
+    # returns a structured EtaxPreflightResult (status "ok"); XSD is skipped (validate_xsd default).
+    result = await mcp_client.call_tool("etax_preflight", {"fiscal_year": "FY2026"})
+    assert not result.is_error
+    data = result.structured_content
+    assert data is not None
+    assert data["status"] == "ok"
+    assert data["errors"] == []
+    assert data["xsd_result"]["status"] == "skipped"
+
+
+@requires_db
+async def test_etax_preflight_unknown_fiscal_year_payload_is_not_found(
+    mcp_client: Client[Any], patched_connect: None, seed: _Seed
+) -> None:
+    # Error contract (#163): an unknown fiscal year surfaces as a ToolError carrying the stable
+    # not_found payload (entity/key), the structure an agent parses to recover.
+    with pytest.raises(ToolError) as excinfo:
+        await mcp_client.call_tool("etax_preflight", {"fiscal_year": "FY1999"})
+
+    payload = _payload(excinfo)
+    assert payload["error"] == "not_found"
+    assert payload["entity"] == "fiscal_year"
+    assert payload["key"] == "FY1999"
