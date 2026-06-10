@@ -244,12 +244,22 @@ jobs:
       - name: E2E (supabase start + Playwright)
         run: bash scripts/test.sh --e2e
 
+      # Visual regression for the 決算書 preview + print layout (#165). Pixel comparison is
+      # platform-bound, so it runs inside the pinned `mcr.microsoft.com/playwright` container —
+      # the SAME environment that produced the committed baselines — reaching the still-running
+      # Supabase stack from the prior step via host.docker.internal. The host-native step above
+      # never runs the `visual` project (it is gated behind PLAYWRIGHT_VISUAL, set only here).
+      - name: Visual regression (Playwright container)
+        run: bash web/scripts/visual-docker.sh
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: web/playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
           if-no-files-found: warn
 
   pooler:

@@ -149,6 +149,38 @@ cd web && npx playwright test    # reuses the running dev/prod server (see playw
 
 CI runs the identical harness in the `web-e2e` job.
 
+### Visual regression (決算書 preview + print layout)
+
+`e2e/visual.spec.ts` pins the **layout** of the 青色申告決算書 preview (`/statements`) and two
+representative reports (試算表 / 損益計算書) with Playwright's `toHaveScreenshot` — including the
+`@media print` rules in `globals.css`, captured via `emulateMedia({ media: "print" })` (issue #165).
+The golden cross-check owns the _numbers_ and the smoke specs own _does-it-render_; this owns _does
+the layout silently break_, the only mechanical guard before a 崩れた preview reaches a printed 提出資料.
+Only the synthetic `seed_fy` fixture is ever captured — never real 確定数値.
+
+Pixel baselines are **platform-bound**: macOS font rendering differs from Linux, so a baseline
+generated on a Mac would mismatch CI forever. The `visual` project is therefore **gated behind
+`PLAYWRIGHT_VISUAL=1`** and only ever runs **inside the pinned `mcr.microsoft.com/playwright`
+container** — the same Linux environment, locally and in CI's `web-e2e` job — so the committed
+`*-linux.png` baselines always match. A bare `npx playwright test` (e.g. on macOS) skips it entirely.
+
+Prerequisite: a running local Supabase stack (`supabase start`). From `web/`:
+
+```bash
+npm run e2e:visual          # compare against the committed baselines (what CI runs)
+npm run e2e:visual:update   # (re)create baselines after an INTENTIONAL layout change
+```
+
+`e2e:visual:update` is also how you bootstrap the baselines; **review the regenerated PNGs by eye**
+before committing — a screenshot test can only prove the layout has not changed, never that the
+captured layout is correct. The script seeds the fixture on the host, then builds + serves the
+viewer and drives Chromium inside the container (reaching the host stack via `host.docker.internal`).
+
+The container's `node_modules` and Next build cache live in **persistent named volumes**
+(`ai-books-web-node_modules`, `ai-books-web-next`) so repeat runs skip a cold reinstall + build —
+isolated from the host tree, so no darwin/Linux binary clash. Reset them with
+`docker volume rm ai-books-web-node_modules ai-books-web-next` if a build ever goes stale.
+
 ## Deploying to Vercel
 
 1. Create a Vercel project linked to this repo and set **Root Directory** to `web`.
